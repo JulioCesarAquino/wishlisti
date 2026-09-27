@@ -4,12 +4,15 @@ namespace App\Filament\Resources\Events\Events\Pages;
 
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
+use App\Filament\Support\SafeDeleteBulkAction;
+use App\Models\Catalog\EventProduct;
 use App\Models\Catalog\ProductTemplate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,7 +25,10 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ManageEventProducts extends ManageRelatedRecords
 {
@@ -102,6 +108,7 @@ class ManageEventProducts extends ManageRelatedRecords
     {
         return $table
             ->recordTitleAttribute('name')
+            ->modifyQueryUsing(fn (Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
                 ImageColumn::make('image')
                     ->label(''),
@@ -133,7 +140,7 @@ class ManageEventProducts extends ManageRelatedRecords
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                TrashedFilter::make()->label('Lixeira'),
             ])
             ->headerActions([
                 CreateAction::make()
@@ -141,11 +148,22 @@ class ManageEventProducts extends ManageRelatedRecords
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->label('Mover para a lixeira')
+                    ->modalDescription('O presente fica 30 dias na lixeira e pode ser restaurado nesse período.')
+                    ->disabled(fn (EventProduct $record): bool => $record->hasOrders())
+                    ->tooltip(fn (EventProduct $record): ?string => $record->hasOrders()
+                        ? 'Este presente já está em pedidos e não pode ser excluído. Para tirá-lo da página, desmarque "Ativo".'
+                        : null),
+                RestoreAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    SafeDeleteBulkAction::make(
+                        fn (EventProduct $product): bool => $product->hasOrders(),
+                        'Presentes que já estão em pedidos fazem parte do histórico financeiro. Para tirá-los da página, desmarque "Ativo".',
+                    ),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }

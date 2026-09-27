@@ -128,8 +128,10 @@ class RsvpStoreService
             ->withCount('orders')
             ->get()
             ->each(function (Guest $companion): void {
+                // Taking someone off one's own companion list is the guest
+                // editing their answer, not a removal to audit or undo.
                 if ($companion->orders_count === 0) {
-                    $companion->delete();
+                    $companion->disableLogging()->forceDelete();
 
                     return;
                 }

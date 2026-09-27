@@ -57,7 +57,9 @@ class Order extends Model
      */
     public function event(): BelongsTo
     {
-        return $this->belongsTo(Event::class);
+        // Orders outlive a trashed event or guest: the financial history
+        // must keep showing who and what they were.
+        return $this->belongsTo(Event::class)->withTrashed();
     }
 
     /**
@@ -65,7 +67,7 @@ class Order extends Model
      */
     public function guest(): BelongsTo
     {
-        return $this->belongsTo(Guest::class);
+        return $this->belongsTo(Guest::class)->withTrashed();
     }
 
     /**

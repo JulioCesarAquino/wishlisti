@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -38,7 +39,7 @@ class EventProduct extends Model
     /** @use HasFactory<EventProductFactory> */
     use HasFactory;
 
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -50,7 +51,8 @@ class EventProduct extends Model
             ->setDescriptionForEvent(fn (string $event) => match ($event) {
                 'created' => 'adicionou o presente',
                 'updated' => 'editou o presente',
-                'deleted' => 'removeu o presente',
+                'deleted' => $this->isForceDeleting() ? 'excluiu definitivamente o presente' : 'moveu o presente para a lixeira',
+                'restored' => 'restaurou o presente',
                 default => $event,
             });
     }
@@ -87,6 +89,15 @@ class EventProduct extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * A gift that is part of an order stays in the order history: it can
+     * be deactivated (hidden from the public page), not deleted.
+     */
+    public function hasOrders(): bool
+    {
+        return $this->quantity_purchased > 0 || $this->orderItems()->exists();
     }
 
     public function quantityAvailable(): int

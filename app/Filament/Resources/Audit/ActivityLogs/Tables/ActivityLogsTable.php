@@ -7,6 +7,7 @@ use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Events\EventAppearance;
 use App\Models\Events\EventRsvpSetting;
+use App\Models\Guests\Guest;
 use App\Models\Premium\FeatureGrant;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -73,6 +74,7 @@ class ActivityLogsTable
                         Event::class, EventAppearance::class, EventRsvpSetting::class => 'Evento',
                         EventProduct::class => 'Presente',
                         FeatureGrant::class => 'Recurso premium',
+                        Guest::class => 'Convidado',
                         default => '—',
                     }),
                 TextColumn::make('subject')
@@ -84,6 +86,7 @@ class ActivityLogsTable
                             $subject instanceof Event => $subject->title,
                             $subject instanceof EventAppearance, $subject instanceof EventRsvpSetting => $subject->event->title,
                             $subject instanceof EventProduct => $subject->name,
+                            $subject instanceof Guest => "{$subject->name} ({$subject->event?->title})",
                             $subject instanceof FeatureGrant => $subject->feature->label().' — '.match (true) {
                                 $subject->grantable instanceof Event => $subject->grantable->title,
                                 $subject->grantable instanceof User => $subject->grantable->name,
@@ -101,12 +104,14 @@ class ActivityLogsTable
                         'event' => 'Evento',
                         'product' => 'Presente',
                         'premium' => 'Recurso premium',
+                        'guest' => 'Convidado',
                     ])
                     ->query(fn (Builder $query, array $data) => $query->when(
                         $data['value'] ?? null,
                         fn (Builder $query, string $type) => $query->whereIn('subject_type', match ($type) {
                             'event' => [Event::class, EventAppearance::class, EventRsvpSetting::class],
                             'product' => [EventProduct::class],
+                            'guest' => [Guest::class],
                             default => [FeatureGrant::class],
                         }),
                     )),

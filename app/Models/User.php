@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasFeatureGrants;
 use App\Models\Contacts\Contact;
 use App\Models\Events\Event;
+use App\Models\Orders\Order;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -68,6 +69,17 @@ class User extends Authenticatable implements FilamentUser
     public function contacts(): HasMany
     {
         return $this->hasMany(Contact::class);
+    }
+
+    /**
+     * Deleting a host deletes their events, so a host whose events have
+     * any order (the financial history) can't be deleted.
+     */
+    public function hasOrders(): bool
+    {
+        return Order::query()
+            ->whereIn('event_id', Event::withTrashed()->where('user_id', $this->id)->select('id'))
+            ->exists();
     }
 
     public function isAdmin(): bool

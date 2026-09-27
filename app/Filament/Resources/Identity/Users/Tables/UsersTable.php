@@ -2,8 +2,9 @@
 
 namespace App\Filament\Resources\Identity\Users\Tables;
 
+use App\Filament\Support\SafeDeleteBulkAction;
+use App\Models\User;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -42,7 +43,13 @@ class UsersTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    SafeDeleteBulkAction::make(
+                        fn (User $user): bool => $user->hasOrders(),
+                        'Anfitriões cujos eventos têm pedidos fazem parte do histórico financeiro e não podem ser excluídos.',
+                        label: 'Excluir',
+                        description: 'Exclui os anfitriões selecionados e todos os eventos deles. Não pode ser desfeito.',
+                        doneLabel: 'excluído(s)',
+                    ),
                 ]),
             ]);
     }

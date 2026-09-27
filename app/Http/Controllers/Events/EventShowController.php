@@ -55,7 +55,7 @@ class EventShowController extends Controller
                 'rsvp_required_fields' => $event->rsvpRequiredFields(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
             ],
-            'is_preview' => ! $event->is_published,
+            'is_preview' => ! $event->is_published || $event->isArchived(),
             'products' => $event->products()
                 ->where('is_active', true)
                 ->get()

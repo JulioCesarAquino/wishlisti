@@ -46,6 +46,6 @@ class OrderItem extends Model
      */
     public function eventProduct(): BelongsTo
     {
-        return $this->belongsTo(EventProduct::class);
+        return $this->belongsTo(EventProduct::class)->withTrashed();
     }
 }

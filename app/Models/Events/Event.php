@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -36,6 +37,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float|null $latitude
  * @property float|null $longitude
  * @property bool $is_published
+ * @property Carbon|null $archived_at
+ * @property Carbon|null $deleted_at
  * @property int $visits_count
  * @property-read EventAppearance $appearance
  * @property-read EventRsvpSetting $rsvpSettings
@@ -46,14 +49,14 @@ use Spatie\Activitylog\Support\LogOptions;
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image',
     'gallery', 'description', 'story', 'address', 'latitude', 'longitude',
-    'is_published',
+    'is_published', 'archived_at',
 ])]
 class Event extends Model
 {
     /** @use HasFactory<EventFactory> */
     use HasFactory;
 
-    use HasFeatureGrants, LogsActivity;
+    use HasFeatureGrants, LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -61,14 +64,15 @@ class Event extends Model
             ->useLogName('event')
             ->logOnly([
                 'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'gallery',
-                'address', 'latitude', 'longitude', 'is_published',
+                'address', 'latitude', 'longitude', 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->setDescriptionForEvent(fn (string $event) => match ($event) {
                 'created' => 'criou o evento',
                 'updated' => 'atualizou o evento',
-                'deleted' => 'excluiu o evento',
+                'deleted' => $this->isForceDeleting() ? 'excluiu definitivamente o evento' : 'moveu o evento para a lixeira',
+                'restored' => 'restaurou o evento',
                 default => $event,
             });
     }
@@ -88,7 +92,8 @@ class Event extends Model
         $slug = $base;
         $suffix = 1;
 
-        while (static::where('slug', $slug)->exists()) {
+        // Events in the trash still hold their slug (it's unique in the DB).
+        while (static::withTrashed()->where('slug', $slug)->exists()) {
             $suffix++;
             $slug = "{$base}-{$suffix}";
         }
@@ -102,6 +107,7 @@ class Event extends Model
             'event_date' => 'date',
             'gallery' => 'array',
             'is_published' => 'boolean',
+            'archived_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
         ];
@@ -209,11 +215,25 @@ class Event extends Model
 
     public function isViewableBy(?User $user): bool
     {
-        if ($this->is_published) {
+        if ($this->is_published && ! $this->isArchived()) {
             return true;
         }
 
         return $user && ($user->isAdmin() || $user->id === $this->user_id);
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /**
+     * Events with paid orders are part of the host's financial history:
+     * the host can archive them, and only the admin can delete them.
+     */
+    public function hasPaidOrders(): bool
+    {
+        return $this->orders()->where('status', Order::STATUS_PAID)->exists();
     }
 
     public function visitCookieName(): string
@@ -223,7 +243,7 @@ class Event extends Model
 
     public function shouldCountVisitFor(?User $user): bool
     {
-        if (! $this->is_published) {
+        if (! $this->is_published || $this->isArchived()) {
             return false;
         }
 

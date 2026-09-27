@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Identity\Users\Pages;
 
 use App\Filament\Resources\Identity\Users\UserResource;
+use App\Models\User;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditUser extends EditRecord
@@ -15,7 +17,20 @@ class EditUser extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->modalDescription('Exclui o anfitrião e todos os eventos dele. Não pode ser desfeito.')
+                ->before(function (DeleteAction $action, User $record): void {
+                    if ($record->hasOrders()) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Este anfitrião não pode ser excluído')
+                            ->body('Os eventos dele têm pedidos, que fazem parte do histórico financeiro. Arquive os eventos em vez de excluir o anfitrião.')
+                            ->persistent()
+                            ->send();
+
+                        $action->cancel();
+                    }
+                }),
         ];
     }
 
