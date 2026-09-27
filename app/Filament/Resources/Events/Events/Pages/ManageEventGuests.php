@@ -1,28 +1,49 @@
 <?php
 
-namespace App\Filament\Resources\Events\Events\RelationManagers;
+namespace App\Filament\Resources\Events\Events\Pages;
 
+use App\Enums\Premium\Feature;
+use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
+use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class GuestsRelationManager extends RelationManager
+class ManageEventGuests extends ManageRelatedRecords
 {
+    use HasEventHeaderActions;
+
+    protected static string $resource = EventResource::class;
+
     protected static string $relationship = 'guests';
 
     protected static ?string $title = 'Convidados';
 
+    protected static ?string $navigationLabel = 'Convidados';
+
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
+
     public function form(Schema $schema): Schema
     {
         return $schema->components([]);
+    }
+
+    private function canViewGiftCount(): bool
+    {
+        /** @var Event $event */
+        $event = $this->getOwnerRecord();
+
+        return (bool) auth()->user()?->isAdmin() || $event->hasFeature(Feature::GiftGivers);
     }
 
     public function table(Table $table): Table
@@ -44,7 +65,10 @@ class GuestsRelationManager extends RelationManager
                     ->searchable(),
                 TextColumn::make('paid_orders_count')
                     ->label('Presentes dados')
-                    ->numeric()
+                    // Same premium gate as the global guests list.
+                    ->formatStateUsing(fn (?int $state) => $this->canViewGiftCount()
+                        ? (string) $state
+                        : '🔒')
                     ->sortable(),
                 TextColumn::make('cpf')
                     ->label('CPF')

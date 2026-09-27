@@ -3,7 +3,8 @@
 namespace Tests\Feature\Filament;
 
 use App\Enums\Premium\Feature;
-use App\Filament\Resources\Events\Events\Pages\EditEvent;
+use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
+use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Models\Events\Event;
 use App\Models\Premium\FeatureGrant;
 use App\Models\User;
@@ -22,10 +23,15 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->actingAs($host);
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
-            ->assertFormFieldHidden('premium_features')
-            ->assertFormFieldHidden('rsvpSettings.required_fields')
-            ->assertFormFieldHidden('rsvpSettings.collect_companions');
+        $this->get(EditEventRsvp::getUrl(['record' => $event]))
+            ->assertOk()
+            ->assertSee('Recurso premium: Lista nominal de convidados')
+            ->assertDontSee('Salvar alterações');
+
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
+            ->assertFormFieldDoesNotExist('rsvpSettings.required_fields')
+            ->call('save')
+            ->assertForbidden();
     }
 
     public function test_hosts_can_configure_the_form_once_the_feature_is_enabled(): void
@@ -38,8 +44,7 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->actingAs($host);
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
-            ->assertFormFieldHidden('premium_features')
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
             ->fillForm([
                 'rsvpSettings.required_fields' => ['email', 'cpf'],
                 'rsvpSettings.collect_companions' => true,
@@ -64,7 +69,7 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->actingAs($host);
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
             ->fillForm(['rsvpSettings.required_fields' => []])
             ->call('save')
             ->assertHasFormErrors(['rsvpSettings.required_fields']);
@@ -77,10 +82,8 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->actingAs($admin);
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
-            ->assertFormFieldHidden('rsvpSettings.required_fields')
+        Livewire::test(EditEventPremium::class, ['record' => $event->getRouteKey()])
             ->fillForm(['premium_features' => [Feature::GuestList->value, Feature::GiftGivers->value]])
-            ->assertFormFieldVisible('rsvpSettings.required_fields')
             ->call('save')
             ->assertHasNoFormErrors();
 
@@ -91,7 +94,7 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->assertSame(FeatureGrant::SOURCE_ADMIN, $event->featureGrants->first()->source);
         $this->assertSame(['whatsapp'], $event->rsvpRequiredFields());
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
+        Livewire::test(EditEventPremium::class, ['record' => $event->getRouteKey()])
             ->assertFormSet(['premium_features' => [Feature::GiftGivers->value, Feature::GuestList->value]])
             ->fillForm(['premium_features' => [Feature::GiftGivers->value]])
             ->call('save')
@@ -110,12 +113,20 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->actingAs($host);
 
-        Livewire::test(EditEvent::class, ['record' => $event->getRouteKey()])
-            ->set('data.premium_features', [Feature::GuestList->value])
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $this->get(EditEventPremium::getUrl(['record' => $event]))->assertForbidden();
 
         $this->assertFalse($event->fresh()->hasFeature(Feature::GuestList));
+    }
+
+    public function test_the_admin_can_prepare_the_settings_before_unlocking_the_feature(): void
+    {
+        $event = Event::factory()->create();
+
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+        $this->get(EditEventRsvp::getUrl(['record' => $event]))
+            ->assertOk()
+            ->assertSee('não está liberado neste evento');
     }
 
     public function test_an_expired_grant_no_longer_unlocks_the_feature(): void

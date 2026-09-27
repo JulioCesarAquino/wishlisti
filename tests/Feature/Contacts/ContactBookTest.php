@@ -30,11 +30,20 @@ class ContactBookTest extends TestCase
         return $host;
     }
 
-    public function test_hosts_without_the_premium_feature_cannot_open_the_contact_book(): void
+    public function test_hosts_without_the_premium_feature_see_the_contact_book_locked(): void
     {
-        $this->actingAs(User::factory()->create(['is_admin' => false]));
+        $host = User::factory()->create(['is_admin' => false]);
+        $contact = Contact::factory()->create(['user_id' => $host->id]);
 
-        $this->get(ContactResource::getUrl('index'))->assertForbidden();
+        $this->actingAs($host);
+
+        $this->get(ContactResource::getUrl('index'))
+            ->assertOk()
+            ->assertSee('Recurso premium: Agenda de contatos')
+            ->assertDontSee($contact->name);
+
+        $this->get(ContactResource::getUrl('create'))->assertForbidden();
+        $this->get(ContactResource::getUrl('edit', ['record' => $contact]))->assertForbidden();
     }
 
     public function test_hosts_with_the_feature_only_see_their_own_contacts(): void

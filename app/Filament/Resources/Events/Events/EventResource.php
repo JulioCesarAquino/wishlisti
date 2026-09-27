@@ -4,13 +4,20 @@ namespace App\Filament\Resources\Events\Events;
 
 use App\Filament\Resources\Events\Events\Pages\CreateEvent;
 use App\Filament\Resources\Events\Events\Pages\EditEvent;
+use App\Filament\Resources\Events\Events\Pages\EditEventAppearance;
+use App\Filament\Resources\Events\Events\Pages\EditEventLocation;
+use App\Filament\Resources\Events\Events\Pages\EditEventPayment;
+use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
+use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
-use App\Filament\Resources\Events\Events\RelationManagers\GuestsRelationManager;
-use App\Filament\Resources\Events\Events\RelationManagers\ProductsRelationManager;
+use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
+use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
 use App\Filament\Resources\Events\Events\Schemas\EventForm;
 use App\Filament\Resources\Events\Events\Tables\EventsTable;
 use App\Models\Events\Event;
 use BackedEnum;
+use Filament\Pages\Enums\SubNavigationPosition;
+use Filament\Resources\Pages\Page;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -28,6 +35,10 @@ class EventResource extends Resource
     protected static ?string $pluralModelLabel = 'Eventos';
 
     protected static ?string $slug = 'events';
+
+    protected static ?string $recordTitleAttribute = 'title';
+
+    protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Start;
 
     public static function getEloquentQuery(): Builder
     {
@@ -50,12 +61,23 @@ class EventResource extends Resource
         return EventsTable::configure($table);
     }
 
-    public static function getRelations(): array
+    /**
+     * Each part of an event is its own page, with its own save button,
+     * instead of one long form. Pages a user can't access (like Premium,
+     * for hosts) are left out automatically.
+     */
+    public static function getRecordSubNavigation(Page $page): array
     {
-        return [
-            ProductsRelationManager::class,
-            GuestsRelationManager::class,
-        ];
+        return $page->generateNavigationItems([
+            EditEvent::class,
+            EditEventLocation::class,
+            EditEventAppearance::class,
+            ManageEventProducts::class,
+            ManageEventGuests::class,
+            EditEventRsvp::class,
+            EditEventPayment::class,
+            EditEventPremium::class,
+        ]);
     }
 
     public static function getPages(): array
@@ -64,6 +86,13 @@ class EventResource extends Resource
             'index' => ListEvents::route('/'),
             'create' => CreateEvent::route('/create'),
             'edit' => EditEvent::route('/{record}/edit'),
+            'location' => EditEventLocation::route('/{record}/location'),
+            'appearance' => EditEventAppearance::route('/{record}/appearance'),
+            'products' => ManageEventProducts::route('/{record}/products'),
+            'guests' => ManageEventGuests::route('/{record}/guests'),
+            'rsvp' => EditEventRsvp::route('/{record}/rsvp'),
+            'payment' => EditEventPayment::route('/{record}/payment'),
+            'premium' => EditEventPremium::route('/{record}/premium'),
         ];
     }
 }

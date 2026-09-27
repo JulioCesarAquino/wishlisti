@@ -8,13 +8,14 @@ use App\Models\User;
 
 /**
  * The address book is a premium feature of the host, and each host only
- * ever sees their own contacts.
+ * ever sees their own contacts. Every host can open the list page itself,
+ * which shows it locked until the feature is unlocked.
  */
 class ContactPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->hasFeature(Feature::Contacts);
+        return true;
     }
 
     public function view(User $user, Contact $contact): bool
@@ -24,7 +25,7 @@ class ContactPolicy
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user);
+        return $user->isAdmin() || $user->hasFeature(Feature::Contacts);
     }
 
     public function update(User $user, Contact $contact): bool
@@ -39,6 +40,6 @@ class ContactPolicy
 
     public function deleteAny(User $user): bool
     {
-        return $this->viewAny($user);
+        return $this->create($user);
     }
 }

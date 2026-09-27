@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\Events\Events\RelationManagers;
+namespace App\Filament\Resources\Events\Events\Pages;
 
+use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
 use App\Models\Catalog\ProductTemplate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -13,19 +15,28 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class ProductsRelationManager extends RelationManager
+class ManageEventProducts extends ManageRelatedRecords
 {
+    use HasEventHeaderActions;
+
+    protected static string $resource = EventResource::class;
+
     protected static string $relationship = 'products';
 
-    protected static ?string $title = 'Produtos';
+    protected static ?string $title = 'Presentes';
+
+    protected static ?string $navigationLabel = 'Presentes';
+
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedGift;
 
     public function form(Schema $schema): Schema
     {

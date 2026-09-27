@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Contacts\Contacts\Pages;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Contacts\Contacts\ContactResource;
+use App\Filament\Support\PremiumLock;
 use App\Models\Events\Event;
 use App\Services\Contacts\ContactImportService;
 use Filament\Actions\Action;
@@ -10,14 +12,28 @@ use Filament\Actions\CreateAction;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
 class ListContacts extends ListRecords
 {
     protected static string $resource = ContactResource::class;
 
+    public function content(Schema $schema): Schema
+    {
+        if (! ContactResource::hasAccess()) {
+            return $schema->components([PremiumLock::callout(Feature::Contacts)]);
+        }
+
+        return parent::content($schema);
+    }
+
     protected function getHeaderActions(): array
     {
+        if (! ContactResource::hasAccess()) {
+            return [];
+        }
+
         return [
             Action::make('importFromEvent')
                 ->label('Importar convidados de um evento')
