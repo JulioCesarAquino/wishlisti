@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Events;
 use App\Http\Controllers\Controller;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
+use App\Models\Orders\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
@@ -16,7 +17,7 @@ class EventShowController extends Controller
     {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'featureGrants']);
+        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants']);
 
         $guest = null;
         $identifier = $request->cookie(Guest::cookieName($event));
@@ -52,6 +53,7 @@ class EventShowController extends Controller
                 'is_published' => $event->is_published,
                 'visits_count' => $event->visits_count,
                 'accepts_online_gifts' => $event->acceptsOnlineGifts(),
+                'accepts_in_person_gifts' => $event->acceptsInPersonGifts(),
                 'mp_public_key' => $event->acceptsOnlineGifts() ? $event->paymentSettings->mp_public_key : null,
                 'rsvp_required_fields' => $event->rsvpRequiredFields(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
@@ -76,6 +78,20 @@ class EventShowController extends Controller
                 'cpf' => $guest->cpf,
                 'rsvp_status' => $guest->rsvp_status,
                 'rsvp_guests_count' => $guest->rsvp_guests_count,
+                // Gifts they reserved to hand over in person, so they can give
+                // up on one from the page.
+                'reservations' => $guest->orders()
+                    ->where('fulfillment', Order::FULFILLMENT_IN_PERSON)
+                    ->whereIn('status', [Order::STATUS_RESERVED, Order::STATUS_RECEIVED])
+                    ->with('items.eventProduct')
+                    ->latest('id')
+                    ->get()
+                    ->map(fn (Order $order) => [
+                        'id' => $order->id,
+                        'status' => $order->status,
+                        'is_anonymous' => $order->is_anonymous,
+                        'items' => $order->items->map(fn ($item) => "{$item->quantity}x {$item->eventProduct?->name}")->all(),
+                    ]),
                 'companions' => $guest->companions()
                     ->orderBy('id')
                     ->get(['name', 'whatsapp', 'email', 'cpf'])

@@ -43,6 +43,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read EventAppearance $appearance
  * @property-read EventRsvpSetting $rsvpSettings
  * @property-read EventPaymentSetting $paymentSettings
+ * @property-read EventGiftSetting $giftSettings
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -150,6 +151,14 @@ class Event extends Model
     }
 
     /**
+     * @return HasOne<EventGiftSetting, $this>
+     */
+    public function giftSettings(): HasOne
+    {
+        return $this->hasOne(EventGiftSetting::class)->withDefault();
+    }
+
+    /**
      * @return HasMany<EventProduct, $this>
      */
     public function products(): HasMany
@@ -231,6 +240,16 @@ class Event extends Model
         return $this->hasFeature(Feature::Payments)
             && filled($this->paymentSettings->mp_access_token)
             && filled($this->paymentSettings->mp_public_key);
+    }
+
+    /**
+     * Guests can reserve gifts and hand them over in person. Always the case
+     * on free events (it's their only way to give); premium events can
+     * turn it off to take online gifts only.
+     */
+    public function acceptsInPersonGifts(): bool
+    {
+        return ! $this->hasFeature(Feature::Payments) || $this->giftSettings->allow_in_person;
     }
 
     public function isArchived(): bool

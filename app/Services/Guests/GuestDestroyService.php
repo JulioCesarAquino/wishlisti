@@ -4,11 +4,16 @@ namespace App\Services\Guests;
 
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
+use App\Services\Orders\OrderCancelService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class GuestDestroyService
 {
+    public function __construct(
+        protected OrderCancelService $orderCancelService,
+    ) {}
+
     /**
      * Deletes the guest for good, along with orders of theirs that never
      * got paid (abandoned checkouts). A guest with a paid order is part of
@@ -23,6 +28,12 @@ class GuestDestroyService
         }
 
         DB::transaction(function () use ($guest): void {
+            // Items they had reserved go back to the list.
+            $guest->orders()
+                ->where('status', Order::STATUS_RESERVED)
+                ->get()
+                ->each(fn (Order $order) => $this->orderCancelService->execute($order));
+
             $guest->orders()->where('status', '!=', Order::STATUS_PAID)->delete();
             $guest->forceDelete();
         });

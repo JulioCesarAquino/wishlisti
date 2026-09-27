@@ -5,6 +5,11 @@ namespace App\Filament\Resources\Orders\Orders\Tables;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
+use App\Services\Orders\OrderCancelService;
+use App\Services\Orders\OrderReceiveService;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -12,6 +17,18 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OrdersTable
 {
+    /**
+     * @var array<string, string>
+     */
+    private const STATUS_LABELS = [
+        Order::STATUS_PENDING => 'Pendente',
+        Order::STATUS_PAID => 'Pago',
+        Order::STATUS_RESERVED => 'Reservado',
+        Order::STATUS_RECEIVED => 'Recebido',
+        Order::STATUS_FAILED => 'Falhou',
+        Order::STATUS_CANCELLED => 'Cancelado',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -25,6 +42,7 @@ class OrdersTable
                 TextColumn::make('guest.name')
                     ->label('Convidado')
                     ->formatStateUsing(fn (Order $record, ?string $state) => match (true) {
+                        $record->hidesGiverFrom(auth()->user()) && $record->isInPerson() => 'Anônimo — entrega pelo convidado',
                         $record->hidesGiverFrom(auth()->user()) => 'Anônimo',
                         $record->is_anonymous => "{$state} (anônimo)",
                         default => $state,
@@ -51,19 +69,18 @@ class OrdersTable
                     ->label('Valor')
                     ->money('BRL')
                     ->sortable(),
+                TextColumn::make('fulfillment')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => $state === Order::FULFILLMENT_IN_PERSON ? 'Entrega pessoal' : 'Online')
+                    ->color(fn (string $state): string => $state === Order::FULFILLMENT_IN_PERSON ? 'info' : 'gray'),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        Order::STATUS_PENDING => 'Pendente',
-                        Order::STATUS_PAID => 'Pago',
-                        Order::STATUS_FAILED => 'Falhou',
-                        Order::STATUS_CANCELLED => 'Cancelado',
-                        default => $state,
-                    })
+                    ->formatStateUsing(fn (string $state): string => self::STATUS_LABELS[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
-                        Order::STATUS_PENDING => 'warning',
-                        Order::STATUS_PAID => 'success',
+                        Order::STATUS_PENDING, Order::STATUS_RESERVED => 'warning',
+                        Order::STATUS_PAID, Order::STATUS_RECEIVED => 'success',
                         Order::STATUS_FAILED, Order::STATUS_CANCELLED => 'danger',
                         default => 'gray',
                     }),
@@ -84,12 +101,39 @@ class OrdersTable
             ->filters([
                 SelectFilter::make('status')
                     ->label('Status')
+                    ->options(self::STATUS_LABELS),
+                SelectFilter::make('fulfillment')
+                    ->label('Tipo')
                     ->options([
-                        Order::STATUS_PENDING => 'Pendente',
-                        Order::STATUS_PAID => 'Pago',
-                        Order::STATUS_FAILED => 'Falhou',
-                        Order::STATUS_CANCELLED => 'Cancelado',
+                        Order::FULFILLMENT_ONLINE => 'Online',
+                        Order::FULFILLMENT_IN_PERSON => 'Entrega pessoal',
                     ]),
+            ])
+            ->recordActions([
+                Action::make('markReceived')
+                    ->label('Marcar como recebido')
+                    ->icon(Heroicon::OutlinedCheckCircle)
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalDescription('Confirma que este presente já foi entregue a você?')
+                    ->visible(fn (Order $record): bool => $record->isReservation())
+                    ->action(function (Order $record, OrderReceiveService $service): void {
+                        $service->execute($record);
+
+                        Notification::make()->success()->title('Presente marcado como recebido')->send();
+                    }),
+                Action::make('cancelReservation')
+                    ->label('Cancelar reserva')
+                    ->icon(Heroicon::OutlinedXCircle)
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription('O presente volta para a lista e outro convidado poderá escolhê-lo. Use quando o convidado desistir ou não for entregar.')
+                    ->visible(fn (Order $record): bool => $record->isReservation())
+                    ->action(function (Order $record, OrderCancelService $service): void {
+                        $service->execute($record);
+
+                        Notification::make()->success()->title('Reserva cancelada')->send();
+                    }),
             ]);
     }
 }

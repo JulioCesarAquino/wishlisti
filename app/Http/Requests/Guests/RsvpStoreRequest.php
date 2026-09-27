@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Guests;
 
+use App\Http\Requests\Guests\Concerns\ValidatesGuestContact;
 use App\Models\Events\Event;
-use App\Rules\Guests\Cpf;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RsvpStoreRequest extends FormRequest
 {
+    use ValidatesGuestContact;
+
     public function authorize(): bool
     {
         return true;
@@ -25,7 +27,7 @@ class RsvpStoreRequest extends FormRequest
         $event = $this->route('event');
 
         $rules = [
-            ...$this->personRules('guest', $event->rsvpRequiredFields()),
+            ...$this->guestContactRules('guest', $event->rsvpRequiredFields()),
             'attending' => ['required', 'boolean'],
             'guests_count' => ['required_if:attending,true', 'nullable', 'integer', 'min:1', 'max:20'],
         ];
@@ -34,26 +36,10 @@ class RsvpStoreRequest extends FormRequest
             $companionsCount = max(0, (int) $this->input('guests_count', 1) - 1);
 
             $rules['companions'] = [$companionsCount > 0 ? 'required' : 'nullable', 'array', "size:{$companionsCount}"];
-            $rules += $this->personRules('companions.*', $event->rsvpRequiredFields());
+            $rules += $this->guestContactRules('companions.*', $event->rsvpRequiredFields());
         }
 
         return $rules;
-    }
-
-    /**
-     * @param  array<int, string>  $requiredFields
-     * @return array<string, mixed>
-     */
-    private function personRules(string $prefix, array $requiredFields): array
-    {
-        $presence = fn (string $field) => in_array($field, $requiredFields, true) ? 'required' : 'nullable';
-
-        return [
-            "{$prefix}.name" => ['required', 'string', 'max:255'],
-            "{$prefix}.whatsapp" => [$presence('whatsapp'), 'string', 'max:30'],
-            "{$prefix}.email" => [$presence('email'), 'email', 'max:255'],
-            "{$prefix}.cpf" => [$presence('cpf'), 'string', new Cpf],
-        ];
     }
 
     /**

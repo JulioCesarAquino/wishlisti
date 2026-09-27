@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Events\Events\Schemas;
 
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -41,6 +42,16 @@ class EventPaymentForm
                     TextInput::make('mp_public_key')
                         ->label('Public Key')
                         ->columnSpanFull(),
+                ]),
+            Section::make('Entrega pessoal')
+                ->description('Além de pagar online, o convidado pode reservar o presente e entregá-lo pessoalmente.')
+                ->relationship('giftSettings')
+                ->columnSpanFull()
+                ->components([
+                    Toggle::make('allow_in_person')
+                        ->label('Permitir que convidados escolham entregar pessoalmente')
+                        ->helperText('Desligado, a lista só aceita presentes pagos online.')
+                        ->default(true),
                 ]),
         ];
     }

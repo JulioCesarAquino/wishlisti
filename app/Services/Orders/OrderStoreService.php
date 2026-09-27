@@ -16,7 +16,11 @@ class OrderStoreService
     ) {}
 
     /**
-     * @param  array{name: string, whatsapp: string, email: ?string}  $guestData
+     * Online gifts start pending until Mercado Pago confirms the payment
+     * (only then is the stock taken). In-person gifts are reservations:
+     * the stock is taken right away, so no one else picks the same item.
+     *
+     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
      * @param  array<int, array{event_product_id: int, quantity: int}>  $items
      */
     public function execute(
@@ -26,14 +30,19 @@ class OrderStoreService
         ?string $message,
         ?string $guestIdentifier,
         bool $anonymous = false,
+        string $fulfillment = Order::FULFILLMENT_ONLINE,
     ): Order {
-        if (! $event->acceptsOnlineGifts()) {
+        $inPerson = $fulfillment === Order::FULFILLMENT_IN_PERSON;
+
+        if ($inPerson ? ! $event->acceptsInPersonGifts() : ! $event->acceptsOnlineGifts()) {
             throw ValidationException::withMessages([
-                'items' => 'Este evento não recebe presentes online.',
+                'items' => $inPerson
+                    ? 'Este evento não recebe presentes para entrega pessoal.'
+                    : 'Este evento não recebe presentes online.',
             ]);
         }
 
-        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier, $anonymous) {
+        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier, $anonymous, $inPerson, $fulfillment) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
 
             $orderItems = [];
@@ -52,6 +61,10 @@ class OrderStoreService
                     ]);
                 }
 
+                if ($inPerson) {
+                    $product->increment('quantity_purchased', $item['quantity']);
+                }
+
                 $subtotal = $product->price * $item['quantity'];
                 $totalAmount += $subtotal;
 
@@ -65,7 +78,8 @@ class OrderStoreService
             $order = Order::create([
                 'event_id' => $event->id,
                 'guest_id' => $guest->id,
-                'status' => Order::STATUS_PENDING,
+                'status' => $inPerson ? Order::STATUS_RESERVED : Order::STATUS_PENDING,
+                'fulfillment' => $fulfillment,
                 'total_amount' => $totalAmount,
                 'message' => $message,
                 'is_anonymous' => $anonymous,

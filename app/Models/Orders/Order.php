@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $event_id
  * @property int $guest_id
  * @property string $status
+ * @property string $fulfillment
  * @property float $total_amount
  * @property string|null $message
  * @property bool $is_anonymous
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'event_id', 'guest_id', 'status', 'total_amount', 'message', 'is_anonymous',
+    'event_id', 'guest_id', 'status', 'fulfillment', 'total_amount', 'message', 'is_anonymous',
     'preference_id', 'payment_id', 'payment_method', 'payment_type', 'paid_at',
 ])]
 class Order extends Model
@@ -46,6 +47,25 @@ class Order extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    /** An in-person gift the guest has set aside for themselves. */
+    public const STATUS_RESERVED = 'reserved';
+
+    /** An in-person gift the host marked as handed over. */
+    public const STATUS_RECEIVED = 'received';
+
+    /** Paid online through the host's Mercado Pago. */
+    public const FULFILLMENT_ONLINE = 'online';
+
+    /** Reserved on the page, handed over by the guest in person. */
+    public const FULFILLMENT_IN_PERSON = 'in_person';
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'fulfillment' => self::FULFILLMENT_ONLINE,
+    ];
+
     protected function casts(): array
     {
         return [
@@ -53,6 +73,16 @@ class Order extends Model
             'is_anonymous' => 'boolean',
             'paid_at' => 'datetime',
         ];
+    }
+
+    public function isInPerson(): bool
+    {
+        return $this->fulfillment === self::FULFILLMENT_IN_PERSON;
+    }
+
+    public function isReservation(): bool
+    {
+        return $this->isInPerson() && $this->status === self::STATUS_RESERVED;
     }
 
     /**

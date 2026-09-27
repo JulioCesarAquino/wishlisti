@@ -59,6 +59,7 @@ class OrderPaymentUpdateService
 
         DB::transaction(function () use ($event, $payment) {
             $order = Order::where('event_id', $event->id)
+                ->where('fulfillment', Order::FULFILLMENT_ONLINE)
                 ->where('id', $payment->external_reference)
                 ->with('items')
                 ->lockForUpdate()

@@ -5,6 +5,12 @@ import { store as storeRsvp } from '@/routes/rsvp';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    ContactFields,
+    guestContactFields,
+    toContactForm,
+    type ContactForm,
+} from '@/pages/events/sections/contact-fields';
 import { LocationSection } from '@/pages/events/sections/location-section';
 import {
     accentButtonStyle,
@@ -12,36 +18,12 @@ import {
     headingStyle,
     type EventData,
     type Guest,
-    type GuestContact,
-    type RsvpContactField,
 } from '@/pages/events/types';
 
 type Props = {
     event: EventData;
     guest: Guest | null;
 };
-
-type ContactForm = {
-    name: string;
-    whatsapp: string;
-    email: string;
-    cpf: string;
-};
-
-const FIELD_LABELS: Record<RsvpContactField, string> = {
-    whatsapp: 'WhatsApp',
-    email: 'E-mail',
-    cpf: 'CPF',
-};
-
-function toContactForm(contact: GuestContact | null | undefined): ContactForm {
-    return {
-        name: contact?.name ?? '',
-        whatsapp: contact?.whatsapp ?? '',
-        email: contact?.email ?? '',
-        cpf: contact?.cpf ?? '',
-    };
-}
 
 function resizeCompanions(
     companions: ContactForm[],
@@ -55,65 +37,6 @@ function resizeCompanions(
     );
 }
 
-type ContactFieldsProps = {
-    idPrefix: string;
-    errorPrefix: string;
-    value: ContactForm;
-    fields: RsvpContactField[];
-    requiredFields: RsvpContactField[];
-    nameLabel: string;
-    errors: Record<string, string | undefined>;
-    onChange: (value: ContactForm) => void;
-};
-
-function ContactFields({
-    idPrefix,
-    errorPrefix,
-    value,
-    fields,
-    requiredFields,
-    nameLabel,
-    errors,
-    onChange,
-}: ContactFieldsProps) {
-    const inputs: { key: keyof ContactForm; label: string; type: string }[] = [
-        { key: 'name', label: nameLabel, type: 'text' },
-        ...fields.map((field) => ({
-            key: field,
-            label: requiredFields.includes(field)
-                ? FIELD_LABELS[field]
-                : `${FIELD_LABELS[field]} (opcional)`,
-            type: field === 'email' ? 'email' : 'text',
-        })),
-    ];
-
-    return (
-        <>
-            {inputs.map(({ key, label, type }) => {
-                const error = errors[`${errorPrefix}.${key}`];
-
-                return (
-                    <div key={key} className="grid gap-1.5">
-                        <Label htmlFor={`${idPrefix}_${key}`}>{label}</Label>
-                        <Input
-                            id={`${idPrefix}_${key}`}
-                            type={type}
-                            inputMode={key === 'cpf' ? 'numeric' : undefined}
-                            value={value[key]}
-                            onChange={(e) =>
-                                onChange({ ...value, [key]: e.target.value })
-                            }
-                        />
-                        {error && (
-                            <p className="text-sm text-red-600">{error}</p>
-                        )}
-                    </div>
-                );
-            })}
-        </>
-    );
-}
-
 export function RsvpSection({ event, guest }: Props) {
     const [justResponded, setJustResponded] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -121,14 +44,7 @@ export function RsvpSection({ event, guest }: Props) {
     const requiredFields = event.rsvp_required_fields;
     const collectsCompanions = event.rsvp_collect_companions;
 
-    // The guest's own form always offers WhatsApp and e-mail (as before);
-    // the CPF only shows up when the host made it mandatory. Companions are
-    // asked just for what's mandatory, to keep the form short.
-    const guestFields: RsvpContactField[] = [
-        'whatsapp',
-        'email',
-        ...(requiredFields.includes('cpf') ? (['cpf'] as const) : []),
-    ];
+    const guestFields = guestContactFields(requiredFields);
 
     const initialCount = guest?.rsvp_guests_count ?? 1;
 

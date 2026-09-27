@@ -2,12 +2,16 @@
 
 namespace App\Http\Requests\Orders;
 
+use App\Http\Requests\Guests\Concerns\ValidatesGuestContact;
 use App\Models\Events\Event;
+use App\Models\Orders\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class OrderStoreRequest extends FormRequest
 {
+    use ValidatesGuestContact;
+
     public function authorize(): bool
     {
         return true;
@@ -22,9 +26,8 @@ class OrderStoreRequest extends FormRequest
         $event = $this->route('event');
 
         return [
-            'guest.name' => ['required', 'string', 'max:255'],
-            'guest.whatsapp' => ['required', 'string', 'max:30'],
-            'guest.email' => ['nullable', 'email', 'max:255'],
+            ...$this->guestContactRules('guest', $event->rsvpRequiredFields()),
+            'fulfillment' => ['sometimes', Rule::in([Order::FULFILLMENT_ONLINE, Order::FULFILLMENT_IN_PERSON])],
             'message' => ['nullable', 'string', 'max:1000'],
             'anonymous' => ['sometimes', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
@@ -48,6 +51,8 @@ class OrderStoreRequest extends FormRequest
             'guest.name' => 'nome',
             'guest.whatsapp' => 'WhatsApp',
             'guest.email' => 'e-mail',
+            'guest.cpf' => 'CPF',
+            'fulfillment' => 'forma de presentear',
             'message' => 'mensagem',
             'items' => 'itens',
         ];

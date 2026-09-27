@@ -33,6 +33,7 @@ export type EventData = {
     is_published: boolean;
     visits_count: number;
     accepts_online_gifts: boolean;
+    accepts_in_person_gifts: boolean;
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
@@ -47,10 +48,20 @@ export type GuestContact = {
     cpf: string | null;
 };
 
+export type Fulfillment = 'online' | 'in_person';
+
+export type Reservation = {
+    id: number;
+    status: 'reserved' | 'received';
+    is_anonymous: boolean;
+    items: string[];
+};
+
 export type Guest = GuestContact & {
     rsvp_status: 'confirmed' | 'declined' | null;
     rsvp_guests_count: number | null;
     companions: GuestContact[];
+    reservations: Reservation[];
 };
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {

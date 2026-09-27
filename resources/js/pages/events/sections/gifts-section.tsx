@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import { Gift, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import {
     formatCurrency,
     headingStyle,
     type EventData,
+    type Reservation,
     type Product,
 } from '@/pages/events/types';
 
@@ -45,9 +47,16 @@ type Props = {
     products: Product[];
     cart: Record<number, number>;
     onAddToCart: (product: Product) => void;
+    reservations: Reservation[];
 };
 
-export function GiftsSection({ event, products, cart, onAddToCart }: Props) {
+export function GiftsSection({
+    event,
+    products,
+    cart,
+    onAddToCart,
+    reservations,
+}: Props) {
     const [sortOrder, setSortOrder] = useState<SortOrder>('default');
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
@@ -82,14 +91,19 @@ export function GiftsSection({ event, products, cart, onAddToCart }: Props) {
                 Lista de presentes
             </h2>
 
-            {!event.accepts_online_gifts && (
+            {!event.accepts_online_gifts && event.accepts_in_person_gifts && (
                 <p
                     className="mb-6 text-center text-sm"
                     style={bodyTextStyle(event)}
                 >
-                    Estas são algumas ideias de presente. Se quiser presentear,
-                    combine a entrega diretamente com os anfitriões.
+                    Escolha o que você quer dar: o presente fica reservado para
+                    você, ninguém mais o escolhe, e você combina a entrega com
+                    os anfitriões.
                 </p>
+            )}
+
+            {reservations.length > 0 && (
+                <ReservationsList event={event} reservations={reservations} />
             )}
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -233,16 +247,18 @@ function GiftCard({
     );
 
     const availabilityBadge = product.is_sold_out ? (
-        <Badge variant="destructive">Esgotado</Badge>
+        <Badge variant="destructive">
+            {event.accepts_online_gifts ? 'Esgotado' : 'Já escolhido'}
+        </Badge>
     ) : product.quantity_available > 1 ? (
         <Badge variant="outline" className="text-xs">
             {product.quantity_available} disp.
         </Badge>
     ) : null;
 
-    // Without online gifts (a premium feature), the list is only a set of
-    // ideas: there's nothing to add to a cart.
-    const button = !event.accepts_online_gifts ? null : (
+    const canGive = event.accepts_online_gifts || event.accepts_in_person_gifts;
+
+    const button = !canGive ? null : (
         <Button
             size="sm"
             className={layout === 'grid' ? 'w-full' : ''}
@@ -252,7 +268,11 @@ function GiftCard({
             }
             onClick={() => onAddToCart(product)}
         >
-            {inCart > 0 ? `Adicionado (${inCart})` : 'Presentear'}
+            {inCart > 0
+                ? `Adicionado (${inCart})`
+                : event.accepts_online_gifts
+                  ? 'Presentear'
+                  : 'Vou presentear'}
         </Button>
     );
 
@@ -300,5 +320,62 @@ function GiftCard({
                 <CardFooter className="px-3 sm:px-6">{button}</CardFooter>
             )}
         </Card>
+    );
+}
+
+function ReservationsList({
+    event,
+    reservations,
+}: {
+    event: EventData;
+    reservations: Reservation[];
+}) {
+    const giveUp = (reservation: Reservation) => {
+        if (
+            !window.confirm('Desistir deste presente? Ele volta para a lista.')
+        ) {
+            return;
+        }
+
+        router.post(
+            `/${event.slug}/orders/${reservation.id}/cancel`,
+            {},
+            { preserveScroll: true, only: ['products', 'guest', 'flash'] },
+        );
+    };
+
+    return (
+        <div
+            className="mb-6 rounded-lg border p-4"
+            style={bodyTextStyle(event)}
+        >
+            <p className="mb-2 font-medium" style={headingStyle(event)}>
+                Seus presentes reservados
+            </p>
+            <ul className="space-y-2">
+                {reservations.map((reservation) => (
+                    <li
+                        key={reservation.id}
+                        className="flex items-center justify-between gap-3 text-sm"
+                    >
+                        <span>
+                            {reservation.items.join(', ')}
+                            {reservation.is_anonymous && ' (anônimo)'}
+                        </span>
+                        {reservation.status === 'reserved' ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => giveUp(reservation)}
+                            >
+                                Desistir
+                            </Button>
+                        ) : (
+                            <Badge variant="outline">Entregue</Badge>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }

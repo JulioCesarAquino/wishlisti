@@ -24,6 +24,8 @@ class OrdersOverviewWidget extends StatsOverviewWidget
         $raisedTotal = (float) (clone $ordersQuery)->where('status', Order::STATUS_PAID)->sum('total_amount');
         $pendingTotal = (float) (clone $ordersQuery)->where('status', Order::STATUS_PENDING)->sum('total_amount');
 
+        $reservedCount = (clone $ordersQuery)->where('status', Order::STATUS_RESERVED)->count();
+
         $itemsSold = OrderItem::query()
             ->whereHas('order', fn ($query) => $query
                 ->where('status', Order::STATUS_PAID)
@@ -43,6 +45,10 @@ class OrdersOverviewWidget extends StatsOverviewWidget
             Stat::make('Itens vendidos', (string) $itemsSold)
                 ->icon(Heroicon::OutlinedShoppingCart)
                 ->color('info'),
+            Stat::make('Reservados para entrega', (string) $reservedCount)
+                ->description('Presentes que os convidados vão entregar pessoalmente')
+                ->icon(Heroicon::OutlinedGift)
+                ->color('warning'),
         ];
     }
 }

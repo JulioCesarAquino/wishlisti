@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Orders\OrderStoreRequest;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
+use App\Models\Orders\Order;
 use App\Services\Orders\OrderStoreService;
 use Illuminate\Cookie\CookieJar;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,7 @@ class OrderStoreController extends Controller
             message: $request->validated('message'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
             anonymous: $request->boolean('anonymous'),
+            fulfillment: $request->validated('fulfillment', Order::FULFILLMENT_ONLINE),
         );
 
         Cookie::queue($cookies->make(
@@ -42,6 +44,8 @@ class OrderStoreController extends Controller
             'order' => [
                 'id' => $order->id,
                 'total_amount' => (float) $order->total_amount,
+                'fulfillment' => $order->fulfillment,
+                'is_anonymous' => $order->is_anonymous,
             ],
         ]);
     }

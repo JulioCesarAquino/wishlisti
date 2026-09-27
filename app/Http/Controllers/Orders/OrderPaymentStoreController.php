@@ -18,6 +18,7 @@ class OrderPaymentStoreController extends Controller
         OrderPaymentCreateService $service,
     ): JsonResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
+        abort_if($order->isInPerson(), 409, 'Este presente é para entrega pessoal.');
         abort_if($order->status !== Order::STATUS_PENDING, 409, 'Este pedido já foi processado.');
 
         // formData's shape varies per payment method (card vs. Pix vs.
