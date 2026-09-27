@@ -6,10 +6,12 @@ use App\Http\Controllers\Identity\InviteRequestStoreController;
 use App\Http\Controllers\Orders\OrderPaymentStoreController;
 use App\Http\Controllers\Orders\OrderPaymentWebhookController;
 use App\Http\Controllers\Orders\OrderStoreController;
+use App\Http\Controllers\Premium\PremiumPurchaseWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 Route::post('/solicitar-convite', InviteRequestStoreController::class)->name('invite-requests.store');
+Route::post('/webhooks/mercadopago/premium', PremiumPurchaseWebhookController::class)->name('premium.mercadopago-webhook');
 
 Route::get('/{event:slug}', EventShowController::class)->name('events.show');
 Route::post('/{event:slug}/orders', OrderStoreController::class)

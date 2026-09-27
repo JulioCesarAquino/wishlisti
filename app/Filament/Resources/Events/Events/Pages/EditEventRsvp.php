@@ -59,7 +59,7 @@ class EditEventRsvp extends EditRecord
         $event = $this->getRecord();
 
         if ($this->isLocked()) {
-            return $schema->components([PremiumLock::callout(Feature::GuestList)]);
+            return $schema->components([PremiumLock::callout(Feature::GuestList, $event)]);
         }
 
         return $schema->components([

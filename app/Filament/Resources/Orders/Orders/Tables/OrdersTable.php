@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Orders\Orders\Tables;
 
 use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Support\PremiumLock;
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
 use Filament\Tables\Columns\TextColumn;
@@ -37,7 +38,9 @@ class OrdersTable
                     ->label('Convidado')
                     ->formatStateUsing(fn (Order $record, ?string $state) => self::canViewGuestIdentity($record)
                         ? $state
-                        : '🔒 Identidade oculta'),
+                        : '🔒 Identidade oculta')
+                    ->tooltip(fn (Order $record): ?string => self::canViewGuestIdentity($record) ? null : PremiumLock::tooltip(Feature::GiftGivers))
+                    ->url(fn (Order $record): ?string => self::canViewGuestIdentity($record) ? null : PremiumLock::purchaseUrl($record->event)),
                 TextColumn::make('guest.whatsapp')
                     ->label('WhatsApp')
                     ->formatStateUsing(fn (Order $record, ?string $state) => self::canViewGuestIdentity($record)

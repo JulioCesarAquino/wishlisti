@@ -12,6 +12,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
+use App\Filament\Resources\Events\Events\Pages\PurchaseEventPremium;
 use App\Filament\Resources\Events\Events\Schemas\EventForm;
 use App\Filament\Resources\Events\Events\Tables\EventsTable;
 use App\Models\Events\Event;
@@ -86,6 +87,7 @@ class EventResource extends Resource
             ManageEventGuests::class,
             EditEventRsvp::class,
             EditEventPayment::class,
+            PurchaseEventPremium::class,
             EditEventPremium::class,
         ]);
     }
@@ -102,7 +104,8 @@ class EventResource extends Resource
             'guests' => ManageEventGuests::route('/{record}/guests'),
             'rsvp' => EditEventRsvp::route('/{record}/rsvp'),
             'payment' => EditEventPayment::route('/{record}/payment'),
-            'premium' => EditEventPremium::route('/{record}/premium'),
+            'premium' => PurchaseEventPremium::route('/{record}/premium'),
+            'premium-grants' => EditEventPremium::route('/{record}/premium/grants'),
         ];
     }
 }

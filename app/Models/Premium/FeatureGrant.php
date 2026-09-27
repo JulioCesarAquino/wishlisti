@@ -16,11 +16,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $grantable_id
  * @property Feature $feature
  * @property string $source
+ * @property int|null $premium_purchase_id
  * @property Carbon|null $expires_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['feature', 'source', 'expires_at'])]
+#[Fillable(['feature', 'source', 'premium_purchase_id', 'expires_at'])]
 class FeatureGrant extends Model
 {
     use LogsActivity;

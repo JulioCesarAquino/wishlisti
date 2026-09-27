@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Events\Events\Pages;
 use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
+use App\Filament\Support\PremiumLock;
 use App\Filament\Support\SafeDeleteBulkAction;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
@@ -76,7 +77,9 @@ class ManageEventGuests extends ManageRelatedRecords
                     // Same premium gate as the global guests list.
                     ->formatStateUsing(fn (?int $state) => $this->canViewGiftCount()
                         ? (string) $state
-                        : '🔒')
+                        : '🔒 Premium')
+                    ->tooltip(fn (): ?string => $this->canViewGiftCount() ? null : PremiumLock::tooltip(Feature::GiftGivers))
+                    ->url(fn (): ?string => $this->canViewGiftCount() ? null : PurchaseEventPremium::getUrl(['record' => $this->getOwnerRecord()]))
                     ->sortable(),
                 TextColumn::make('cpf')
                     ->label('CPF')

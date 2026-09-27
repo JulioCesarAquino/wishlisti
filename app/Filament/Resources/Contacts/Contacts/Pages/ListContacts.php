@@ -19,6 +19,8 @@ class ListContacts extends ListRecords
 {
     protected static string $resource = ContactResource::class;
 
+    protected static ?string $title = 'Agenda de contatos';
+
     public function content(Schema $schema): Schema
     {
         if (! ContactResource::hasAccess()) {

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Guests\Guests\Tables;
 
 use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Support\PremiumLock;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use Filament\Tables\Columns\TextColumn;
@@ -77,7 +78,9 @@ class GuestsTable
                     ->label('Presentes dados')
                     ->formatStateUsing(fn (Guest $record, ?int $state) => self::canViewGiftCount($record)
                         ? (string) $state
-                        : '🔒'),
+                        : '🔒 Premium')
+                    ->tooltip(fn (Guest $record): ?string => self::canViewGiftCount($record) ? null : PremiumLock::tooltip(Feature::GiftGivers))
+                    ->url(fn (Guest $record): ?string => self::canViewGiftCount($record) ? null : PremiumLock::purchaseUrl($record->event)),
                 TextColumn::make('created_at')
                     ->label('Chegou em')
                     ->dateTime('d/m/Y H:i')

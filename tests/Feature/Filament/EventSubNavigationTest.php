@@ -26,7 +26,7 @@ class EventSubNavigationTest extends TestCase
      */
     private function pages(): array
     {
-        return ['edit', 'location', 'appearance', 'products', 'guests', 'rsvp', 'payment'];
+        return ['edit', 'location', 'appearance', 'products', 'guests', 'rsvp', 'payment', 'premium'];
     }
 
     public function test_a_host_can_open_every_page_of_their_event(): void
@@ -43,8 +43,10 @@ class EventSubNavigationTest extends TestCase
         $this->get(EventResource::getUrl('edit', ['record' => $event]))
             ->assertSee('Localização')
             ->assertSee('Confirmação de presença')
-            ->assertSee('Premium')
-            ->assertDontSee(EventResource::getUrl('premium', ['record' => $event]));
+            ->assertSee(EventResource::getUrl('premium', ['record' => $event]))
+            ->assertDontSee(EventResource::getUrl('premium-grants', ['record' => $event]));
+
+        $this->get(EventResource::getUrl('premium-grants', ['record' => $event]))->assertForbidden();
     }
 
     public function test_a_host_cannot_open_pages_of_someone_elses_event(): void
@@ -58,16 +60,16 @@ class EventSubNavigationTest extends TestCase
         }
     }
 
-    public function test_the_admin_also_sees_the_premium_page(): void
+    public function test_only_the_admin_sees_the_grants_page(): void
     {
         $event = Event::factory()->create();
 
         $this->actingAs(User::factory()->create(['is_admin' => true]));
 
         $this->get(EventResource::getUrl('edit', ['record' => $event]))
-            ->assertSee(EventResource::getUrl('premium', ['record' => $event]));
+            ->assertSee(EventResource::getUrl('premium-grants', ['record' => $event]));
 
-        $this->get(EventResource::getUrl('premium', ['record' => $event]))->assertOk();
+        $this->get(EventResource::getUrl('premium-grants', ['record' => $event]))->assertOk();
     }
 
     public function test_each_page_only_saves_its_own_part(): void
@@ -121,7 +123,7 @@ class EventSubNavigationTest extends TestCase
         $this->actingAs($host);
 
         Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertTableColumnFormattedStateSet('paid_orders_count', '🔒', $guest);
+            ->assertTableColumnFormattedStateSet('paid_orders_count', '🔒 Premium', $guest);
 
         $event->grantFeature(Feature::GiftGivers);
 

@@ -15,11 +15,11 @@ class EditEventPremium extends EditRecord
 
     protected static string $resource = EventResource::class;
 
-    protected static ?string $title = 'Premium';
+    protected static ?string $title = 'Liberar recursos (admin)';
 
-    protected static ?string $navigationLabel = 'Premium';
+    protected static ?string $navigationLabel = 'Liberar recursos';
 
-    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     /**
      * Unlocking premium features is the admin's call (or, later, a

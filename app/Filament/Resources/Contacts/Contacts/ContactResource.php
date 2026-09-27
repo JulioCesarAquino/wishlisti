@@ -31,6 +31,8 @@ class ContactResource extends Resource
 
     protected static ?string $slug = 'contacts';
 
+    protected static ?string $breadcrumb = 'Agenda de contatos';
+
     public static function hasAccess(): bool
     {
         $user = auth()->user();
