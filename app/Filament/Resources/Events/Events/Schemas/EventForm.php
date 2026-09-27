@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Events\Events\Schemas;
 
+use App\Enums\Premium\Feature;
+use App\Models\Events\Event;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -12,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
@@ -53,14 +57,6 @@ class EventForm
                     ->imageEditor()
                     ->imagePreviewHeight('160')
                     ->directory('events/covers'),
-                Slider::make('cover_effect_intensity')
-                    ->label('Intensidade do efeito de desfoque na capa')
-                    ->helperText('100 é o efeito completo (foto embaçada até o convidado passar o mouse ou tocar). 0 exibe a foto normalmente, sem nenhum efeito.')
-                    ->range(minValue: 0, maxValue: 100)
-                    ->step(5)
-                    ->tooltips()
-                    ->default(100)
-                    ->columnStart(2),
                 FileUpload::make('gallery')
                     ->label('Galeria de fotos')
                     ->image()
@@ -122,8 +118,17 @@ class EventForm
                             ->requiredWith('latitude'),
                     ]),
                 Section::make('Aparência da página pública')
+                    ->relationship('appearance')
                     ->columns(2)
                     ->components([
+                        Slider::make('cover_effect_intensity')
+                            ->label('Intensidade do efeito de desfoque na capa')
+                            ->helperText('100 é o efeito completo (foto embaçada até o convidado passar o mouse ou tocar). 0 exibe a foto normalmente, sem nenhum efeito.')
+                            ->range(minValue: 0, maxValue: 100)
+                            ->step(5)
+                            ->tooltips()
+                            ->default(100)
+                            ->columnSpanFull(),
                         Select::make('font_family')
                             ->label('Fonte')
                             ->options([
@@ -150,6 +155,7 @@ class EventForm
                     ]),
                 Section::make('Mercado Pago')
                     ->description('Necessário para o evento poder receber pagamentos via Pix, cartão ou boleto.')
+                    ->relationship('paymentSettings')
                     ->components([
                         TextInput::make('mp_access_token')
                             ->label('Access Token')
@@ -171,11 +177,50 @@ class EventForm
                     ->label('Publicado')
                     ->helperText('Enquanto desativado, só você e o admin conseguem ver a página pública (modo prévia). Convidados não têm acesso.')
                     ->default(false),
-                Toggle::make('is_premium')
-                    ->label('Recurso premium: ver quem deu cada presente')
-                    ->helperText('Sem isso, o anfitrião só vê o total arrecadado na aba de Pedidos, sem os nomes dos convidados.')
+                CheckboxList::make('premium_features')
+                    ->label('Recursos premium deste evento')
+                    ->options(collect(Feature::for(Event::class))->mapWithKeys(fn (Feature $feature) => [$feature->value => $feature->label()]))
+                    ->descriptions(collect(Feature::for(Event::class))->mapWithKeys(fn (Feature $feature) => [$feature->value => $feature->description()]))
                     ->visible(fn (): bool => (bool) auth()->user()?->isAdmin())
-                    ->default(false),
+                    ->live()
+                    ->afterStateHydrated(fn (CheckboxList $component, ?Event $record) => $component->state(
+                        array_map(fn (Feature $feature) => $feature->value, $record?->activeFeatures() ?? []),
+                    ))
+                    ->dehydrated(false)
+                    ->saveRelationshipsUsing(fn (Event $record, ?array $state) => $record->syncFeatures($state ?? []))
+                    ->columnSpanFull(),
+                Section::make('Formulário de confirmação de presença')
+                    ->description('Escolha quais dados os convidados precisam informar ao confirmar presença.')
+                    ->relationship('rsvpSettings')
+                    ->visible(fn (Get $get, ?Event $record): bool => auth()->user()?->isAdmin()
+                        ? in_array(Feature::GuestList->value, $get('premium_features') ?? [], true)
+                        : (bool) $record?->hasFeature(Feature::GuestList))
+                    ->columnSpanFull()
+                    ->components([
+                        CheckboxList::make('required_fields')
+                            ->label('Dados obrigatórios')
+                            ->helperText('O nome é sempre obrigatório. Os dados marcados serão exigidos do convidado e de cada acompanhante, e também servem para reconhecer quem já foi listado por outra pessoa.')
+                            ->options([
+                                'whatsapp' => 'Telefone / WhatsApp',
+                                'email' => 'E-mail',
+                                'cpf' => 'CPF',
+                            ])
+                            ->default(['whatsapp'])
+                            // Events created before this setting existed have
+                            // it empty; start them from the free form's rule.
+                            ->afterStateHydrated(function (CheckboxList $component, ?array $state): void {
+                                if (blank($state)) {
+                                    $component->state(['whatsapp']);
+                                }
+                            })
+                            ->required()
+                            ->minItems(1)
+                            ->columns(3),
+                        Toggle::make('collect_companions')
+                            ->label('Pedir os dados de cada acompanhante')
+                            ->helperText('Em vez de só informar quantas pessoas vão, o convidado preenche os dados de cada uma. Se um acompanhante confirmar presença por conta própria, ele deixa de contar para quem o listou e vira uma confirmação individual.')
+                            ->default(false),
+                    ]),
             ]);
     }
 }

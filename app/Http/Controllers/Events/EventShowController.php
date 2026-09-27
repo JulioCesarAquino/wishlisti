@@ -16,6 +16,8 @@ class EventShowController extends Controller
     {
         abort_unless($event->isViewableBy($request->user()), 404);
 
+        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'featureGrants']);
+
         $guest = null;
         $identifier = $request->cookie(Guest::cookieName($event));
 
@@ -41,15 +43,17 @@ class EventShowController extends Controller
                 'address' => $event->address,
                 'latitude' => $event->latitude,
                 'longitude' => $event->longitude,
-                'primary_color' => $event->primary_color,
-                'secondary_color' => $event->secondary_color,
-                'font_color_primary' => $event->font_color_primary,
-                'font_color_secondary' => $event->font_color_secondary,
-                'font_family' => $event->font_family,
-                'cover_effect_intensity' => $event->cover_effect_intensity,
+                'primary_color' => $event->appearance->primary_color,
+                'secondary_color' => $event->appearance->secondary_color,
+                'font_color_primary' => $event->appearance->font_color_primary,
+                'font_color_secondary' => $event->appearance->font_color_secondary,
+                'font_family' => $event->appearance->font_family,
+                'cover_effect_intensity' => $event->appearance->cover_effect_intensity,
                 'is_published' => $event->is_published,
                 'visits_count' => $event->visits_count,
-                'mp_public_key' => $event->mp_public_key,
+                'mp_public_key' => $event->paymentSettings->mp_public_key,
+                'rsvp_required_fields' => $event->rsvpRequiredFields(),
+                'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
             ],
             'is_preview' => ! $event->is_published,
             'products' => $event->products()
@@ -68,8 +72,18 @@ class EventShowController extends Controller
                 'name' => $guest->name,
                 'whatsapp' => $guest->whatsapp,
                 'email' => $guest->email,
+                'cpf' => $guest->cpf,
                 'rsvp_status' => $guest->rsvp_status,
                 'rsvp_guests_count' => $guest->rsvp_guests_count,
+                'companions' => $guest->companions()
+                    ->orderBy('id')
+                    ->get(['name', 'whatsapp', 'email', 'cpf'])
+                    ->map(fn (Guest $companion) => [
+                        'name' => $companion->name,
+                        'whatsapp' => $companion->whatsapp,
+                        'email' => $companion->email,
+                        'cpf' => $companion->cpf,
+                    ]),
             ] : null,
         ]);
     }

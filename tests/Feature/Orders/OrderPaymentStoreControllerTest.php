@@ -56,7 +56,7 @@ class OrderPaymentStoreControllerTest extends TestCase
 
     public function test_it_creates_the_payment_using_the_server_computed_amount(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event);
 
         $fake = new FakeMercadoPagoHttpClient(
@@ -101,7 +101,7 @@ class OrderPaymentStoreControllerTest extends TestCase
 
     public function test_it_rejects_paying_an_order_that_is_not_pending(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event);
         $order->update(['status' => Order::STATUS_PAID]);
 
@@ -118,7 +118,7 @@ class OrderPaymentStoreControllerTest extends TestCase
 
     public function test_it_throttles_repeated_requests_from_the_same_ip(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event);
         $order->update(['status' => Order::STATUS_PAID]);
 
@@ -135,8 +135,8 @@ class OrderPaymentStoreControllerTest extends TestCase
 
     public function test_it_rejects_an_order_that_does_not_belong_to_the_event(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
-        $otherEvent = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
+        $otherEvent = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($otherEvent);
 
         $response = $this->postJson("/{$event->slug}/orders/{$order->id}/mercadopago-payment", [

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasFeatureGrants;
+use App\Models\Contacts\Contact;
 use App\Models\Events\Event;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -33,7 +35,7 @@ use Illuminate\Support\Carbon;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasFeatureGrants, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -56,6 +58,16 @@ class User extends Authenticatable implements FilamentUser
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
+    }
+
+    /**
+     * The host's own address book (premium).
+     *
+     * @return HasMany<Contact, $this>
+     */
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(Contact::class);
     }
 
     public function isAdmin(): bool

@@ -2,6 +2,7 @@
 
 namespace Database\Factories\Events;
 
+use App\Enums\Premium\Feature;
 use App\Models\Events\Event;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -29,7 +30,35 @@ class EventFactory extends Factory
             'event_date' => $this->faker->dateTimeBetween('now', '+1 year'),
             'description' => $this->faker->paragraph(),
             'is_published' => true,
-            'is_premium' => false,
         ];
+    }
+
+    public function withFeatures(Feature ...$features): static
+    {
+        return $this->afterCreating(fn (Event $event) => $event->syncFeatures(array_values($features)));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function withRsvpSettings(array $attributes): static
+    {
+        return $this->afterCreating(fn (Event $event) => $event->rsvpSettings()->create($attributes));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function withAppearance(array $attributes): static
+    {
+        return $this->afterCreating(fn (Event $event) => $event->appearance()->create($attributes));
+    }
+
+    public function withMercadoPago(?string $accessToken = 'TEST-token', ?string $publicKey = 'TEST-public-key'): static
+    {
+        return $this->afterCreating(fn (Event $event) => $event->paymentSettings()->create([
+            'mp_access_token' => $accessToken,
+            'mp_public_key' => $publicKey,
+        ]));
     }
 }

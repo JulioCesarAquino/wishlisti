@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Guests\Guests\GuestResource;
 use App\Filament\Resources\Guests\Guests\Pages\ListGuests;
 use App\Models\Events\Event;
@@ -100,7 +101,7 @@ class GuestResourceAccessTest extends TestCase
     public function test_hosts_cannot_see_the_gift_count_on_non_premium_events(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id, 'is_premium' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
         $this->createGuestWithPaidOrder($event);
 
         $this->actingAs($host);
@@ -112,7 +113,7 @@ class GuestResourceAccessTest extends TestCase
     public function test_hosts_can_see_the_gift_count_on_premium_events(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id, 'is_premium' => true]);
+        $event = Event::factory()->withFeatures(Feature::GiftGivers)->create(['user_id' => $host->id]);
         $this->createGuestWithPaidOrder($event);
 
         $this->actingAs($host);
@@ -125,7 +126,7 @@ class GuestResourceAccessTest extends TestCase
     {
         $admin = User::factory()->create(['is_admin' => true]);
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id, 'is_premium' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
         $this->createGuestWithPaidOrder($event);
 
         $this->actingAs($admin);

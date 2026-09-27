@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Orders\Tables;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
@@ -13,19 +14,19 @@ use Illuminate\Database\Eloquent\Builder;
 class OrdersTable
 {
     /**
-     * Guest identity (name/WhatsApp) is gated behind the event's premium
-     * flag — the free tier only ever shows aggregate totals. Admins always
-     * see everything regardless of the flag.
+     * Guest identity (name/WhatsApp) is gated behind the event's "gift
+     * givers" premium feature — the free tier only ever shows aggregate
+     * totals. Admins always see everything regardless of the feature.
      */
     private static function canViewGuestIdentity(Order $order): bool
     {
-        return (bool) auth()->user()?->isAdmin() || $order->event->is_premium;
+        return (bool) auth()->user()?->isAdmin() || $order->event->hasFeature(Feature::GiftGivers);
     }
 
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['event', 'guest']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['event.featureGrants', 'guest']))
             ->columns([
                 TextColumn::make('event.title')
                     ->label('Evento')

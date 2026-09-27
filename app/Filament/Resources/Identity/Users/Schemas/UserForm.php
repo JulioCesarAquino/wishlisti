@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Identity\Users\Schemas;
 
+use App\Enums\Premium\Feature;
+use App\Models\User;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
@@ -36,6 +39,16 @@ class UserForm
                     ->label('É administrador')
                     ->helperText('Administradores veem todos os eventos e o catálogo geral. Anfitriões veem só o próprio evento.')
                     ->default(false),
+                CheckboxList::make('premium_features')
+                    ->label('Recursos premium do anfitrião')
+                    ->options(collect(Feature::for(User::class))->mapWithKeys(fn (Feature $feature) => [$feature->value => $feature->label()]))
+                    ->descriptions(collect(Feature::for(User::class))->mapWithKeys(fn (Feature $feature) => [$feature->value => $feature->description()]))
+                    ->afterStateHydrated(fn (CheckboxList $component, ?User $record) => $component->state(
+                        array_map(fn (Feature $feature) => $feature->value, $record?->activeFeatures() ?? []),
+                    ))
+                    ->dehydrated(false)
+                    ->saveRelationshipsUsing(fn (User $record, ?array $state) => $record->syncFeatures($state ?? []))
+                    ->columnSpanFull(),
             ]);
     }
 }

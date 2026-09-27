@@ -58,7 +58,7 @@ class OrderPaymentUpdateServiceTest extends TestCase
 
     public function test_an_approved_payment_marks_the_order_as_paid_and_deducts_stock(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event, quantity: 2);
 
         MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
@@ -84,7 +84,7 @@ class OrderPaymentUpdateServiceTest extends TestCase
 
     public function test_repeated_notifications_for_the_same_payment_do_not_double_count_stock(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event, quantity: 2);
 
         $approvedResponse = fn () => new MPResponse(200, [
@@ -106,7 +106,7 @@ class OrderPaymentUpdateServiceTest extends TestCase
 
     public function test_a_refund_after_payment_restocks_the_items(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event, quantity: 2);
 
         MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
@@ -138,7 +138,7 @@ class OrderPaymentUpdateServiceTest extends TestCase
 
     public function test_it_does_nothing_when_the_host_has_not_configured_mercado_pago(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => null]);
+        $event = Event::factory()->create();
         $order = $this->createPendingOrder($event);
 
         $fake = new FakeMercadoPagoHttpClient;

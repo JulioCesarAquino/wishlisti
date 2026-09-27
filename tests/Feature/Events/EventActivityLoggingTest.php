@@ -3,6 +3,7 @@
 namespace Tests\Feature\Events;
 
 use App\Models\Events\Event;
+use App\Models\Events\EventAppearance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -40,10 +41,14 @@ class EventActivityLoggingTest extends TestCase
 
         $this->actingAs($host);
 
-        $event->update([
+        $event->paymentSettings()->create([
             'mp_access_token' => 'TEST-super-secret-token',
             'mp_public_key' => 'TEST-public-key',
         ]);
+
+        $this->assertFalse(Activity::query()
+            ->where('attribute_changes', 'like', '%TEST-super-secret-token%')
+            ->exists());
 
         $activity = Activity::where('subject_type', Event::class)
             ->where('subject_id', $event->id)
@@ -51,9 +56,25 @@ class EventActivityLoggingTest extends TestCase
             ->latest()
             ->first();
 
-        // The credentials-only update produced no loggable (whitelisted)
-        // attribute changes, so no activity should have been recorded at all.
+        // Credentials live in their own, unlogged table, so saving them
+        // records no activity on the event at all.
         $this->assertNull($activity);
+    }
+
+    public function test_appearance_changes_are_logged(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        $event->appearance()->create(['primary_color' => '#ffffff']);
+
+        $activity = Activity::where('subject_type', EventAppearance::class)->latest('id')->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame('atualizou a aparência do evento', $activity->description);
+        $this->assertSame('#ffffff', $activity->attribute_changes['attributes']['primary_color']);
     }
 
     public function test_creating_an_event_is_logged(): void

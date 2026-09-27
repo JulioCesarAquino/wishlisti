@@ -28,7 +28,7 @@ class EventCoverEffectFormTest extends TestCase
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertSame(100, Event::first()->cover_effect_intensity);
+        $this->assertSame(100, Event::first()->appearance->cover_effect_intensity);
     }
 
     public function test_cover_effect_intensity_can_be_lowered_to_disable_the_effect(): void
@@ -42,11 +42,11 @@ class EventCoverEffectFormTest extends TestCase
                 'type' => 'aniversario',
                 'title' => 'Festa da Maria',
                 'address' => 'Rua das Flores, 123',
-                'cover_effect_intensity' => 0,
+                'appearance.cover_effect_intensity' => 0,
             ])
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertSame(0, Event::first()->cover_effect_intensity);
+        $this->assertSame(0, Event::first()->appearance->cover_effect_intensity);
     }
 }

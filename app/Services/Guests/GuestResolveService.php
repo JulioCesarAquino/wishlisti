@@ -4,6 +4,7 @@ namespace App\Services\Guests;
 
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
+use App\Support\ContactMatcher;
 
 class GuestResolveService
 {
@@ -13,12 +14,11 @@ class GuestResolveService
      *
      * Resolution first tries the browser cookie identifier. That fails
      * whenever the same person visits from a different browser/device, so
-     * we fall back to matching an existing guest of this same event by
-     * WhatsApp number (digits only, ignoring formatting) — the one piece of
-     * contact info we always require — instead of fragmenting their gift
-     * and RSVP history across duplicate guest rows.
+     * we fall back to matching an existing guest of this same event by any
+     * contact detail they gave (see findByContact()) instead of fragmenting
+     * their gift and RSVP history across duplicate guest rows.
      *
-     * @param  array{name: string, whatsapp: string, email?: ?string}  $guestData
+     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
      */
     public function execute(Event $event, array $guestData, ?string $guestIdentifier): Guest
     {
@@ -26,10 +26,12 @@ class GuestResolveService
             ? $event->guests()->where('identifier', $guestIdentifier)->first()
             : null;
 
-        $guest ??= $this->findByWhatsapp($event, $guestData['whatsapp']);
+        $guest ??= $this->findByContact($event, $guestData);
 
         if ($guest) {
-            $guest->update($guestData);
+            // Blank fields are left out so a form that doesn't ask for, say,
+            // the CPF doesn't wipe the one we already know.
+            $guest->update(array_filter($guestData, fn ($value) => filled($value)));
 
             return $guest;
         }
@@ -37,20 +39,23 @@ class GuestResolveService
         return $event->guests()->create($guestData);
     }
 
-    private function findByWhatsapp(Event $event, string $whatsapp): ?Guest
+    /**
+     * An existing guest of this event with the same contact details (see
+     * ContactMatcher).
+     *
+     * Compared in PHP (not a DB-side regex) so this stays portable across
+     * the MySQL connection used in production and the SQLite one used in
+     * tests, and because per-event guest lists are small enough that
+     * loading them isn't a real cost.
+     *
+     * @param  array{whatsapp?: ?string, email?: ?string, cpf?: ?string}  $contact
+     */
+    public function findByContact(Event $event, array $contact, ?Guest $except = null): ?Guest
     {
-        $normalized = preg_replace('/\D+/', '', $whatsapp);
+        $guests = $event->guests()
+            ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
+            ->get();
 
-        if (blank($normalized)) {
-            return null;
-        }
-
-        // Compared in PHP (not a DB-side regex) so this stays portable across
-        // the MySQL connection used in production and the SQLite one used in
-        // tests, and because per-event guest lists are small enough that
-        // loading them isn't a real cost.
-        return $event->guests()
-            ->get()
-            ->first(fn (Guest $guest) => preg_replace('/\D+/', '', $guest->whatsapp) === $normalized);
+        return ContactMatcher::firstMatch($guests, $contact);
     }
 }

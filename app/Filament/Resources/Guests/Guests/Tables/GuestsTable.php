@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Guests\Guests\Tables;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
@@ -15,18 +16,18 @@ class GuestsTable
     /**
      * How many gifts a guest has given is individual giving behaviour, not
      * the aggregate headcount data this list is otherwise free to show — so
-     * it stays behind the same per-event premium flag as the Orders list.
+     * it stays behind the same per-event premium feature as the Orders list.
      */
     private static function canViewGiftCount(Guest $guest): bool
     {
-        return (bool) auth()->user()?->isAdmin() || $guest->event->is_premium;
+        return (bool) auth()->user()?->isAdmin() || $guest->event->hasFeature(Feature::GiftGivers);
     }
 
     public static function configure(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query
-                ->with('event')
+                ->with(['event.featureGrants', 'companionOf'])
                 ->withCount([
                     'orders as paid_orders_count' => fn (Builder $ordersQuery) => $ordersQuery->where('status', Order::STATUS_PAID),
                 ]))
@@ -46,6 +47,10 @@ class GuestsTable
                     ->label('E-mail')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cpf')
+                    ->label('CPF')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('rsvp_status')
                     ->label('Presença')
                     ->badge()
@@ -59,6 +64,10 @@ class GuestsTable
                         Guest::RSVP_DECLINED => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('companionOf.name')
+                    ->label('Acompanhante de')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('rsvp_guests_count')
                     ->label('Pessoas')
                     ->numeric()

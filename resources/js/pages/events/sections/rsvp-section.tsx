@@ -12,6 +12,8 @@ import {
     headingStyle,
     type EventData,
     type Guest,
+    type GuestContact,
+    type RsvpContactField,
 } from '@/pages/events/types';
 
 type Props = {
@@ -19,19 +21,140 @@ type Props = {
     guest: Guest | null;
 };
 
+type ContactForm = {
+    name: string;
+    whatsapp: string;
+    email: string;
+    cpf: string;
+};
+
+const FIELD_LABELS: Record<RsvpContactField, string> = {
+    whatsapp: 'WhatsApp',
+    email: 'E-mail',
+    cpf: 'CPF',
+};
+
+function toContactForm(contact: GuestContact | null | undefined): ContactForm {
+    return {
+        name: contact?.name ?? '',
+        whatsapp: contact?.whatsapp ?? '',
+        email: contact?.email ?? '',
+        cpf: contact?.cpf ?? '',
+    };
+}
+
+function resizeCompanions(
+    companions: ContactForm[],
+    guestsCount: number,
+): ContactForm[] {
+    const size = Math.max(0, Math.min(guestsCount, 20) - 1);
+
+    return Array.from(
+        { length: size },
+        (_, index) => companions[index] ?? toContactForm(null),
+    );
+}
+
+type ContactFieldsProps = {
+    idPrefix: string;
+    errorPrefix: string;
+    value: ContactForm;
+    fields: RsvpContactField[];
+    requiredFields: RsvpContactField[];
+    nameLabel: string;
+    errors: Record<string, string | undefined>;
+    onChange: (value: ContactForm) => void;
+};
+
+function ContactFields({
+    idPrefix,
+    errorPrefix,
+    value,
+    fields,
+    requiredFields,
+    nameLabel,
+    errors,
+    onChange,
+}: ContactFieldsProps) {
+    const inputs: { key: keyof ContactForm; label: string; type: string }[] = [
+        { key: 'name', label: nameLabel, type: 'text' },
+        ...fields.map((field) => ({
+            key: field,
+            label: requiredFields.includes(field)
+                ? FIELD_LABELS[field]
+                : `${FIELD_LABELS[field]} (opcional)`,
+            type: field === 'email' ? 'email' : 'text',
+        })),
+    ];
+
+    return (
+        <>
+            {inputs.map(({ key, label, type }) => {
+                const error = errors[`${errorPrefix}.${key}`];
+
+                return (
+                    <div key={key} className="grid gap-1.5">
+                        <Label htmlFor={`${idPrefix}_${key}`}>{label}</Label>
+                        <Input
+                            id={`${idPrefix}_${key}`}
+                            type={type}
+                            inputMode={key === 'cpf' ? 'numeric' : undefined}
+                            value={value[key]}
+                            onChange={(e) =>
+                                onChange({ ...value, [key]: e.target.value })
+                            }
+                        />
+                        {error && (
+                            <p className="text-sm text-red-600">{error}</p>
+                        )}
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
 export function RsvpSection({ event, guest }: Props) {
     const [justResponded, setJustResponded] = useState(false);
     const [editing, setEditing] = useState(false);
 
+    const requiredFields = event.rsvp_required_fields;
+    const collectsCompanions = event.rsvp_collect_companions;
+
+    // The guest's own form always offers WhatsApp and e-mail (as before);
+    // the CPF only shows up when the host made it mandatory. Companions are
+    // asked just for what's mandatory, to keep the form short.
+    const guestFields: RsvpContactField[] = [
+        'whatsapp',
+        'email',
+        ...(requiredFields.includes('cpf') ? (['cpf'] as const) : []),
+    ];
+
+    const initialCount = guest?.rsvp_guests_count ?? 1;
+
     const form = useForm({
-        guest: {
-            name: guest?.name ?? '',
-            whatsapp: guest?.whatsapp ?? '',
-            email: guest?.email ?? '',
-        },
+        guest: toContactForm(guest),
         attending: null as boolean | null,
-        guests_count: guest?.rsvp_guests_count ?? 1,
+        guests_count: initialCount,
+        companions: collectsCompanions
+            ? resizeCompanions(
+                  (guest?.companions ?? []).map(toContactForm),
+                  initialCount,
+              )
+            : [],
     });
+
+    const errors = form.errors as Record<string, string | undefined>;
+
+    const setGuestsCount = (count: number) => {
+        form.setData((data) => ({
+            ...data,
+            guests_count: count,
+            companions: collectsCompanions
+                ? resizeCompanions(data.companions, count)
+                : [],
+        }));
+    };
 
     const submit = () => {
         form.post(storeRsvp({ event: event.slug }).url, {
@@ -46,12 +169,15 @@ export function RsvpSection({ event, guest }: Props) {
     const alreadyResponded = guest?.rsvp_status && !editing;
 
     if (alreadyResponded || justResponded) {
-        const attending = justResponded
-            ? form.data.attending
-            : guest?.rsvp_status === 'confirmed';
-        const count = justResponded
-            ? form.data.guests_count
-            : guest?.rsvp_guests_count;
+        // After a successful submit the page reloads with the saved guest,
+        // whose headcount may differ from what was typed (a companion who
+        // had already confirmed on their own isn't counted twice).
+        const attending = guest?.rsvp_status
+            ? guest.rsvp_status === 'confirmed'
+            : form.data.attending;
+        const count = guest?.rsvp_status
+            ? guest.rsvp_guests_count
+            : form.data.guests_count;
 
         return (
             <div className="mx-auto max-w-lg px-6 py-16 text-center">
@@ -99,58 +225,16 @@ export function RsvpSection({ event, guest }: Props) {
             </p>
 
             <div className="space-y-4">
-                <div className="grid gap-1.5">
-                    <Label htmlFor="rsvp_name">Seu nome</Label>
-                    <Input
-                        id="rsvp_name"
-                        value={form.data.guest.name}
-                        onChange={(e) =>
-                            form.setData('guest', {
-                                ...form.data.guest,
-                                name: e.target.value,
-                            })
-                        }
-                    />
-                    {form.errors['guest.name'] && (
-                        <p className="text-sm text-red-600">
-                            {form.errors['guest.name']}
-                        </p>
-                    )}
-                </div>
-
-                <div className="grid gap-1.5">
-                    <Label htmlFor="rsvp_whatsapp">WhatsApp</Label>
-                    <Input
-                        id="rsvp_whatsapp"
-                        value={form.data.guest.whatsapp}
-                        onChange={(e) =>
-                            form.setData('guest', {
-                                ...form.data.guest,
-                                whatsapp: e.target.value,
-                            })
-                        }
-                    />
-                    {form.errors['guest.whatsapp'] && (
-                        <p className="text-sm text-red-600">
-                            {form.errors['guest.whatsapp']}
-                        </p>
-                    )}
-                </div>
-
-                <div className="grid gap-1.5">
-                    <Label htmlFor="rsvp_email">E-mail (opcional)</Label>
-                    <Input
-                        id="rsvp_email"
-                        type="email"
-                        value={form.data.guest.email}
-                        onChange={(e) =>
-                            form.setData('guest', {
-                                ...form.data.guest,
-                                email: e.target.value,
-                            })
-                        }
-                    />
-                </div>
+                <ContactFields
+                    idPrefix="rsvp"
+                    errorPrefix="guest"
+                    value={form.data.guest}
+                    fields={guestFields}
+                    requiredFields={requiredFields}
+                    nameLabel="Seu nome"
+                    errors={errors}
+                    onChange={(value) => form.setData('guest', value)}
+                />
 
                 <div className="grid gap-1.5">
                     <Label>Você vai comparecer?</Label>
@@ -204,10 +288,7 @@ export function RsvpSection({ event, guest }: Props) {
                             max={20}
                             value={form.data.guests_count}
                             onChange={(e) =>
-                                form.setData(
-                                    'guests_count',
-                                    Number(e.target.value),
-                                )
+                                setGuestsCount(Number(e.target.value))
                             }
                         />
                         {form.errors.guests_count && (
@@ -215,8 +296,46 @@ export function RsvpSection({ event, guest }: Props) {
                                 {form.errors.guests_count}
                             </p>
                         )}
+                        {errors.companions && (
+                            <p className="text-sm text-red-600">
+                                {errors.companions}
+                            </p>
+                        )}
                     </div>
                 )}
+
+                {form.data.attending === true &&
+                    form.data.companions.map((companion, index) => (
+                        <fieldset
+                            key={index}
+                            className="space-y-3 rounded-lg border p-4"
+                        >
+                            <legend
+                                className="px-1 text-sm font-medium"
+                                style={bodyTextStyle(event)}
+                            >
+                                Acompanhante {index + 1}
+                            </legend>
+                            <ContactFields
+                                idPrefix={`rsvp_companion_${index}`}
+                                errorPrefix={`companions.${index}`}
+                                value={companion}
+                                fields={requiredFields}
+                                requiredFields={requiredFields}
+                                nameLabel="Nome"
+                                errors={errors}
+                                onChange={(value) =>
+                                    form.setData(
+                                        'companions',
+                                        form.data.companions.map(
+                                            (current, i) =>
+                                                i === index ? value : current,
+                                        ),
+                                    )
+                                }
+                            />
+                        </fieldset>
+                    ))}
 
                 <Button
                     className="w-full"

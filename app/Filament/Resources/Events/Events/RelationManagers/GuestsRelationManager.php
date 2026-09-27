@@ -29,7 +29,7 @@ class GuestsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->modifyQueryUsing(fn (Builder $query) => $query->withCount([
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('companionOf')->withCount([
                 'orders as paid_orders_count' => fn (Builder $ordersQuery) => $ordersQuery->where('status', Order::STATUS_PAID),
             ]))
             ->columns([
@@ -46,6 +46,10 @@ class GuestsRelationManager extends RelationManager
                     ->label('Presentes dados')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('cpf')
+                    ->label('CPF')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('rsvp_status')
                     ->label('Presença')
                     ->badge()
@@ -59,6 +63,10 @@ class GuestsRelationManager extends RelationManager
                         Guest::RSVP_DECLINED => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('companionOf.name')
+                    ->label('Acompanhante de')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('rsvp_guests_count')
                     ->label('Pessoas')
                     ->numeric()

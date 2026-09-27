@@ -33,14 +33,23 @@ export type EventData = {
     is_published: boolean;
     visits_count: number;
     mp_public_key: string | null;
+    rsvp_required_fields: RsvpContactField[];
+    rsvp_collect_companions: boolean;
 };
 
-export type Guest = {
+export type RsvpContactField = 'whatsapp' | 'email' | 'cpf';
+
+export type GuestContact = {
     name: string;
-    whatsapp: string;
+    whatsapp: string | null;
     email: string | null;
+    cpf: string | null;
+};
+
+export type Guest = GuestContact & {
     rsvp_status: 'confirmed' | 'declined' | null;
     rsvp_guests_count: number | null;
+    companions: GuestContact[];
 };
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {

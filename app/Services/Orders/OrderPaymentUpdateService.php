@@ -24,12 +24,12 @@ class OrderPaymentUpdateService
      */
     public function execute(Event $event, string $paymentId): void
     {
-        if (blank($event->mp_access_token)) {
+        if (blank($event->paymentSettings->mp_access_token)) {
             return;
         }
 
         $requestOptions = new RequestOptions;
-        $requestOptions->setAccessToken($event->mp_access_token);
+        $requestOptions->setAccessToken($event->paymentSettings->mp_access_token);
 
         try {
             $payment = $this->paymentClient->get((int) $paymentId, $requestOptions);

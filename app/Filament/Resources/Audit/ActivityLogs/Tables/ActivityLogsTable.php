@@ -2,8 +2,13 @@
 
 namespace App\Filament\Resources\Audit\ActivityLogs\Tables;
 
+use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
+use App\Models\Events\EventAppearance;
+use App\Models\Events\EventRsvpSetting;
+use App\Models\Premium\FeatureGrant;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -35,7 +40,12 @@ class ActivityLogsTable
         'font_color_secondary' => 'Cor da fonte secundária',
         'font_family' => 'Fonte',
         'is_published' => 'Publicado',
-        'is_premium' => 'Recurso premium',
+        'cover_effect_intensity' => 'Intensidade do efeito de desfoque',
+        'collect_companions' => 'Pedir dados dos acompanhantes',
+        'required_fields' => 'Dados obrigatórios na confirmação',
+        'feature' => 'Recurso premium',
+        'source' => 'Origem',
+        'expires_at' => 'Expira em',
         'name' => 'Nome',
         'image' => 'Imagem',
         'price' => 'Preço',
@@ -60,8 +70,9 @@ class ActivityLogsTable
                 TextColumn::make('subject_type')
                     ->label('Tipo')
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        Event::class => 'Evento',
+                        Event::class, EventAppearance::class, EventRsvpSetting::class => 'Evento',
                         EventProduct::class => 'Presente',
+                        FeatureGrant::class => 'Recurso premium',
                         default => '—',
                     }),
                 TextColumn::make('subject')
@@ -71,7 +82,13 @@ class ActivityLogsTable
 
                         return match (true) {
                             $subject instanceof Event => $subject->title,
+                            $subject instanceof EventAppearance, $subject instanceof EventRsvpSetting => $subject->event->title,
                             $subject instanceof EventProduct => $subject->name,
+                            $subject instanceof FeatureGrant => $subject->feature->label().' — '.match (true) {
+                                $subject->grantable instanceof Event => $subject->grantable->title,
+                                $subject->grantable instanceof User => $subject->grantable->name,
+                                default => '(excluído)',
+                            },
                             default => '(excluído)',
                         };
                     }),
@@ -81,9 +98,18 @@ class ActivityLogsTable
                 SelectFilter::make('subject_type')
                     ->label('Tipo')
                     ->options([
-                        Event::class => 'Evento',
-                        EventProduct::class => 'Presente',
-                    ]),
+                        'event' => 'Evento',
+                        'product' => 'Presente',
+                        'premium' => 'Recurso premium',
+                    ])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $query, string $type) => $query->whereIn('subject_type', match ($type) {
+                            'event' => [Event::class, EventAppearance::class, EventRsvpSetting::class],
+                            'product' => [EventProduct::class],
+                            default => [FeatureGrant::class],
+                        }),
+                    )),
             ])
             ->recordActions([
                 Action::make('viewChanges')
@@ -132,6 +158,10 @@ class ActivityLogsTable
 
         if (is_bool($value)) {
             return $value ? 'Sim' : 'Não';
+        }
+
+        if (is_string($value) && Feature::tryFrom($value)) {
+            return Feature::from($value)->label();
         }
 
         if (is_array($value)) {

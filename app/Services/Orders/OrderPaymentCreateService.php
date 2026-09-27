@@ -28,14 +28,14 @@ class OrderPaymentCreateService
     {
         $event = $order->event;
 
-        if (blank($event->mp_access_token)) {
+        if (blank($event->paymentSettings->mp_access_token)) {
             throw ValidationException::withMessages([
                 'formData' => 'Este evento ainda não está configurado para receber pagamentos.',
             ]);
         }
 
         $requestOptions = new RequestOptions;
-        $requestOptions->setAccessToken($event->mp_access_token);
+        $requestOptions->setAccessToken($event->paymentSettings->mp_access_token);
 
         $request = [
             ...$formData,

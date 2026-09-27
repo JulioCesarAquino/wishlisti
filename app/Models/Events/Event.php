@@ -2,17 +2,19 @@
 
 namespace App\Models\Events;
 
+use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
+use App\Models\Concerns\HasFeatureGrants;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Models\User;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -33,49 +35,25 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $address
  * @property float|null $latitude
  * @property float|null $longitude
- * @property string|null $mp_access_token
- * @property string|null $mp_public_key
  * @property bool $is_published
- * @property bool $is_premium
  * @property int $visits_count
- * @property string|null $primary_color
- * @property string|null $secondary_color
- * @property string|null $font_color_primary
- * @property string|null $font_color_secondary
- * @property string|null $font_family
- * @property int $cover_effect_intensity
+ * @property-read EventAppearance $appearance
+ * @property-read EventRsvpSetting $rsvpSettings
+ * @property-read EventPaymentSetting $paymentSettings
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image',
     'gallery', 'description', 'story', 'address', 'latitude', 'longitude',
-    'mp_access_token', 'mp_public_key', 'is_published', 'is_premium',
-    'primary_color', 'secondary_color', 'font_color_primary', 'font_color_secondary', 'font_family',
-    'cover_effect_intensity',
+    'is_published',
 ])]
-#[Hidden(['mp_access_token', 'mp_public_key'])]
 class Event extends Model
 {
     /** @use HasFactory<EventFactory> */
     use HasFactory;
 
-    use LogsActivity;
-
-    /**
-     * `is_premium` is hidden from the host's form and defaults at the
-     * database level, so a new event's in-memory attribute would otherwise
-     * stay unset (null) until refreshed from the database — causing the
-     * activity log to record a false "changed from null to false" on the
-     * very next update. Seeding it here keeps the in-memory value in sync
-     * with the column default from the moment the model is instantiated.
-     *
-     * @var array<string, mixed>
-     */
-    protected $attributes = [
-        'is_premium' => false,
-        'cover_effect_intensity' => 100,
-    ];
+    use HasFeatureGrants, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -83,9 +61,7 @@ class Event extends Model
             ->useLogName('event')
             ->logOnly([
                 'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'gallery',
-                'address', 'latitude', 'longitude',
-                'primary_color', 'secondary_color', 'font_color_primary', 'font_color_secondary', 'font_family',
-                'cover_effect_intensity', 'is_published', 'is_premium',
+                'address', 'latitude', 'longitude', 'is_published',
             ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
@@ -126,11 +102,8 @@ class Event extends Model
             'event_date' => 'date',
             'gallery' => 'array',
             'is_published' => 'boolean',
-            'is_premium' => 'boolean',
             'latitude' => 'float',
             'longitude' => 'float',
-            'mp_access_token' => 'encrypted',
-            'mp_public_key' => 'encrypted',
         ];
     }
 
@@ -140,6 +113,34 @@ class Event extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Events created before these settings existed (or by factories) may
+     * have no row yet, so each falls back to an unsaved one holding the
+     * defaults.
+     *
+     * @return HasOne<EventAppearance, $this>
+     */
+    public function appearance(): HasOne
+    {
+        return $this->hasOne(EventAppearance::class)->withDefault();
+    }
+
+    /**
+     * @return HasOne<EventRsvpSetting, $this>
+     */
+    public function rsvpSettings(): HasOne
+    {
+        return $this->hasOne(EventRsvpSetting::class)->withDefault();
+    }
+
+    /**
+     * @return HasOne<EventPaymentSetting, $this>
+     */
+    public function paymentSettings(): HasOne
+    {
+        return $this->hasOne(EventPaymentSetting::class)->withDefault();
     }
 
     /**
@@ -164,6 +165,30 @@ class Event extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Contact fields (besides the always-required name) the RSVP form
+     * demands from the guest and from each companion. Customising them is a
+     * premium feature; without it the form keeps its original shape, where
+     * WhatsApp is the one mandatory contact.
+     *
+     * @return array<int, string>
+     */
+    public function rsvpRequiredFields(): array
+    {
+        $fields = array_values(array_intersect(Guest::CONTACT_FIELDS, $this->rsvpSettings->required_fields ?? []));
+
+        return $this->hasFeature(Feature::GuestList) && $fields !== [] ? $fields : ['whatsapp'];
+    }
+
+    /**
+     * Whether the RSVP form asks for each companion's details instead of
+     * just a headcount — also premium-only.
+     */
+    public function collectsRsvpCompanions(): bool
+    {
+        return $this->hasFeature(Feature::GuestList) && $this->rsvpSettings->collect_companions;
     }
 
     public function coverImageUrl(): ?string

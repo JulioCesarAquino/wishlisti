@@ -19,7 +19,12 @@ class GuestsOverviewWidget extends StatsOverviewWidget
                 fn ($eventQuery) => $eventQuery->where('user_id', auth()->id()),
             ));
 
-        $confirmedGuests = (clone $guestsQuery)->where('rsvp_status', Guest::RSVP_CONFIRMED)->count();
+        // Companions listed by another guest are already inside that guest's
+        // headcount, so they don't count as a separate response.
+        $confirmedGuests = (clone $guestsQuery)
+            ->where('rsvp_status', Guest::RSVP_CONFIRMED)
+            ->whereNull('companion_of_guest_id')
+            ->count();
         $totalPeopleConfirmed = (int) (clone $guestsQuery)
             ->where('rsvp_status', Guest::RSVP_CONFIRMED)
             ->sum('rsvp_guests_count');

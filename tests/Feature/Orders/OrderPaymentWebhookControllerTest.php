@@ -57,7 +57,7 @@ class OrderPaymentWebhookControllerTest extends TestCase
 
     public function test_a_payment_notification_updates_the_matching_order(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event);
 
         MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
@@ -77,7 +77,7 @@ class OrderPaymentWebhookControllerTest extends TestCase
 
     public function test_it_ignores_notifications_that_are_not_about_payments(): void
     {
-        $event = Event::factory()->create(['mp_access_token' => 'TEST-token']);
+        $event = Event::factory()->withMercadoPago()->create();
         $order = $this->createPendingOrder($event);
 
         $fake = new FakeMercadoPagoHttpClient;
