@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Enums\Premium\Feature;
 use App\Filament\Resources\Guests\Guests\GuestResource;
 use App\Filament\Resources\Guests\Guests\Pages\ListGuests;
 use App\Models\Events\Event;
@@ -98,40 +97,40 @@ class GuestResourceAccessTest extends TestCase
         return $guest;
     }
 
-    public function test_hosts_cannot_see_the_gift_count_on_non_premium_events(): void
+    public function test_hosts_see_how_many_gifts_each_guest_gave(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->create(['user_id' => $host->id]);
-        $this->createGuestWithPaidOrder($event);
+        $guest = $this->createGuestWithPaidOrder($event);
 
         $this->actingAs($host);
 
         Livewire::test(ListGuests::class)
-            ->assertSee('🔒');
+            ->assertTableColumnFormattedStateSet('paid_orders_count', '1', $guest);
     }
 
-    public function test_hosts_can_see_the_gift_count_on_premium_events(): void
+    public function test_anonymous_gifts_do_not_give_the_guest_away(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->withFeatures(Feature::GiftGivers)->create(['user_id' => $host->id]);
-        $this->createGuestWithPaidOrder($event);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $confirmed = $this->createGuestWithPaidOrder($event);
+        $confirmed->update(['rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 1]);
+        Order::query()->update(['is_anonymous' => true]);
+
+        // Only linked to the event by an anonymous gift: not listed at all.
+        $onlyGave = Guest::factory()->create(['event_id' => $event->id, 'name' => 'Doador Discreto']);
+        Order::factory()->create(['event_id' => $event->id, 'guest_id' => $onlyGave->id, 'status' => Order::STATUS_PAID, 'is_anonymous' => true]);
 
         $this->actingAs($host);
 
         Livewire::test(ListGuests::class)
-            ->assertDontSee('🔒');
-    }
+            ->assertCanSeeTableRecords([$confirmed])
+            ->assertCanNotSeeTableRecords([$onlyGave])
+            ->assertTableColumnFormattedStateSet('paid_orders_count', '0', $confirmed);
 
-    public function test_admins_always_see_the_gift_count_regardless_of_premium(): void
-    {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id]);
-        $this->createGuestWithPaidOrder($event);
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
 
-        $this->actingAs($admin);
-
-        Livewire::test(ListGuests::class)
-            ->assertDontSee('🔒');
+        Livewire::test(ListGuests::class)->assertCanSeeTableRecords([$confirmed, $onlyGave]);
     }
 }

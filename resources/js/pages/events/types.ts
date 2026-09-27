@@ -32,6 +32,7 @@ export type EventData = {
     cover_effect_intensity: number;
     is_published: boolean;
     visits_count: number;
+    accepts_online_gifts: boolean;
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;

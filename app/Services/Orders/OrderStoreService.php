@@ -25,8 +25,15 @@ class OrderStoreService
         array $items,
         ?string $message,
         ?string $guestIdentifier,
+        bool $anonymous = false,
     ): Order {
-        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier) {
+        if (! $event->acceptsOnlineGifts()) {
+            throw ValidationException::withMessages([
+                'items' => 'Este evento não recebe presentes online.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier, $anonymous) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
 
             $orderItems = [];
@@ -61,6 +68,7 @@ class OrderStoreService
                 'status' => Order::STATUS_PENDING,
                 'total_amount' => $totalAmount,
                 'message' => $message,
+                'is_anonymous' => $anonymous,
             ]);
 
             $order->items()->createMany($orderItems);

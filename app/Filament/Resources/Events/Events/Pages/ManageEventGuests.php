@@ -2,12 +2,9 @@
 
 namespace App\Filament\Resources\Events\Events\Pages;
 
-use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
-use App\Filament\Support\PremiumLock;
 use App\Filament\Support\SafeDeleteBulkAction;
-use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Services\Guests\GuestAnonymizeService;
@@ -47,21 +44,20 @@ class ManageEventGuests extends ManageRelatedRecords
         return $schema->components([]);
     }
 
-    private function canViewGiftCount(): bool
-    {
-        /** @var Event $event */
-        $event = $this->getOwnerRecord();
-
-        return (bool) auth()->user()?->isAdmin() || $event->hasFeature(Feature::GiftGivers);
-    }
-
     public function table(Table $table): Table
     {
         return $table
             ->recordTitleAttribute('name')
-            ->modifyQueryUsing(fn (Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class])->with('companionOf')->withCount([
-                'orders as paid_orders_count' => fn (Builder $ordersQuery) => $ordersQuery->where('status', Order::STATUS_PAID),
-            ]))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->withoutGlobalScopes([SoftDeletingScope::class])
+                ->with('companionOf')
+                ->when(! auth()->user()?->isAdmin(), fn (Builder $query) => $query->scopes('visibleToHost'))
+                // Anonymous gifts don't count: the number would give them away.
+                ->withCount([
+                    'orders as paid_orders_count' => fn (Builder $ordersQuery) => $ordersQuery
+                        ->where('status', Order::STATUS_PAID)
+                        ->where('is_anonymous', false),
+                ]))
             ->columns([
                 TextColumn::make('name')
                     ->label('Nome')
@@ -74,12 +70,7 @@ class ManageEventGuests extends ManageRelatedRecords
                     ->searchable(),
                 TextColumn::make('paid_orders_count')
                     ->label('Presentes dados')
-                    // Same premium gate as the global guests list.
-                    ->formatStateUsing(fn (?int $state) => $this->canViewGiftCount()
-                        ? (string) $state
-                        : '🔒 Premium')
-                    ->tooltip(fn (): ?string => $this->canViewGiftCount() ? null : PremiumLock::tooltip(Feature::GiftGivers))
-                    ->url(fn (): ?string => $this->canViewGiftCount() ? null : PurchaseEventPremium::getUrl(['record' => $this->getOwnerRecord()]))
+                    ->numeric()
                     ->sortable(),
                 TextColumn::make('cpf')
                     ->label('CPF')
@@ -127,11 +118,10 @@ class ManageEventGuests extends ManageRelatedRecords
                     DeleteAction::make()
                         ->label('Mover para a lixeira')
                         ->modalDescription('O convidado fica 30 dias na lixeira e pode ser restaurado nesse período. Os acompanhantes dele vão junto.')
-                        // Blocked on click rather than hidden, so the list
-                        // doesn't reveal who gave gifts to a host without
-                        // the "gift givers" premium feature.
+                        // Only identified gifts block it: refusing over an
+                        // anonymous one would give the giver away.
                         ->before(function (DeleteAction $action, Guest $record): void {
-                            if ($record->hasPaidOrders()) {
+                            if ($record->hasIdentifiedPaidOrders()) {
                                 Notification::make()
                                     ->danger()
                                     ->title('Este convidado não pode ser excluído')
@@ -161,7 +151,7 @@ class ManageEventGuests extends ManageRelatedRecords
             ->toolbarActions([
                 BulkActionGroup::make([
                     SafeDeleteBulkAction::make(
-                        fn (Guest $guest): bool => $guest->hasPaidOrders(),
+                        fn (Guest $guest): bool => $guest->hasIdentifiedPaidOrders(),
                         'Convidados com presentes pagos fazem parte do histórico financeiro e não podem ser excluídos. Use "Anonimizar" se eles pediram a remoção dos dados.',
                     ),
                     RestoreBulkAction::make(),

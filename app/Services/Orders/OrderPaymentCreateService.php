@@ -28,9 +28,11 @@ class OrderPaymentCreateService
     {
         $event = $order->event;
 
-        if (blank($event->paymentSettings->mp_access_token)) {
+        // Checked again here (not only when the order was placed): the
+        // event may have lost the feature in between.
+        if (! $event->acceptsOnlineGifts()) {
             throw ValidationException::withMessages([
-                'formData' => 'Este evento ainda não está configurado para receber pagamentos.',
+                'formData' => 'Este evento não está recebendo presentes online no momento.',
             ]);
         }
 

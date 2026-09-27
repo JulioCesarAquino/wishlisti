@@ -13,14 +13,15 @@ use Filament\Support\Icons\Heroicon;
  */
 enum Feature: string
 {
-    case GiftGivers = 'gift_givers';
+    /** Formerly "gift_givers" (seeing who gave each gift), which it absorbed. */
+    case Payments = 'payments';
     case GuestList = 'guest_list';
     case Contacts = 'contacts';
 
     public function label(): string
     {
         return match ($this) {
-            self::GiftGivers => 'Ver quem deu cada presente',
+            self::Payments => 'Receber presentes online',
             self::GuestList => 'Lista nominal de convidados',
             self::Contacts => 'Agenda de contatos',
         };
@@ -29,7 +30,7 @@ enum Feature: string
     public function description(): string
     {
         return match ($this) {
-            self::GiftGivers => 'Sem isso, o anfitrião só vê o total arrecadado na aba de Pedidos, sem os nomes dos convidados.',
+            self::Payments => 'Convidados presenteiam com Pix, cartão ou boleto, e o dinheiro cai direto na conta Mercado Pago do anfitrião.',
             self::GuestList => 'Libera para o anfitrião escolher os dados obrigatórios na confirmação de presença e pedir os dados de cada acompanhante.',
             self::Contacts => 'Agenda própria do anfitrião para guardar os convidados e reaproveitá-los nos próximos eventos.',
         };
@@ -41,7 +42,7 @@ enum Feature: string
     public function headline(): string
     {
         return match ($this) {
-            self::GiftGivers => 'Saiba quem te presenteou e agradeça cada pessoa',
+            self::Payments => 'Receba seus presentes em dinheiro, por Pix, cartão ou boleto',
             self::GuestList => 'Lista de convidados com nome e contato de cada pessoa',
             self::Contacts => 'Sua agenda de convidados pronta para o próximo evento',
         };
@@ -55,10 +56,10 @@ enum Feature: string
     public function benefits(): array
     {
         return match ($this) {
-            self::GiftGivers => [
-                'Veja o nome e o WhatsApp de quem deu cada presente',
-                'Leia a mensagem que cada convidado deixou junto com o presente',
-                'Mande um agradecimento personalizado sem precisar adivinhar',
+            self::Payments => [
+                'O dinheiro cai direto na sua conta Mercado Pago',
+                'Veja quem deu cada presente e leia a mensagem que deixou',
+                'Quem preferir pode presentear anonimamente, e você recebe do mesmo jeito',
             ],
             self::GuestList => [
                 'Escolha os dados obrigatórios: telefone, e-mail e/ou CPF',
@@ -76,7 +77,7 @@ enum Feature: string
     public function icon(): Heroicon
     {
         return match ($this) {
-            self::GiftGivers => Heroicon::OutlinedGift,
+            self::Payments => Heroicon::OutlinedBanknotes,
             self::GuestList => Heroicon::OutlinedClipboardDocumentList,
             self::Contacts => Heroicon::OutlinedBookOpen,
         };
@@ -88,7 +89,7 @@ enum Feature: string
     public function appliesTo(): string
     {
         return match ($this) {
-            self::GiftGivers, self::GuestList => Event::class,
+            self::Payments, self::GuestList => Event::class,
             self::Contacts => User::class,
         };
     }

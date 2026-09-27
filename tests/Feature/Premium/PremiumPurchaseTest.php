@@ -81,7 +81,7 @@ class PremiumPurchaseTest extends TestCase
         $this->get(PurchaseEventPremium::getUrl(['record' => $this->event]))
             ->assertOk()
             ->assertSee('Wishlisti Premium por R$ 39,90')
-            ->assertSee(Feature::GiftGivers->headline())
+            ->assertSee(Feature::Payments->headline())
             ->assertSee(Feature::GuestList->headline())
             ->assertSee(Feature::Contacts->headline())
             ->assertSee('premium-payment-brick');
@@ -118,7 +118,7 @@ class PremiumPurchaseTest extends TestCase
         $this->assertSame('premium-1', $payload['external_reference']);
 
         $event = $this->event->fresh();
-        $this->assertTrue($event->hasFeature(Feature::GiftGivers));
+        $this->assertTrue($event->hasFeature(Feature::Payments));
         $this->assertTrue($event->hasFeature(Feature::GuestList));
         $this->assertTrue($this->host->fresh()->hasFeature(Feature::Contacts));
 
@@ -150,7 +150,7 @@ class PremiumPurchaseTest extends TestCase
 
     public function test_a_refund_revokes_only_what_the_purchase_unlocked(): void
     {
-        $this->event->grantFeature(Feature::GiftGivers);
+        $this->event->grantFeature(Feature::Payments);
 
         $this->fakeMercadoPago($this->payment('approved'), $this->payment('refunded'));
 
@@ -167,7 +167,7 @@ class PremiumPurchaseTest extends TestCase
         $this->assertFalse($event->hasFeature(Feature::GuestList));
         $this->assertFalse($this->host->fresh()->hasFeature(Feature::Contacts));
         // Unlocked by the admin before the purchase: stays.
-        $this->assertTrue($event->hasFeature(Feature::GiftGivers));
+        $this->assertTrue($event->hasFeature(Feature::Payments));
         $this->assertSame(PremiumPurchase::STATUS_CANCELLED, PremiumPurchase::first()->status);
     }
 
@@ -185,7 +185,7 @@ class PremiumPurchaseTest extends TestCase
 
     public function test_an_event_that_already_has_everything_is_not_charged_again(): void
     {
-        $this->event->syncFeatures([Feature::GiftGivers, Feature::GuestList]);
+        $this->event->syncFeatures([Feature::Payments, Feature::GuestList]);
         $this->host->grantFeature(Feature::Contacts);
         $fake = $this->fakeMercadoPago();
 

@@ -83,27 +83,27 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->actingAs($admin);
 
         Livewire::test(EditEventPremium::class, ['record' => $event->getRouteKey()])
-            ->fillForm(['premium_features' => [Feature::GuestList->value, Feature::GiftGivers->value]])
+            ->fillForm(['premium_features' => [Feature::GuestList->value, Feature::Payments->value]])
             ->call('save')
             ->assertHasNoFormErrors();
 
         $event = $event->fresh();
 
         $this->assertTrue($event->hasFeature(Feature::GuestList));
-        $this->assertTrue($event->hasFeature(Feature::GiftGivers));
+        $this->assertTrue($event->hasFeature(Feature::Payments));
         $this->assertSame(FeatureGrant::SOURCE_ADMIN, $event->featureGrants->first()->source);
         $this->assertSame(['whatsapp'], $event->rsvpRequiredFields());
 
         Livewire::test(EditEventPremium::class, ['record' => $event->getRouteKey()])
-            ->assertFormSet(['premium_features' => [Feature::GiftGivers->value, Feature::GuestList->value]])
-            ->fillForm(['premium_features' => [Feature::GiftGivers->value]])
+            ->assertFormSet(['premium_features' => [Feature::Payments->value, Feature::GuestList->value]])
+            ->fillForm(['premium_features' => [Feature::Payments->value]])
             ->call('save')
             ->assertHasNoFormErrors();
 
         $event = $event->fresh();
 
         $this->assertFalse($event->hasFeature(Feature::GuestList));
-        $this->assertTrue($event->hasFeature(Feature::GiftGivers));
+        $this->assertTrue($event->hasFeature(Feature::Payments));
     }
 
     public function test_hosts_cannot_grant_themselves_premium_features(): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
@@ -16,7 +17,7 @@ class OrderStoreControllerTest extends TestCase
 
     public function test_it_creates_a_pending_order_with_server_computed_total(): void
     {
-        $event = Event::factory()->create(['is_published' => true]);
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
         $product = EventProduct::factory()->create([
             'event_id' => $event->id,
             'price' => 150.00,
@@ -49,7 +50,7 @@ class OrderStoreControllerTest extends TestCase
 
     public function test_it_rejects_ordering_more_than_available_quantity(): void
     {
-        $event = Event::factory()->create(['is_published' => true]);
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
         $product = EventProduct::factory()->create([
             'event_id' => $event->id,
             'quantity_total' => 1,
@@ -71,7 +72,7 @@ class OrderStoreControllerTest extends TestCase
 
     public function test_it_rejects_a_product_that_does_not_belong_to_the_event(): void
     {
-        $event = Event::factory()->create(['is_published' => true]);
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
         $otherEventProduct = EventProduct::factory()->create();
 
         $response = $this->post("/{$event->slug}/orders", [
@@ -90,7 +91,7 @@ class OrderStoreControllerTest extends TestCase
 
     public function test_it_reuses_the_existing_guest_when_the_cookie_matches(): void
     {
-        $event = Event::factory()->create(['is_published' => true]);
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
         $product = EventProduct::factory()->create(['event_id' => $event->id]);
         $guest = $event->guests()->create([
             'name' => 'Guest Antigo',
@@ -119,7 +120,7 @@ class OrderStoreControllerTest extends TestCase
 
     public function test_it_throttles_repeated_requests_from_the_same_ip(): void
     {
-        $event = Event::factory()->create(['is_published' => true]);
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
 
         $payload = [
             'guest' => [
@@ -154,5 +155,33 @@ class OrderStoreControllerTest extends TestCase
         ]);
 
         $response->assertNotFound();
+    }
+
+    public function test_events_without_the_premium_feature_do_not_take_online_gifts(): void
+    {
+        $event = Event::factory()->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => 'Maria', 'whatsapp' => '5511999999999'],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('items');
+
+        $this->assertSame(0, $event->orders()->count());
+    }
+
+    public function test_a_guest_can_give_anonymously(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => 'Maria', 'whatsapp' => '5511999999999'],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+            'message' => 'Com carinho',
+            'anonymous' => true,
+        ])->assertOk();
+
+        $this->assertTrue($event->orders()->first()->is_anonymous);
     }
 }

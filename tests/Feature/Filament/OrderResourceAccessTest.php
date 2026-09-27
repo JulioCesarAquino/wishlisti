@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Enums\Premium\Feature;
 use App\Filament\Resources\Orders\Orders\OrderResource;
 use App\Filament\Resources\Orders\Orders\Pages\ListOrders;
 use App\Models\Events\Event;
@@ -78,41 +77,41 @@ class OrderResourceAccessTest extends TestCase
         ]);
     }
 
-    public function test_hosts_cannot_see_guest_identity_on_non_premium_events(): void
+    public function test_hosts_see_who_gave_each_gift(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->create(['user_id' => $host->id]);
         $this->createOrderWithGuest($event);
+
+        $this->actingAs($host);
+
+        Livewire::test(ListOrders::class)->assertSee('Maria Segredo');
+    }
+
+    public function test_anonymous_gifts_hide_who_and_when_but_keep_the_message(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+        $order = $this->createOrderWithGuest($event);
+        $order->update([
+            'is_anonymous' => true,
+            'status' => Order::STATUS_PAID,
+            'paid_at' => '2026-09-27 21:36:00',
+            'message' => 'Felicidades!',
+        ]);
 
         $this->actingAs($host);
 
         Livewire::test(ListOrders::class)
             ->assertDontSee('Maria Segredo')
-            ->assertSee('Identidade oculta');
-    }
+            ->assertDontSee('27/09/2026 21:36')
+            ->assertSee('Anônimo')
+            ->assertSee('Felicidades!');
 
-    public function test_hosts_can_see_guest_identity_on_premium_events(): void
-    {
-        $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->withFeatures(Feature::GiftGivers)->create(['user_id' => $host->id]);
-        $this->createOrderWithGuest($event);
-
-        $this->actingAs($host);
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
 
         Livewire::test(ListOrders::class)
-            ->assertSee('Maria Segredo');
-    }
-
-    public function test_admins_always_see_guest_identity_regardless_of_premium(): void
-    {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id]);
-        $this->createOrderWithGuest($event);
-
-        $this->actingAs($admin);
-
-        Livewire::test(ListOrders::class)
-            ->assertSee('Maria Segredo');
+            ->assertSee('Maria Segredo (anônimo)')
+            ->assertSee('27/09/2026 21:36');
     }
 }

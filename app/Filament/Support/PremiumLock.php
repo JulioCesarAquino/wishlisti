@@ -44,14 +44,6 @@ class PremiumLock
     }
 
     /**
-     * Short text for a locked table cell's tooltip.
-     */
-    public static function tooltip(Feature $feature): string
-    {
-        return "Recurso premium: {$feature->label()}. Clique para conhecer.";
-    }
-
-    /**
      * For the admin, who can always edit the settings: a reminder that
      * they only take effect once the feature is unlocked.
      */

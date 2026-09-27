@@ -6,11 +6,8 @@ use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\EditEventLocation;
 use App\Filament\Resources\Events\Events\Pages\EditEventPayment;
-use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
 use App\Models\Events\Event;
-use App\Models\Guests\Guest;
-use App\Models\Orders\Order;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +24,24 @@ class EventSubNavigationTest extends TestCase
     private function pages(): array
     {
         return ['edit', 'location', 'appearance', 'products', 'guests', 'rsvp', 'payment', 'premium'];
+    }
+
+    public function test_the_payments_page_is_locked_without_the_premium_feature(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        $this->get(EditEventPayment::getUrl(['record' => $event]))
+            ->assertOk()
+            ->assertSee('Recurso premium: Receber presentes online')
+            ->assertSee('Conhecer o Premium');
+
+        Livewire::test(EditEventPayment::class, ['record' => $event->getRouteKey()])
+            ->assertFormFieldDoesNotExist('paymentSettings.mp_access_token')
+            ->call('save')
+            ->assertForbidden();
     }
 
     public function test_a_host_can_open_every_page_of_their_event(): void
@@ -75,7 +90,7 @@ class EventSubNavigationTest extends TestCase
     public function test_each_page_only_saves_its_own_part(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->withMercadoPago('TEST-original')->create([
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago('TEST-original')->create([
             'user_id' => $host->id,
             'address' => 'Rua Antiga, 1',
         ]);
@@ -111,23 +126,5 @@ class EventSubNavigationTest extends TestCase
             ->assertHasNoActionErrors();
 
         $this->assertSame(['Jogo de panelas'], $event->products()->pluck('name')->all());
-    }
-
-    public function test_the_gift_count_per_guest_stays_locked_without_the_premium_feature(): void
-    {
-        $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id]);
-        $guest = Guest::factory()->create(['event_id' => $event->id]);
-        Order::factory()->create(['event_id' => $event->id, 'guest_id' => $guest->id, 'status' => Order::STATUS_PAID]);
-
-        $this->actingAs($host);
-
-        Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertTableColumnFormattedStateSet('paid_orders_count', '🔒 Premium', $guest);
-
-        $event->grantFeature(Feature::GiftGivers);
-
-        Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertTableColumnFormattedStateSet('paid_orders_count', '1', $guest);
     }
 }

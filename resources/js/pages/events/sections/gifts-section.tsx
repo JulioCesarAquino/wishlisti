@@ -82,6 +82,16 @@ export function GiftsSection({ event, products, cart, onAddToCart }: Props) {
                 Lista de presentes
             </h2>
 
+            {!event.accepts_online_gifts && (
+                <p
+                    className="mb-6 text-center text-sm"
+                    style={bodyTextStyle(event)}
+                >
+                    Estas são algumas ideias de presente. Se quiser presentear,
+                    combine a entrega diretamente com os anfitriões.
+                </p>
+            )}
+
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <Select
                     value={sortOrder}
@@ -230,7 +240,9 @@ function GiftCard({
         </Badge>
     ) : null;
 
-    const button = (
+    // Without online gifts (a premium feature), the list is only a set of
+    // ideas: there's nothing to add to a cart.
+    const button = !event.accepts_online_gifts ? null : (
         <Button
             size="sm"
             className={layout === 'grid' ? 'w-full' : ''}
@@ -284,7 +296,9 @@ function GiftCard({
                 </span>
                 {availabilityBadge}
             </CardContent>
-            <CardFooter className="px-3 sm:px-6">{button}</CardFooter>
+            {button && (
+                <CardFooter className="px-3 sm:px-6">{button}</CardFooter>
+            )}
         </Card>
     );
 }

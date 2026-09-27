@@ -175,6 +175,7 @@ export default function EventShow({
             email: guest?.email ?? '',
         },
         message: '',
+        anonymous: false,
         items: [] as { event_product_id: number; quantity: number }[],
     });
 
@@ -204,6 +205,7 @@ export default function EventShow({
                     body: JSON.stringify({
                         guest: form.data.guest,
                         message: form.data.message,
+                        anonymous: form.data.anonymous,
                         items: cartLines.map((line) => ({
                             event_product_id: line.product.id,
                             quantity: line.quantity,
@@ -307,7 +309,7 @@ export default function EventShow({
                 <Footer event={event} />
             </div>
 
-            {(cartCount > 0 || orderResult) && (
+            {event.accepts_online_gifts && (cartCount > 0 || orderResult) && (
                 <Sheet
                     open={cartOpen}
                     onOpenChange={(open) => {
@@ -534,6 +536,32 @@ export default function EventShow({
                                             placeholder="Deixe uma mensagem para os anfitriões"
                                         />
                                     </div>
+
+                                    <label
+                                        className="flex cursor-pointer items-start gap-2 text-sm"
+                                        style={bodyTextStyle(event)}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            className="mt-0.5 size-4 accent-current"
+                                            checked={form.data.anonymous}
+                                            onChange={(e) =>
+                                                form.setData(
+                                                    'anonymous',
+                                                    e.target.checked,
+                                                )
+                                            }
+                                        />
+                                        <span>
+                                            Presentear anonimamente
+                                            <span className="block text-xs opacity-80">
+                                                Os anfitriões veem o presente e
+                                                a sua mensagem, mas não o seu
+                                                nome. Se quiser se identificar,
+                                                assine a mensagem.
+                                            </span>
+                                        </span>
+                                    </label>
                                 </div>
                             )}
                         </div>

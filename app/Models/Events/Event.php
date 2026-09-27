@@ -222,6 +222,17 @@ class Event extends Model
         return $user && ($user->isAdmin() || $user->id === $this->user_id);
     }
 
+    /**
+     * Guests can pay for gifts online: a premium feature, and it needs the
+     * host's Mercado Pago credentials to be set up.
+     */
+    public function acceptsOnlineGifts(): bool
+    {
+        return $this->hasFeature(Feature::Payments)
+            && filled($this->paymentSettings->mp_access_token)
+            && filled($this->paymentSettings->mp_public_key);
+    }
+
     public function isArchived(): bool
     {
         return $this->archived_at !== null;

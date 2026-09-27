@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Trash;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\Pages\EditEvent;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
@@ -146,6 +147,22 @@ class FinancialRecordsProtectionTest extends TestCase
         $this->assertFalse(Activity::where('attribute_changes', 'like', '%Maria Silva%')->exists());
     }
 
+    public function test_a_guest_whose_gift_was_anonymous_can_be_trashed(): void
+    {
+        $guest = $this->guestWithPaidOrder();
+        $guest->update(['rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 1]);
+        Order::query()->update(['is_anonymous' => true]);
+
+        $this->actingAs($this->host);
+
+        // Refusing would reveal they gave something; the trash never purges
+        // them while the paid order exists.
+        Livewire::test(ManageEventGuests::class, ['record' => $this->event->getRouteKey()])
+            ->callAction(TestAction::make('delete')->table($guest));
+
+        $this->assertTrue($guest->fresh()->trashed());
+    }
+
     public function test_orders_still_show_a_guest_that_went_to_the_trash(): void
     {
         $guest = Guest::factory()->create(['event_id' => $this->event->id, 'name' => 'Convidado na Lixeira']);
@@ -177,6 +194,8 @@ class FinancialRecordsProtectionTest extends TestCase
 
     public function test_a_trashed_gift_leaves_the_public_page_and_cannot_be_ordered(): void
     {
+        $this->event->grantFeature(Feature::Payments);
+        $this->event->paymentSettings()->create(['mp_access_token' => 'TEST-token', 'mp_public_key' => 'TEST-key']);
         $product = EventProduct::factory()->create(['event_id' => $this->event->id, 'name' => 'Presente Removido']);
         $product->delete();
 

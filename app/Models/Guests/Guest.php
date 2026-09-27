@@ -7,6 +7,7 @@ use App\Models\Events\Event;
 use App\Models\Orders\Order;
 use Database\Factories\Guests\GuestFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -117,11 +118,41 @@ class Guest extends Model
 
     /**
      * Guests with a paid order are part of the event's financial history,
-     * so they can't be deleted — only anonymized.
+     * so they're never deleted for good — only anonymized.
      */
     public function hasPaidOrders(): bool
     {
         return $this->orders()->where('status', Order::STATUS_PAID)->exists();
+    }
+
+    /**
+     * What the host is allowed to know: a paid gift that isn't anonymous.
+     * Blocking the host from trashing a guest over an anonymous gift would
+     * give the giver away, so those guests can go to the trash (they're
+     * never purged while they have paid orders).
+     */
+    public function hasIdentifiedPaidOrders(): bool
+    {
+        return $this->orders()
+            ->where('status', Order::STATUS_PAID)
+            ->where('is_anonymous', false)
+            ->exists();
+    }
+
+    /**
+     * Guests the host gets to see. Someone whose only link to the event is
+     * an anonymous gift (no RSVP, no other order) is left out: their row
+     * appearing right when the gift did would give them away.
+     *
+     * @param  Builder<Guest>  $query
+     */
+    public function scopeVisibleToHost(Builder $query): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->whereNotNull('rsvp_status')
+            ->orWhereNotNull('companion_of_guest_id')
+            ->orWhereDoesntHave('orders')
+            ->orWhereHas('orders', fn (Builder $orders) => $orders->where('is_anonymous', false)));
     }
 
     protected function casts(): array

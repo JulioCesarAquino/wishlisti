@@ -29,6 +29,7 @@ class OrderStoreController extends Controller
             items: $request->validated('items'),
             message: $request->validated('message'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
+            anonymous: $request->boolean('anonymous'),
         );
 
         Cookie::queue($cookies->make(

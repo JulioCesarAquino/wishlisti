@@ -4,6 +4,7 @@ namespace App\Models\Orders;
 
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
+use App\Models\User;
 use Database\Factories\Orders\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property float $total_amount
  * @property string|null $message
+ * @property bool $is_anonymous
  * @property string|null $preference_id
  * @property string|null $payment_id
  * @property string|null $payment_method
@@ -28,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'event_id', 'guest_id', 'status', 'total_amount', 'message',
+    'event_id', 'guest_id', 'status', 'total_amount', 'message', 'is_anonymous',
     'preference_id', 'payment_id', 'payment_method', 'payment_type', 'paid_at',
 ])]
 class Order extends Model
@@ -48,8 +50,19 @@ class Order extends Model
     {
         return [
             'total_amount' => 'decimal:2',
+            'is_anonymous' => 'boolean',
             'paid_at' => 'datetime',
         ];
+    }
+
+    /**
+     * An anonymous gift hides who gave it — and when, since the time could
+     * be matched against the guest's RSVP — from the host. The admin still
+     * sees everything.
+     */
+    public function hidesGiverFrom(?User $user): bool
+    {
+        return $this->is_anonymous && ! $user?->isAdmin();
     }
 
     /**

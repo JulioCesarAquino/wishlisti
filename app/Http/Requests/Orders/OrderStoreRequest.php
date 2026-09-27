@@ -26,6 +26,7 @@ class OrderStoreRequest extends FormRequest
             'guest.whatsapp' => ['required', 'string', 'max:30'],
             'guest.email' => ['nullable', 'email', 'max:255'],
             'message' => ['nullable', 'string', 'max:1000'],
+            'anonymous' => ['sometimes', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.event_product_id' => [
                 'required',

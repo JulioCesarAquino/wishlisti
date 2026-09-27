@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Events;
 
+use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\User;
@@ -40,6 +41,20 @@ class EventShowControllerTest extends TestCase
             ->where('event.address', 'Av. Paulista, 1000, São Paulo - SP')
             ->where('event.latitude', -23.5613)
             ->where('event.longitude', -46.6565));
+    }
+
+    public function test_only_premium_events_take_gifts_online(): void
+    {
+        $free = Event::factory()->withMercadoPago()->create(['is_published' => true]);
+        $premium = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+
+        $this->get("/{$free->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.accepts_online_gifts', false)
+            ->where('event.mp_public_key', null));
+
+        $this->get("/{$premium->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.accepts_online_gifts', true)
+            ->where('event.mp_public_key', 'TEST-public-key'));
     }
 
     public function test_unpublished_events_are_not_found_for_guests(): void
