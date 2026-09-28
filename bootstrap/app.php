@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // In production, Caddy terminates HTTPS in front of nginx. Trusting its
+        // forwarded headers keeps generated URLs on https and the client IP real.
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance']);
 
         $middleware->validateCsrfTokens(except: [
