@@ -7,7 +7,6 @@ use App\Filament\Support\PremiumLock;
 use App\Models\Events\Event;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 
 /**
  * For event edit pages behind a premium feature. Hosts without it still
@@ -17,24 +16,7 @@ use Filament\Support\Icons\Heroicon;
  */
 trait RequiresPremiumFeature
 {
-    abstract protected static function premiumFeature(): Feature;
-
-    /**
-     * @param  array<string, mixed>  $urlParameters
-     */
-    public static function getNavigationItems(array $urlParameters = []): array
-    {
-        $items = parent::getNavigationItems($urlParameters);
-        $record = $urlParameters['record'] ?? null;
-
-        if ($record instanceof Event && ! $record->hasFeature(static::premiumFeature())) {
-            foreach ($items as $item) {
-                $item->icon(Heroicon::OutlinedLockClosed)->badge('Premium', 'warning');
-            }
-        }
-
-        return $items;
-    }
+    use LocksPremiumNavigationItem;
 
     protected function isLocked(): bool
     {

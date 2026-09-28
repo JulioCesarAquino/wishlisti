@@ -11,6 +11,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
 use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
+use App\Filament\Resources\Events\Events\Pages\ManageEventMessages;
 use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
 use App\Filament\Resources\Events\Events\Pages\PurchaseEventPremium;
 use App\Filament\Resources\Events\Events\Schemas\EventForm;
@@ -85,6 +86,7 @@ class EventResource extends Resource
             EditEventAppearance::class,
             ManageEventProducts::class,
             ManageEventGuests::class,
+            ManageEventMessages::class,
             EditEventRsvp::class,
             EditEventPayment::class,
             PurchaseEventPremium::class,
@@ -102,6 +104,7 @@ class EventResource extends Resource
             'appearance' => EditEventAppearance::route('/{record}/appearance'),
             'products' => ManageEventProducts::route('/{record}/products'),
             'guests' => ManageEventGuests::route('/{record}/guests'),
+            'messages' => ManageEventMessages::route('/{record}/messages'),
             'rsvp' => EditEventRsvp::route('/{record}/rsvp'),
             'payment' => EditEventPayment::route('/{record}/payment'),
             'premium' => PurchaseEventPremium::route('/{record}/premium'),

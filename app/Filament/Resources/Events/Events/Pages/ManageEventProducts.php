@@ -9,6 +9,7 @@ use App\Filament\Support\SafeDeleteBulkAction;
 use App\Models\Catalog\EventProduct;
 use App\Models\Catalog\ProductTemplate;
 use App\Models\Events\Event;
+use App\Models\Events\EventGiftSetting;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -17,12 +18,14 @@ use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -122,6 +125,46 @@ class ManageEventProducts extends ManageRelatedRecords
     {
         return [
             $this->viewPublicPageAction(),
+            Action::make('displaySettings')
+                ->label('Exibição na página')
+                ->icon(Heroicon::OutlinedAdjustmentsHorizontal)
+                ->color('gray')
+                ->modalHeading('Como os presentes aparecem na página')
+                ->modalDescription('Para quem prefere deixar os convidados à vontade: a lista pode ficar discreta, ou nem aparecer.')
+                ->fillForm(fn (): array => [
+                    'display_mode' => $this->event()->giftDisplayMode(),
+                    'gift_message' => $this->event()->giftSettings->gift_message ?: EventGiftSetting::DEFAULT_GIFT_MESSAGE,
+                ])
+                ->schema([
+                    Radio::make('display_mode')
+                        ->label('Exibição')
+                        ->options([
+                            EventGiftSetting::DISPLAY_LIST => 'Lista de presentes',
+                            EventGiftSetting::DISPLAY_DISCREET => 'Discreto — "Se quiser presentear"',
+                            EventGiftSetting::DISPLAY_NONE => 'Sem presentes',
+                        ])
+                        ->descriptions([
+                            EventGiftSetting::DISPLAY_LIST => 'A lista tem seu próprio item no menu da página.',
+                            EventGiftSetting::DISPLAY_DISCREET => 'Fora do menu: fica recolhida no fim da página inicial, sem "esgotado", contadores ou preços em destaque.',
+                            EventGiftSetting::DISPLAY_NONE => 'Nenhuma lista, só a sua mensagem. Se você aceita valor livre (Premium), a opção de contribuir continua aparecendo.',
+                        ])
+                        ->live()
+                        ->required(),
+                    Textarea::make('gift_message')
+                        ->label('Mensagem para os convidados')
+                        ->rows(2)
+                        ->maxLength(300)
+                        ->visible(fn (Get $get): bool => $get('display_mode') === EventGiftSetting::DISPLAY_NONE)
+                        ->required(fn (Get $get): bool => $get('display_mode') === EventGiftSetting::DISPLAY_NONE),
+                ])
+                ->action(function (array $data): void {
+                    $this->event()->giftSettings()->updateOrCreate([], [
+                        'display_mode' => $data['display_mode'],
+                        'gift_message' => $data['gift_message'] ?? null,
+                    ]);
+
+                    Notification::make()->success()->title('Exibição dos presentes atualizada')->send();
+                }),
             Action::make('discoverPremium')
                 ->label('Conhecer o Premium')
                 ->icon(Heroicon::OutlinedSparkles)

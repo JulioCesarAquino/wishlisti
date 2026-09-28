@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Events\EventShowController;
+use App\Http\Controllers\Guests\GuestMessageStoreController;
 use App\Http\Controllers\Guests\RsvpStoreController;
 use App\Http\Controllers\Identity\InviteRequestStoreController;
 use App\Http\Controllers\Orders\OrderCancelController;
@@ -28,3 +29,6 @@ Route::post('/{event:slug}/orders/{order}/cancel', OrderCancelController::class)
     ->name('orders.cancel')
     ->scopeBindings();
 Route::post('/{event:slug}/rsvp', RsvpStoreController::class)->name('rsvp.store');
+Route::post('/{event:slug}/messages', GuestMessageStoreController::class)
+    ->middleware('throttle:10,1')
+    ->name('messages.store');

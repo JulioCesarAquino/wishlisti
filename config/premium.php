@@ -11,7 +11,7 @@ use App\Enums\Premium\Feature;
 return [
     'price' => (float) env('PREMIUM_PRICE', 39.90),
 
-    'event_features' => [Feature::Payments, Feature::GuestList, Feature::FullGiftList],
+    'event_features' => [Feature::Payments, Feature::GuestList, Feature::FullGiftList, Feature::Guestbook],
 
     'host_features' => [Feature::Contacts],
 

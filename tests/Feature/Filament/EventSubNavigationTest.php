@@ -112,6 +112,16 @@ class EventSubNavigationTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertSame('TEST-novo', $event->fresh()->paymentSettings->mp_access_token);
+
+        // Saving the page without retyping the token keeps it.
+        Livewire::test(EditEventPayment::class, ['record' => $event->getRouteKey()])
+            ->assertFormSet(['paymentSettings.mp_access_token' => null, 'paymentSettings.mp_public_key' => 'TEST-public-key'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $event->refresh();
+        $this->assertSame('TEST-novo', $event->paymentSettings->mp_access_token);
+        $this->assertSame('TEST-public-key', $event->paymentSettings->mp_public_key);
     }
 
     public function test_products_are_managed_from_their_own_page(): void

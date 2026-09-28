@@ -30,7 +30,9 @@ class OrderStoreRequest extends FormRequest
             'fulfillment' => ['sometimes', Rule::in([Order::FULFILLMENT_ONLINE, Order::FULFILLMENT_IN_PERSON])],
             'message' => ['nullable', 'string', 'max:1000'],
             'anonymous' => ['sometimes', 'boolean'],
-            'items' => ['required', 'array', 'min:1'],
+            // Either items from the list, or a contribution of any amount.
+            'free_amount' => ['nullable', 'numeric', 'min:1', 'max:100000', 'prohibits:items'],
+            'items' => ['required_without:free_amount', 'array', 'min:1'],
             'items.*.event_product_id' => [
                 'required',
                 'integer',
@@ -55,6 +57,7 @@ class OrderStoreRequest extends FormRequest
             'fulfillment' => 'forma de presentear',
             'message' => 'mensagem',
             'items' => 'itens',
+            'free_amount' => 'valor',
         ];
     }
 }

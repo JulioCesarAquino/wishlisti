@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { store as storeOrder } from '@/routes/orders';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -22,6 +23,8 @@ import {
     toContactForm,
 } from '@/pages/events/sections/contact-fields';
 import { Footer } from '@/pages/events/sections/footer';
+import { GuestbookSection } from '@/pages/events/sections/guestbook-section';
+import { NoGiftsMessage } from '@/pages/events/sections/no-gifts-message';
 import { HomeSection } from '@/pages/events/sections/home-section';
 import { GallerySection } from '@/pages/events/sections/gallery-section';
 import { GiftsSection } from '@/pages/events/sections/gifts-section';
@@ -38,6 +41,7 @@ import {
     headingStyle,
     type EventData,
     type Guest,
+    type GuestMessage,
     type Product,
 } from '@/pages/events/types';
 
@@ -45,25 +49,43 @@ type Props = {
     event: EventData;
     products: Product[];
     guest: Guest | null;
+    messages: GuestMessage[];
     is_preview: boolean;
 };
 
-type Section = 'inicio' | 'galeria' | 'presentes' | 'confirmar-presenca';
+type Section =
+    | 'inicio'
+    | 'galeria'
+    | 'presentes'
+    | 'confirmar-presenca'
+    | 'recados';
 
-const NAV_ITEMS: { key: Section; label: string }[] = [
-    { key: 'inicio', label: 'Início' },
-    { key: 'galeria', label: 'Galeria' },
-    { key: 'presentes', label: 'Presentes' },
-    { key: 'confirmar-presenca', label: 'Confirmar presença' },
-];
+/**
+ * The gift list only gets its own menu item in the "list" display mode
+ * (discreet tucks it into the home section, "none" hides it), and the
+ * guestbook only exists on premium events.
+ */
+function navItems(event: EventData): { key: Section; label: string }[] {
+    return [
+        { key: 'inicio', label: 'Início' },
+        { key: 'galeria', label: 'Galeria' },
+        ...(event.gift_display_mode === 'list'
+            ? [{ key: 'presentes' as const, label: 'Presentes' }]
+            : []),
+        { key: 'confirmar-presenca', label: 'Confirmar presença' },
+        ...(event.has_guestbook
+            ? [{ key: 'recados' as const, label: 'Recados' }]
+            : []),
+    ];
+}
 
 function cartStorageKey(slug: string): string {
     return `wishlist_cart_${slug}`;
 }
 
-function sectionFromHash(): Section {
+function sectionFromHash(items: { key: Section }[]): Section {
     const hash = window.location.hash.replace('#', '');
-    const match = NAV_ITEMS.find((item) => item.key === hash);
+    const match = items.find((item) => item.key === hash);
 
     return match?.key ?? 'inicio';
 }
@@ -72,22 +94,27 @@ export default function EventShow({
     event,
     products,
     guest,
+    messages,
     is_preview,
 }: Props) {
+    const items = useMemo(() => navItems(event), [event]);
     const [section, setSection] = useState<Section>('inicio');
+    const [showDiscreetGifts, setShowDiscreetGifts] = useState(false);
+    const [freeAmountOpen, setFreeAmountOpen] = useState(false);
+    const [freeAmount, setFreeAmount] = useState('');
     const [cart, setCart] = useState<Record<number, number>>({});
     const [cartOpen, setCartOpen] = useState(false);
 
     const font = FONT_FAMILIES[event.font_family ?? 'default'];
 
     useEffect(() => {
-        setSection(sectionFromHash());
+        setSection(sectionFromHash(items));
 
-        const onHashChange = () => setSection(sectionFromHash());
+        const onHashChange = () => setSection(sectionFromHash(items));
         window.addEventListener('hashchange', onHashChange);
 
         return () => window.removeEventListener('hashchange', onHashChange);
-    }, []);
+    }, [items]);
 
     useEffect(() => {
         try {
@@ -210,10 +237,14 @@ export default function EventShow({
                         message: form.data.message,
                         anonymous: form.data.anonymous,
                         fulfillment,
-                        items: cartLines.map((line) => ({
-                            event_product_id: line.product.id,
-                            quantity: line.quantity,
-                        })),
+                        ...(freeAmountOpen
+                            ? { free_amount: Number(freeAmount) }
+                            : {
+                                  items: cartLines.map((line) => ({
+                                      event_product_id: line.product.id,
+                                      quantity: line.quantity,
+                                  })),
+                              }),
                     }),
                 },
             );
@@ -234,9 +265,12 @@ export default function EventShow({
             }
 
             const body = await response.json();
-            setConfirmedLines(cartLines);
+            setConfirmedLines(freeAmountOpen ? [] : cartLines);
             setOrderResult(body.order);
-            persistCart({});
+
+            if (!freeAmountOpen) {
+                persistCart({});
+            }
 
             // A reservation takes the stock right away: refresh the list and
             // the guest's reservations.
@@ -251,6 +285,23 @@ export default function EventShow({
             setSubmitting(false);
         }
     };
+
+    const openFreeAmount = () => {
+        setFreeAmountOpen(true);
+        setCartOpen(true);
+    };
+
+    const giftsSection = (discreet: boolean) => (
+        <GiftsSection
+            event={event}
+            products={products}
+            cart={cart}
+            onAddToCart={addToCart}
+            reservations={guest?.reservations ?? []}
+            discreet={discreet}
+            onContribute={openFreeAmount}
+        />
+    );
 
     return (
         <>
@@ -276,7 +327,7 @@ export default function EventShow({
             >
                 <nav className="sticky top-0 z-40 border-b border-black/5 bg-white/40 backdrop-blur">
                     <div className="mx-auto flex max-w-4xl items-center gap-1 overflow-x-auto px-4 py-3">
-                        {NAV_ITEMS.map((item) => (
+                        {items.map((item) => (
                             <button
                                 key={item.key}
                                 type="button"
@@ -296,24 +347,50 @@ export default function EventShow({
                 </nav>
 
                 <div className="flex-1">
-                    {section === 'inicio' && <HomeSection event={event} />}
+                    {section === 'inicio' && (
+                        <>
+                            <HomeSection event={event} />
+                            {event.gift_display_mode === 'discreet' && (
+                                <div className="pb-8 text-center">
+                                    {showDiscreetGifts ? (
+                                        giftsSection(true)
+                                    ) : (
+                                        <Button
+                                            variant="link"
+                                            style={bodyTextStyle(event)}
+                                            onClick={() =>
+                                                setShowDiscreetGifts(true)
+                                            }
+                                        >
+                                            Se quiser presentear
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                            {event.gift_display_mode === 'none' && (
+                                <NoGiftsMessage
+                                    event={event}
+                                    onContribute={openFreeAmount}
+                                />
+                            )}
+                        </>
+                    )}
                     {section === 'galeria' && (
                         <GallerySection
                             event={event}
                             galleryUrls={event.gallery_urls}
                         />
                     )}
-                    {section === 'presentes' && (
-                        <GiftsSection
-                            event={event}
-                            products={products}
-                            cart={cart}
-                            onAddToCart={addToCart}
-                            reservations={guest?.reservations ?? []}
-                        />
-                    )}
+                    {section === 'presentes' && giftsSection(false)}
                     {section === 'confirmar-presenca' && (
                         <RsvpSection event={event} guest={guest} />
+                    )}
+                    {section === 'recados' && (
+                        <GuestbookSection
+                            event={event}
+                            messages={messages}
+                            defaultName={guest?.name ?? ''}
+                        />
                     )}
                 </div>
 
@@ -321,7 +398,7 @@ export default function EventShow({
             </div>
 
             {(event.accepts_online_gifts || event.accepts_in_person_gifts) &&
-                (cartCount > 0 || orderResult) && (
+                (cartCount > 0 || orderResult || freeAmountOpen) && (
                     <Sheet
                         open={cartOpen}
                         onOpenChange={(open) => {
@@ -333,17 +410,19 @@ export default function EventShow({
                             }
                         }}
                     >
-                        <SheetTrigger asChild>
-                            <Button
-                                size="lg"
-                                className="fixed right-6 bottom-6 z-50 shadow-lg"
-                                style={accentButtonStyle(event)}
-                            >
-                                <ShoppingCart />
-                                {cartCount}{' '}
-                                {cartCount === 1 ? 'presente' : 'presentes'}
-                            </Button>
-                        </SheetTrigger>
+                        {cartCount > 0 && (
+                            <SheetTrigger asChild>
+                                <Button
+                                    size="lg"
+                                    className="fixed right-6 bottom-6 z-50 shadow-lg"
+                                    style={accentButtonStyle(event)}
+                                >
+                                    <ShoppingCart />
+                                    {cartCount}{' '}
+                                    {cartCount === 1 ? 'presente' : 'presentes'}
+                                </Button>
+                            </SheetTrigger>
+                        )}
                         <SheetContent
                             className="event-page flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg"
                             style={{
@@ -353,89 +432,131 @@ export default function EventShow({
                         >
                             <SheetHeader>
                                 <SheetTitle style={headingStyle(event)}>
-                                    Seus presentes
+                                    {freeAmountOpen
+                                        ? 'Sua contribuição'
+                                        : 'Seus presentes'}
                                 </SheetTitle>
                             </SheetHeader>
 
                             <div className="flex flex-1 flex-col gap-4 px-4">
-                                {(orderResult ? confirmedLines : cartLines).map(
-                                    ({ product, quantity }) => (
-                                        <div
-                                            key={product.id}
-                                            className="flex items-center gap-3"
+                                {freeAmountOpen && !orderResult && (
+                                    <div className="grid gap-1.5">
+                                        <Label
+                                            htmlFor="free_amount"
+                                            style={bodyTextStyle(event)}
                                         >
-                                            <div className="flex-1">
-                                                <p
-                                                    className="text-sm font-medium"
-                                                    style={headingStyle(event)}
-                                                >
-                                                    {product.name}
-                                                </p>
-                                                <p
-                                                    className="text-sm"
-                                                    style={bodyTextStyle(event)}
-                                                >
-                                                    {formatCurrency(
-                                                        product.price,
-                                                    )}
-                                                </p>
-                                            </div>
-                                            {orderResult ? (
-                                                <span
-                                                    className="text-sm"
-                                                    style={bodyTextStyle(event)}
-                                                >
-                                                    {quantity}x
-                                                </span>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            changeQuantity(
-                                                                product.id,
-                                                                -1,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Minus />
-                                                    </Button>
-                                                    <span className="w-4 text-center">
-                                                        {quantity}
-                                                    </span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        disabled={
-                                                            quantity >=
-                                                            product.quantity_available
-                                                        }
-                                                        onClick={() =>
-                                                            changeQuantity(
-                                                                product.id,
-                                                                1,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Plus />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            removeFromCart(
-                                                                product.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Trash2 />
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ),
+                                            Quanto você quer dar?
+                                        </Label>
+                                        <Input
+                                            id="free_amount"
+                                            type="number"
+                                            min={1}
+                                            step="0.01"
+                                            inputMode="decimal"
+                                            placeholder="R$ 0,00"
+                                            value={freeAmount}
+                                            onChange={(e) =>
+                                                setFreeAmount(e.target.value)
+                                            }
+                                        />
+                                        {(
+                                            form.errors as Record<
+                                                string,
+                                                string | undefined
+                                            >
+                                        ).free_amount && (
+                                            <p className="text-sm text-red-600">
+                                                {
+                                                    (
+                                                        form.errors as Record<
+                                                            string,
+                                                            string | undefined
+                                                        >
+                                                    ).free_amount
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
+                                {(freeAmountOpen
+                                    ? []
+                                    : orderResult
+                                      ? confirmedLines
+                                      : cartLines
+                                ).map(({ product, quantity }) => (
+                                    <div
+                                        key={product.id}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <div className="flex-1">
+                                            <p
+                                                className="text-sm font-medium"
+                                                style={headingStyle(event)}
+                                            >
+                                                {product.name}
+                                            </p>
+                                            <p
+                                                className="text-sm"
+                                                style={bodyTextStyle(event)}
+                                            >
+                                                {formatCurrency(product.price)}
+                                            </p>
+                                        </div>
+                                        {orderResult ? (
+                                            <span
+                                                className="text-sm"
+                                                style={bodyTextStyle(event)}
+                                            >
+                                                {quantity}x
+                                            </span>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() =>
+                                                        changeQuantity(
+                                                            product.id,
+                                                            -1,
+                                                        )
+                                                    }
+                                                >
+                                                    <Minus />
+                                                </Button>
+                                                <span className="w-4 text-center">
+                                                    {quantity}
+                                                </span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    disabled={
+                                                        quantity >=
+                                                        product.quantity_available
+                                                    }
+                                                    onClick={() =>
+                                                        changeQuantity(
+                                                            product.id,
+                                                            1,
+                                                        )
+                                                    }
+                                                >
+                                                    <Plus />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() =>
+                                                        removeFromCart(
+                                                            product.id,
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2 />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
 
                                 <Separator />
 
@@ -448,7 +569,9 @@ export default function EventShow({
                                         {formatCurrency(
                                             orderResult
                                                 ? orderResult.total_amount
-                                                : cartTotal,
+                                                : freeAmountOpen
+                                                  ? Number(freeAmount) || 0
+                                                  : cartTotal,
                                         )}
                                     </span>
                                 </div>
@@ -580,29 +703,32 @@ export default function EventShow({
                                             Pagar agora (Pix, cartão ou boleto)
                                         </Button>
                                     )}
-                                    {event.accepts_in_person_gifts && (
-                                        <Button
-                                            onClick={() =>
-                                                submitOrder('in_person')
-                                            }
-                                            disabled={submitting}
-                                            variant={
-                                                event.accepts_online_gifts
-                                                    ? 'outline'
-                                                    : 'default'
-                                            }
-                                            className="w-full"
-                                            style={
-                                                event.accepts_online_gifts
-                                                    ? undefined
-                                                    : accentButtonStyle(event)
-                                            }
-                                        >
-                                            {event.accepts_online_gifts
-                                                ? 'Vou entregar pessoalmente'
-                                                : 'Reservar presentes'}
-                                        </Button>
-                                    )}
+                                    {event.accepts_in_person_gifts &&
+                                        !freeAmountOpen && (
+                                            <Button
+                                                onClick={() =>
+                                                    submitOrder('in_person')
+                                                }
+                                                disabled={submitting}
+                                                variant={
+                                                    event.accepts_online_gifts
+                                                        ? 'outline'
+                                                        : 'default'
+                                                }
+                                                className="w-full"
+                                                style={
+                                                    event.accepts_online_gifts
+                                                        ? undefined
+                                                        : accentButtonStyle(
+                                                              event,
+                                                          )
+                                                }
+                                            >
+                                                {event.accepts_online_gifts
+                                                    ? 'Vou entregar pessoalmente'
+                                                    : 'Reservar presentes'}
+                                            </Button>
+                                        )}
                                 </SheetFooter>
                             )}
                         </SheetContent>

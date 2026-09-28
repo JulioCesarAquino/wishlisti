@@ -34,6 +34,10 @@ export type EventData = {
     visits_count: number;
     accepts_online_gifts: boolean;
     accepts_in_person_gifts: boolean;
+    accepts_free_amount: boolean;
+    gift_display_mode: GiftDisplayMode;
+    gift_message: string;
+    has_guestbook: boolean;
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
@@ -49,6 +53,14 @@ export type GuestContact = {
 };
 
 export type Fulfillment = 'online' | 'in_person';
+
+export type GiftDisplayMode = 'list' | 'discreet' | 'none';
+
+export type GuestMessage = {
+    id: number;
+    author_name: string;
+    message: string;
+};
 
 export type Reservation = {
     id: number;

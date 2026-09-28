@@ -31,7 +31,18 @@ class OrderStoreService
         ?string $guestIdentifier,
         bool $anonymous = false,
         string $fulfillment = Order::FULFILLMENT_ONLINE,
+        ?float $freeAmount = null,
     ): Order {
+        if ($freeAmount !== null) {
+            return $this->storeFreeAmount($event, $guestData, $freeAmount, $message, $guestIdentifier, $anonymous);
+        }
+
+        if (! $event->showsGiftItems()) {
+            throw ValidationException::withMessages([
+                'items' => 'Este evento não tem lista de presentes.',
+            ]);
+        }
+
         $inPerson = $fulfillment === Order::FULFILLMENT_IN_PERSON;
 
         if ($inPerson ? ! $event->acceptsInPersonGifts() : ! $event->acceptsOnlineGifts()) {
@@ -86,6 +97,44 @@ class OrderStoreService
             ]);
 
             $order->items()->createMany($orderItems);
+
+            return $order->setRelation('guest', $guest);
+        });
+    }
+
+    /**
+     * A contribution of any amount, without picking an item: always paid
+     * online, and there's no stock to take.
+     *
+     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
+     */
+    private function storeFreeAmount(
+        Event $event,
+        array $guestData,
+        float $amount,
+        ?string $message,
+        ?string $guestIdentifier,
+        bool $anonymous,
+    ): Order {
+        if (! $event->acceptsFreeAmount()) {
+            throw ValidationException::withMessages([
+                'free_amount' => 'Este evento não recebe contribuições de valor livre.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($event, $guestData, $amount, $message, $guestIdentifier, $anonymous) {
+            $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
+
+            $order = Order::create([
+                'event_id' => $event->id,
+                'guest_id' => $guest->id,
+                'status' => Order::STATUS_PENDING,
+                'fulfillment' => Order::FULFILLMENT_ONLINE,
+                'is_free_amount' => true,
+                'total_amount' => round($amount, 2),
+                'message' => $message,
+                'is_anonymous' => $anonymous,
+            ]);
 
             return $order->setRelation('guest', $guest);
         });

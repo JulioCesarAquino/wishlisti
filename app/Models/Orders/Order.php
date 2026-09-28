@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int $guest_id
  * @property string $status
  * @property string $fulfillment
+ * @property bool $is_free_amount
  * @property float $total_amount
  * @property string|null $message
  * @property bool $is_anonymous
@@ -31,7 +32,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'event_id', 'guest_id', 'status', 'fulfillment', 'total_amount', 'message', 'is_anonymous',
+    'event_id', 'guest_id', 'status', 'fulfillment', 'is_free_amount', 'total_amount', 'message', 'is_anonymous',
     'preference_id', 'payment_id', 'payment_method', 'payment_type', 'paid_at',
 ])]
 class Order extends Model
@@ -71,6 +72,7 @@ class Order extends Model
         return [
             'total_amount' => 'decimal:2',
             'is_anonymous' => 'boolean',
+            'is_free_amount' => 'boolean',
             'paid_at' => 'datetime',
         ];
     }

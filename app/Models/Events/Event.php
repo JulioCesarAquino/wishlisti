@@ -6,6 +6,7 @@ use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Concerns\HasFeatureGrants;
 use App\Models\Guests\Guest;
+use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Models\User;
 use Database\Factories\Events\EventFactory;
@@ -175,6 +176,14 @@ class Event extends Model
     }
 
     /**
+     * @return HasMany<GuestMessage, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(GuestMessage::class);
+    }
+
+    /**
      * @return HasMany<Order, $this>
      */
     public function orders(): HasMany
@@ -266,6 +275,28 @@ class Event extends Model
         $limit = $this->giftLimit();
 
         return $limit === null || $this->products()->count() + $count <= $limit;
+    }
+
+    public function giftDisplayMode(): string
+    {
+        return $this->giftSettings->display_mode ?: EventGiftSetting::DISPLAY_LIST;
+    }
+
+    /**
+     * Guests can contribute any amount without picking an item: goes
+     * through the online checkout, so it needs online gifts.
+     */
+    public function acceptsFreeAmount(): bool
+    {
+        return $this->acceptsOnlineGifts() && $this->giftSettings->allow_free_amount;
+    }
+
+    /**
+     * Items can be given at all (they're hidden in the "no gifts" mode).
+     */
+    public function showsGiftItems(): bool
+    {
+        return $this->giftDisplayMode() !== EventGiftSetting::DISPLAY_NONE;
     }
 
     public function isArchived(): bool

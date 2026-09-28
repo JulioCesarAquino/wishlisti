@@ -55,7 +55,7 @@ class OrdersTable
                     ->formatStateUsing(fn (Order $record, ?string $state) => $record->hidesGiverFrom(auth()->user()) ? '—' : $state),
                 TextColumn::make('items')
                     ->label('Itens')
-                    ->state(fn (Order $record) => $record->items
+                    ->state(fn (Order $record) => $record->is_free_amount ? 'Contribuição de valor livre' : $record->items
                         ->map(fn (OrderItem $item) => "{$item->quantity}x {$item->eventProduct?->name}")
                         ->join(', '))
                     ->wrap(),

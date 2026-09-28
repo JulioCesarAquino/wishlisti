@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Events;
 
+use App\Enums\Premium\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Events\Event;
+use App\Models\Events\EventGiftSetting;
 use App\Models\Guests\Guest;
+use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -54,12 +57,24 @@ class EventShowController extends Controller
                 'visits_count' => $event->visits_count,
                 'accepts_online_gifts' => $event->acceptsOnlineGifts(),
                 'accepts_in_person_gifts' => $event->acceptsInPersonGifts(),
+                'accepts_free_amount' => $event->acceptsFreeAmount(),
+                'gift_display_mode' => $event->giftDisplayMode(),
+                'gift_message' => $event->giftSettings->gift_message ?: EventGiftSetting::DEFAULT_GIFT_MESSAGE,
+                'has_guestbook' => $event->hasFeature(Feature::Guestbook),
                 'mp_public_key' => $event->acceptsOnlineGifts() ? $event->paymentSettings->mp_public_key : null,
                 'rsvp_required_fields' => $event->rsvpRequiredFields(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
-            'products' => $event->products()
+            'messages' => $event->hasFeature(Feature::Guestbook)
+                ? $event->messages()->approved()->latest('approved_at')->get()->map(fn (GuestMessage $message) => [
+                    'id' => $message->id,
+                    'author_name' => $message->author_name,
+                    'message' => $message->message,
+                ])
+                : [],
+            // Not even sent in the "no gifts" mode.
+            'products' => ! $event->showsGiftItems() ? [] : $event->products()
                 ->where('is_active', true)
                 ->get()
                 ->map(fn ($product) => [

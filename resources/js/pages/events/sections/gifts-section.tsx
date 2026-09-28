@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
+import { FreeAmountCard } from '@/pages/events/sections/free-amount-card';
 import {
     accentButtonStyle,
     bodyTextStyle,
@@ -48,6 +49,9 @@ type Props = {
     cart: Record<number, number>;
     onAddToCart: (product: Product) => void;
     reservations: Reservation[];
+    /** "Se quiser presentear": no sold-out items, counters or prices in focus. */
+    discreet?: boolean;
+    onContribute: () => void;
 };
 
 export function GiftsSection({
@@ -56,21 +60,37 @@ export function GiftsSection({
     cart,
     onAddToCart,
     reservations,
+    discreet = false,
+    onContribute,
 }: Props) {
     const [sortOrder, setSortOrder] = useState<SortOrder>('default');
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
     const sortedProducts = useMemo(() => {
+        const visible = discreet
+            ? products.filter((product) => !product.is_sold_out)
+            : products;
+
         if (sortOrder === 'default') {
-            return products;
+            return visible;
         }
 
-        return [...products].sort((a, b) =>
+        return [...visible].sort((a, b) =>
             sortOrder === 'price_asc' ? a.price - b.price : b.price - a.price,
         );
-    }, [products, sortOrder]);
+    }, [products, sortOrder, discreet]);
 
-    if (products.length === 0) {
+    const freeAmountCard = event.accepts_free_amount && (
+        <FreeAmountCard event={event} onContribute={onContribute} />
+    );
+
+    if (sortedProducts.length === 0 && freeAmountCard) {
+        return (
+            <div className="mx-auto max-w-4xl px-6 py-8">{freeAmountCard}</div>
+        );
+    }
+
+    if (sortedProducts.length === 0) {
         return (
             <div
                 className="mx-auto max-w-3xl px-6 py-16 text-center"
@@ -88,8 +108,10 @@ export function GiftsSection({
                 className="mb-4 text-center text-2xl font-semibold"
                 style={headingStyle(event)}
             >
-                Lista de presentes
+                {discreet ? 'Se quiser presentear' : 'Lista de presentes'}
             </h2>
+
+            {freeAmountCard}
 
             {!event.accepts_online_gifts && event.accepts_in_person_gifts && (
                 <p
@@ -107,19 +129,31 @@ export function GiftsSection({
             )}
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <Select
-                    value={sortOrder}
-                    onValueChange={(value) => setSortOrder(value as SortOrder)}
-                >
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="default">Ordem padrão</SelectItem>
-                        <SelectItem value="price_asc">Menor preço</SelectItem>
-                        <SelectItem value="price_desc">Maior preço</SelectItem>
-                    </SelectContent>
-                </Select>
+                {discreet ? (
+                    <span />
+                ) : (
+                    <Select
+                        value={sortOrder}
+                        onValueChange={(value) =>
+                            setSortOrder(value as SortOrder)
+                        }
+                    >
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="default">
+                                Ordem padrão
+                            </SelectItem>
+                            <SelectItem value="price_asc">
+                                Menor preço
+                            </SelectItem>
+                            <SelectItem value="price_desc">
+                                Maior preço
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                )}
 
                 <ToggleGroup
                     type="single"
@@ -153,6 +187,7 @@ export function GiftsSection({
                         inCart={cart[product.id] ?? 0}
                         layout={viewMode}
                         onAddToCart={onAddToCart}
+                        discreet={discreet}
                     />
                 ))}
             </div>
@@ -166,12 +201,14 @@ function GiftCard({
     inCart,
     layout,
     onAddToCart,
+    discreet,
 }: {
     event: EventData;
     product: Product;
     inCart: number;
     layout: ViewMode;
     onAddToCart: (product: Product) => void;
+    discreet: boolean;
 }) {
     const isLongDescription =
         (product.description?.length ?? 0) > DESCRIPTION_TRUNCATE_LENGTH;
@@ -246,7 +283,16 @@ function GiftCard({
         </>
     );
 
-    const availabilityBadge = product.is_sold_out ? (
+    // Discreet mode keeps the price, just out of focus.
+    const price = discreet ? (
+        <span className="text-xs font-normal opacity-60">
+            {formatCurrency(product.price)}
+        </span>
+    ) : (
+        formatCurrency(product.price)
+    );
+
+    const availabilityBadge = discreet ? null : product.is_sold_out ? (
         <Badge variant="destructive">
             {event.accepts_online_gifts ? 'Esgotado' : 'Já escolhido'}
         </Badge>
@@ -290,7 +336,7 @@ function GiftCard({
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium sm:text-base">
-                                {formatCurrency(product.price)}
+                                {price}
                             </span>
                             {availabilityBadge}
                         </div>
@@ -312,7 +358,7 @@ function GiftCard({
             </CardHeader>
             <CardContent className="flex items-center justify-between px-3 sm:px-6">
                 <span className="text-sm font-medium sm:text-base">
-                    {formatCurrency(product.price)}
+                    {price}
                 </span>
                 {availabilityBadge}
             </CardContent>

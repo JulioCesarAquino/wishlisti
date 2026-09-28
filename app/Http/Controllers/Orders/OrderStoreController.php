@@ -27,11 +27,12 @@ class OrderStoreController extends Controller
         $order = $service->execute(
             event: $event,
             guestData: $request->validated('guest'),
-            items: $request->validated('items'),
+            items: $request->validated('items') ?? [],
             message: $request->validated('message'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
             anonymous: $request->boolean('anonymous'),
             fulfillment: $request->validated('fulfillment', Order::FULFILLMENT_ONLINE),
+            freeAmount: $request->filled('free_amount') ? (float) $request->validated('free_amount') : null,
         );
 
         Cookie::queue($cookies->make(
