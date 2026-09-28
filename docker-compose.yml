@@ -20,6 +20,25 @@ services:
             - mysql
             - redis
 
+    # Runs the Laravel scheduler (routes/console.php), e.g. the daily trash:purge.
+    scheduler:
+        build:
+            context: ./docker/php
+            args:
+                UID: ${UID:-1001}
+                GID: ${GID:-1001}
+        container_name: wishlisti_scheduler
+        restart: unless-stopped
+        working_dir: /var/www/html
+        command: php artisan schedule:work
+        volumes:
+            - .:/var/www/html
+        networks:
+            - wishlisti
+        depends_on:
+            - mysql
+            - redis
+
     nginx:
         image: nginx:alpine
         container_name: wishlisti_nginx
