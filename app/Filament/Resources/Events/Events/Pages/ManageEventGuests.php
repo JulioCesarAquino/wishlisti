@@ -37,6 +37,8 @@ class ManageEventGuests extends ManageRelatedRecords
 
     protected static ?string $navigationLabel = 'Convidados';
 
+    protected static ?string $breadcrumb = 'Convidados';
+
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
     public function form(Schema $schema): Schema
@@ -48,6 +50,8 @@ class ManageEventGuests extends ManageRelatedRecords
     {
         return $table
             ->recordTitleAttribute('name')
+            ->modelLabel('convidado')
+            ->pluralModelLabel('convidados')
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->withoutGlobalScopes([SoftDeletingScope::class])
                 ->with('companionOf')

@@ -83,6 +83,7 @@ class PremiumPurchaseTest extends TestCase
             ->assertSee('Wishlisti Premium por R$ 39,90')
             ->assertSee(Feature::Payments->headline())
             ->assertSee(Feature::GuestList->headline())
+            ->assertSee(Feature::FullGiftList->headline())
             ->assertSee(Feature::Contacts->headline())
             ->assertSee('premium-payment-brick');
     }
@@ -145,7 +146,7 @@ class PremiumPurchaseTest extends TestCase
 
         $this->assertTrue($this->event->fresh()->hasFeature(Feature::GuestList));
         $this->assertSame(PremiumPurchase::STATUS_PAID, PremiumPurchase::first()->status);
-        $this->assertSame(3, FeatureGrant::count());
+        $this->assertSame(4, FeatureGrant::count());
     }
 
     public function test_a_refund_revokes_only_what_the_purchase_unlocked(): void
@@ -185,7 +186,7 @@ class PremiumPurchaseTest extends TestCase
 
     public function test_an_event_that_already_has_everything_is_not_charged_again(): void
     {
-        $this->event->syncFeatures([Feature::Payments, Feature::GuestList]);
+        $this->event->syncFeatures([Feature::Payments, Feature::GuestList, Feature::FullGiftList]);
         $this->host->grantFeature(Feature::Contacts);
         $fake = $this->fakeMercadoPago();
 

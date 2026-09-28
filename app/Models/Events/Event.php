@@ -252,6 +252,22 @@ class Event extends Model
         return ! $this->hasFeature(Feature::Payments) || $this->giftSettings->allow_in_person;
     }
 
+    /**
+     * How many gifts the list can hold: unlimited with the premium feature,
+     * config('premium.free_gift_limit') otherwise.
+     */
+    public function giftLimit(): ?int
+    {
+        return $this->hasFeature(Feature::FullGiftList) ? null : (int) config('premium.free_gift_limit');
+    }
+
+    public function canAddGifts(int $count = 1): bool
+    {
+        $limit = $this->giftLimit();
+
+        return $limit === null || $this->products()->count() + $count <= $limit;
+    }
+
     public function isArchived(): bool
     {
         return $this->archived_at !== null;

@@ -16,6 +16,7 @@ enum Feature: string
     /** Formerly "gift_givers" (seeing who gave each gift), which it absorbed. */
     case Payments = 'payments';
     case GuestList = 'guest_list';
+    case FullGiftList = 'full_gift_list';
     case Contacts = 'contacts';
 
     public function label(): string
@@ -23,6 +24,7 @@ enum Feature: string
         return match ($this) {
             self::Payments => 'Receber presentes online',
             self::GuestList => 'Lista nominal de convidados',
+            self::FullGiftList => 'Lista de presentes completa',
             self::Contacts => 'Agenda de contatos',
         };
     }
@@ -32,6 +34,7 @@ enum Feature: string
         return match ($this) {
             self::Payments => 'Convidados presenteiam com Pix, cartão ou boleto, e o dinheiro cai direto na conta Mercado Pago do anfitrião.',
             self::GuestList => 'Libera para o anfitrião escolher os dados obrigatórios na confirmação de presença e pedir os dados de cada acompanhante.',
+            self::FullGiftList => 'Presentes personalizados (nome, foto e descrição livres), cotas com várias unidades e quantos itens quiser. No gratuito, a lista usa só itens do catálogo, uma unidade cada, até '.config('premium.free_gift_limit').' presentes.',
             self::Contacts => 'Agenda própria do anfitrião para guardar os convidados e reaproveitá-los nos próximos eventos.',
         };
     }
@@ -44,6 +47,7 @@ enum Feature: string
         return match ($this) {
             self::Payments => 'Receba seus presentes em dinheiro, por Pix, cartão ou boleto',
             self::GuestList => 'Lista de convidados com nome e contato de cada pessoa',
+            self::FullGiftList => 'Monte a lista de presentes do seu jeito, sem limites',
             self::Contacts => 'Sua agenda de convidados pronta para o próximo evento',
         };
     }
@@ -66,6 +70,11 @@ enum Feature: string
                 'Receba o nome e o contato de cada acompanhante, não só a quantidade',
                 'Ideal para lista de portaria, buffet e controle de entrada',
             ],
+            self::FullGiftList => [
+                'Crie presentes personalizados, com nome, foto e descrição próprios',
+                'Ofereça cotas com várias unidades, como "noites da lua de mel"',
+                'Quantos presentes quiser na lista, sem o limite do plano gratuito',
+            ],
             self::Contacts => [
                 'Guarde os convidados de todos os seus eventos em um só lugar',
                 'Importe a lista de um evento com um clique',
@@ -79,6 +88,7 @@ enum Feature: string
         return match ($this) {
             self::Payments => Heroicon::OutlinedBanknotes,
             self::GuestList => Heroicon::OutlinedClipboardDocumentList,
+            self::FullGiftList => Heroicon::OutlinedSquaresPlus,
             self::Contacts => Heroicon::OutlinedBookOpen,
         };
     }
@@ -89,7 +99,7 @@ enum Feature: string
     public function appliesTo(): string
     {
         return match ($this) {
-            self::Payments, self::GuestList => Event::class,
+            self::Payments, self::GuestList, self::FullGiftList => Event::class,
             self::Contacts => User::class,
         };
     }

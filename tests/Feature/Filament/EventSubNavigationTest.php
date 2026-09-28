@@ -117,7 +117,7 @@ class EventSubNavigationTest extends TestCase
     public function test_products_are_managed_from_their_own_page(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id]);
+        $event = Event::factory()->withFeatures(Feature::FullGiftList)->create(['user_id' => $host->id]);
 
         $this->actingAs($host);
 

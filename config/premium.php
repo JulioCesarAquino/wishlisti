@@ -11,7 +11,11 @@ use App\Enums\Premium\Feature;
 return [
     'price' => (float) env('PREMIUM_PRICE', 39.90),
 
-    'event_features' => [Feature::Payments, Feature::GuestList],
+    'event_features' => [Feature::Payments, Feature::GuestList, Feature::FullGiftList],
 
     'host_features' => [Feature::Contacts],
+
+    // Without Feature::FullGiftList: at most this many gifts on the list,
+    // only catalog items, one unit each.
+    'free_gift_limit' => (int) env('FREE_GIFT_LIMIT', 15),
 ];
