@@ -69,6 +69,13 @@
 
                             errorBox.style.display = 'none';
                             await showStatus(result.payment_id);
+
+                            // Approved: reload so the menu, the cards and the
+                            // header show the unlocked features (the status
+                            // screen stays up for a moment first).
+                            if (result.status === 'paid') {
+                                setTimeout(() => window.location.reload(), 4000);
+                            }
                         }),
                 },
             })

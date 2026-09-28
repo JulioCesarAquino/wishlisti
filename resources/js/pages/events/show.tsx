@@ -207,6 +207,15 @@ export default function EventShow({
         items: [] as { event_product_id: number; quantity: number }[],
     });
 
+    // The guest may identify themselves after the page loaded (confirming
+    // attendance, say): fill the cart with it, unless they typed already.
+    useEffect(() => {
+        if (guest && !form.data.guest.name) {
+            form.setData('guest', toContactForm(guest));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [guest]);
+
     const [submitting, setSubmitting] = useState(false);
     const [orderResult, setOrderResult] = useState<{
         id: number;
