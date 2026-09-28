@@ -80,11 +80,13 @@ class AdminPanelProvider extends PanelProvider
                     .'</style>',
                 ),
             )
+            // At the end of the body (not the content area's footer), so it's
+            // centered on the whole screen rather than next to the sidebar.
             ->renderHook(
-                PanelsRenderHook::FOOTER,
+                PanelsRenderHook::BODY_END,
                 fn () => new HtmlString(
                     '<footer style="display:flex;align-items:center;justify-content:center;gap:0.375rem;padding:1.5rem 1rem;font-size:0.8rem;color:rgb(113 113 122)">'
-                    .'<span>Desenvolvido por Julio Cesar Aquino</span>'
+                    .'<span>© '.now()->year.' Wishlisti | Desenvolvido por Julio Cesar Aquino</span>'
                     .'<a href="https://instagram.com/juliucaezer" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Julio Cesar Aquino" style="display:inline-flex;color:inherit">'
                     .'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                     .'<rect width="20" height="20" x="2" y="2" rx="5" ry="5" />'

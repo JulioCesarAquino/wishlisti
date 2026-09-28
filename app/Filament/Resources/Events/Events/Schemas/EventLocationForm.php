@@ -36,16 +36,59 @@ class EventLocationForm
                     Action::make('useCurrentLocation')
                         ->label('Usar minha localização atual')
                         ->icon(Heroicon::OutlinedMapPin)
+                        // Fills the coordinates and — through OpenStreetMap's
+                        // reverse geocoding (Nominatim: free, no API key) —
+                        // the address too. An address the host already typed
+                        // is only replaced if they agree.
                         ->alpineClickHandler(<<<'JS'
                             if (! navigator.geolocation) {
                                 alert('Seu navegador não suporta geolocalização. Preencha o endereço e as coordenadas manualmente.');
                                 return;
                             }
+
+                            const describe = (address) => {
+                                const street = [address.road, address.house_number].filter(Boolean).join(', ');
+                                const district = address.suburb || address.neighbourhood || address.quarter || address.residential || address.city_district;
+                                const city = address.city || address.town || address.village || address.municipality;
+                                const state = (address['ISO3166-2-lvl4'] || '').replace(/^BR-/, '') || address.state;
+
+                                return [[street, district].filter(Boolean).join(' - '), [city, state].filter(Boolean).join(' - ')]
+                                    .filter(Boolean)
+                                    .join(', ');
+                            };
+
                             navigator.geolocation.getCurrentPosition(
-                                (position) => {
-                                    $wire.set('data.latitude', position.coords.latitude);
-                                    $wire.set('data.longitude', position.coords.longitude);
-                                    alert('Localização obtida automaticamente. Ela pode não ser exata — confira no mapa e preencha o endereço abaixo.');
+                                async (position) => {
+                                    const { latitude, longitude } = position.coords;
+
+                                    $wire.set('data.latitude', latitude);
+                                    $wire.set('data.longitude', longitude);
+
+                                    let found = null;
+
+                                    try {
+                                        const response = await fetch(
+                                            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=pt-BR&lat=${latitude}&lon=${longitude}`,
+                                            { headers: { Accept: 'application/json' } },
+                                        );
+                                        const place = response.ok ? await response.json() : null;
+                                        found = place?.address ? describe(place.address) : null;
+                                    } catch (error) {
+                                        found = null;
+                                    }
+
+                                    if (! found) {
+                                        alert('Localização obtida, mas não foi possível descobrir o endereço automaticamente. Preencha o endereço e confira no mapa: a localização pode não ser exata.');
+                                        return;
+                                    }
+
+                                    const current = ($wire.get('data.address') || '').trim();
+
+                                    if (! current || confirm(`Usar este endereço encontrado?\n\n${found}\n\n(substitui o que está no campo)`)) {
+                                        $wire.set('data.address', found);
+                                    }
+
+                                    alert('Localização e endereço obtidos automaticamente. Eles podem não ser exatos: confira o número e o complemento, e veja o mapa na página pública.');
                                 },
                                 () => alert('Não foi possível obter sua localização automaticamente. Preencha o endereço e as coordenadas manualmente.'),
                             );

@@ -93,6 +93,27 @@ class RsvpStoreControllerTest extends TestCase
         $this->assertSame(Guest::RSVP_CONFIRMED, $guest->fresh()->rsvp_status);
     }
 
+    public function test_a_guest_with_the_cookie_from_before_the_rename_is_still_recognised(): void
+    {
+        $event = Event::factory()->create(['is_published' => true]);
+        $guest = $event->guests()->create([
+            'name' => 'Guest Antigo',
+            'whatsapp' => '5511888888888',
+            'identifier' => (string) Str::uuid(),
+        ]);
+
+        $this->withCookie("wishlist_guest_{$event->id}", $guest->identifier)
+            ->post("/{$event->slug}/rsvp", [
+                'guest' => ['name' => 'Novo Nome', 'whatsapp' => '5511777777777'],
+                'attending' => false,
+            ])
+            ->assertRedirect()
+            ->assertCookie(Guest::cookieName($event), $guest->identifier);
+
+        $this->assertSame(1, $event->guests()->count());
+        $this->assertSame('Novo Nome', $guest->fresh()->name);
+    }
+
     public function test_unpublished_events_return_404(): void
     {
         $event = Event::factory()->create(['is_published' => false]);

@@ -5,6 +5,7 @@ namespace Tests\Feature\Identity;
 use App\Filament\Resources\Identity\InviteRequests\Pages\ListInviteRequests;
 use App\Models\Identity\InviteRequest;
 use App\Models\User;
+use App\Services\Identity\InviteRequestRegenerateLinkService;
 use Filament\Auth\Pages\PasswordReset\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -79,6 +80,23 @@ class InviteRequestFlowTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertTrue(Hash::check('nova-senha-123', $host->fresh()->password));
+    }
+
+    public function test_admin_can_regenerate_the_link_of_an_approved_request(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $inviteRequest = InviteRequest::factory()->create(['email' => 'maria@example.com']);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ListInviteRequests::class)
+            ->callTableAction('approve', $inviteRequest)
+            ->callTableAction('regenerateLink', $inviteRequest->fresh())
+            ->assertNotified();
+
+        $link = app(InviteRequestRegenerateLinkService::class)->execute($inviteRequest->fresh());
+
+        $this->assertStringContainsString('/admin/password-reset/reset', $link);
     }
 
     public function test_admin_can_reject_a_request(): void

@@ -21,7 +21,7 @@ class OrderCancelController extends Controller
     {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $identifier = $request->cookie(Guest::cookieName($event));
+        $identifier = Guest::identifierFrom($request, $event);
 
         abort_unless(is_string($identifier) && $order->guest?->identifier === $identifier, 403);
 

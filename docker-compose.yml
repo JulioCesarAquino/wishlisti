@@ -1,3 +1,7 @@
+# Fixed project name: keeps container/volume names stable even if the
+# project folder is renamed.
+name: wishlisti
+
 services:
     app:
         build:
@@ -5,20 +9,20 @@ services:
             args:
                 UID: ${UID:-1001}
                 GID: ${GID:-1001}
-        container_name: wishlist_app
+        container_name: wishlisti_app
         restart: unless-stopped
         working_dir: /var/www/html
         volumes:
             - .:/var/www/html
         networks:
-            - wishlist
+            - wishlisti
         depends_on:
             - mysql
             - redis
 
     nginx:
         image: nginx:alpine
-        container_name: wishlist_nginx
+        container_name: wishlisti_nginx
         restart: unless-stopped
         ports:
             - '${APP_PORT:-8080}:80'
@@ -26,25 +30,25 @@ services:
             - .:/var/www/html
             - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
         networks:
-            - wishlist
+            - wishlisti
         depends_on:
             - app
 
     mysql:
         image: mysql:8.4
-        container_name: wishlist_mysql
+        container_name: wishlisti_mysql
         restart: unless-stopped
         environment:
-            MYSQL_DATABASE: ${DB_DATABASE:-wishlist}
-            MYSQL_USER: ${DB_USERNAME:-wishlist}
+            MYSQL_DATABASE: ${DB_DATABASE:-wishlisti}
+            MYSQL_USER: ${DB_USERNAME:-wishlisti}
             MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
             MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
         ports:
             - '${FORWARD_DB_PORT:-3307}:3306'
         volumes:
-            - wishlist_mysql_data:/var/lib/mysql
+            - wishlisti_mysql_data:/var/lib/mysql
         networks:
-            - wishlist
+            - wishlisti
         healthcheck:
             test:
                 [
@@ -63,10 +67,10 @@ services:
 
     redis:
         image: redis:7-alpine
-        container_name: wishlist_redis
+        container_name: wishlisti_redis
         restart: unless-stopped
         networks:
-            - wishlist
+            - wishlisti
 
     node:
         build:
@@ -74,7 +78,7 @@ services:
             args:
                 UID: ${UID:-1001}
                 GID: ${GID:-1001}
-        container_name: wishlist_node
+        container_name: wishlisti_node
         working_dir: /var/www/html
         command: sh -c "npm install && npm run dev"
         ports:
@@ -82,13 +86,13 @@ services:
         volumes:
             - .:/var/www/html
         networks:
-            - wishlist
+            - wishlisti
         profiles:
             - dev
 
 networks:
-    wishlist:
+    wishlisti:
         driver: bridge
 
 volumes:
-    wishlist_mysql_data:
+    wishlisti_mysql_data:

@@ -16,7 +16,7 @@ class GuestMessageStoreController extends Controller
     {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $guestIdentifier = $request->cookie(Guest::cookieName($event));
+        $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $service->execute(
             event: $event,

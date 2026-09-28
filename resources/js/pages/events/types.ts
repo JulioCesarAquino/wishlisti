@@ -145,23 +145,23 @@ export function grainBackgroundStyle(
 }
 
 /**
- * Builds a Google Maps "share → embed a map" iframe URL directly from
- * coordinates, using the same `pb=` format Google's own embed dialog
- * generates. This is an unofficial, undocumented format (not the paid Embed
- * API), but it needs no API key and no billing account — Google could change
- * it without notice, though it's been stable for years.
+ * Google Maps iframe URL with a pin on the event. Uses the classic
+ * `maps?q=…&output=embed` format: a search for the coordinates (or, without
+ * them, for the address), which — unlike the `embed?pb=` "share a map"
+ * format — drops a marker on the spot. Unofficial like the other one, but
+ * needs no API key and no billing account.
  */
 export function googleMapsEmbedUrl(event: EventData): string | null {
-    if (event.latitude === null || event.longitude === null) {
+    const query =
+        event.latitude !== null && event.longitude !== null
+            ? `${event.latitude},${event.longitude}`
+            : event.address;
+
+    if (!query) {
         return null;
     }
 
-    const pb =
-        `!1m14!1m12!1m3!1d3000!2d${event.longitude}!3d${event.latitude}` +
-        '!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0' +
-        '!3m2!1spt-BR!2sbr!4v1700000000000!5m2!1spt-BR!2sbr';
-
-    return `https://www.google.com/maps/embed?pb=${pb}`;
+    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&hl=pt-BR&output=embed`;
 }
 
 export function headingStyle(event: EventData): CSSProperties {

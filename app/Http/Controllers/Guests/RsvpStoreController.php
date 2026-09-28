@@ -21,7 +21,7 @@ class RsvpStoreController extends Controller
     ): RedirectResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $guestIdentifier = $request->cookie(Guest::cookieName($event));
+        $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $guest = $service->execute(
             event: $event,

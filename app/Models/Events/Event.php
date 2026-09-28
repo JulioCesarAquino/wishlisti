@@ -315,7 +315,7 @@ class Event extends Model
 
     public function visitCookieName(): string
     {
-        return "wishlist_visited_{$this->id}";
+        return "wishlisti_visited_{$this->id}";
     }
 
     public function shouldCountVisitFor(?User $user): bool

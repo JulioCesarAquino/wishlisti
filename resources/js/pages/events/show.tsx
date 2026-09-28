@@ -80,7 +80,7 @@ function navItems(event: EventData): { key: Section; label: string }[] {
 }
 
 function cartStorageKey(slug: string): string {
-    return `wishlist_cart_${slug}`;
+    return `wishlisti_cart_${slug}`;
 }
 
 function sectionFromHash(items: { key: Section }[]): Section {
@@ -118,7 +118,12 @@ export default function EventShow({
 
     useEffect(() => {
         try {
-            const raw = window.localStorage.getItem(cartStorageKey(event.slug));
+            // Falls back to the key from before the project was renamed, so a
+            // cart saved earlier isn't lost (it's rewritten under the new key
+            // on the next change).
+            const raw =
+                window.localStorage.getItem(cartStorageKey(event.slug)) ??
+                window.localStorage.getItem(`wishlist_cart_${event.slug}`);
 
             if (raw) {
                 setCart(JSON.parse(raw));

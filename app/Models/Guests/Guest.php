@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -200,6 +201,20 @@ class Guest extends Model
 
     public static function cookieName(Event $event): string
     {
-        return "wishlist_guest_{$event->id}";
+        return "wishlisti_guest_{$event->id}";
+    }
+
+    /**
+     * The guest identifier the visitor's browser holds for this event.
+     * Still accepts the cookie from before the project was renamed
+     * ("wishlist_…"), so guests who visited earlier keep being recognised;
+     * the next RSVP or gift rewrites it under the new name.
+     */
+    public static function identifierFrom(Request $request, Event $event): ?string
+    {
+        $identifier = $request->cookie(self::cookieName($event))
+            ?? $request->cookie("wishlist_guest_{$event->id}");
+
+        return is_string($identifier) && $identifier !== '' ? $identifier : null;
     }
 }

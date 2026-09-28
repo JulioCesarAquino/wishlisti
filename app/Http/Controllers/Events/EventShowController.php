@@ -23,7 +23,7 @@ class EventShowController extends Controller
         $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants']);
 
         $guest = null;
-        $identifier = $request->cookie(Guest::cookieName($event));
+        $identifier = Guest::identifierFrom($request, $event);
 
         if ($identifier) {
             $guest = $event->guests()->where('identifier', $identifier)->first();

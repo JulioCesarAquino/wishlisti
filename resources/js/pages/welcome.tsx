@@ -288,9 +288,9 @@ export default function Welcome() {
                 </main>
 
                 <footer className="px-6 py-8 text-center text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                    <p>© {new Date().getFullYear()} Wishlisti</p>
-                    <p className="mt-1 flex items-center justify-center gap-1.5">
-                        Desenvolvido por Julio Cesar Aquino
+                    <p className="flex items-center justify-center gap-1.5">
+                        © {new Date().getFullYear()} Wishlisti | Desenvolvido
+                        por Julio Cesar Aquino
                         <a
                             href="https://instagram.com/juliucaezer"
                             target="_blank"

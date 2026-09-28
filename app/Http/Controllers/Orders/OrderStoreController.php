@@ -22,7 +22,7 @@ class OrderStoreController extends Controller
     ): JsonResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $guestIdentifier = $request->cookie(Guest::cookieName($event));
+        $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $order = $service->execute(
             event: $event,
