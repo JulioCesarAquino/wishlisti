@@ -68,18 +68,58 @@ dcp up -d --force-recreate app scheduler
 
 ## Backup
 
-**Faça todo dia.** Sem backup, um problema no servidor apaga os dados de vez.
+**Sem backup, um problema no servidor apaga os dados de vez.** O [docker/backup.sh](../docker/backup.sh) copia o banco e os uploads e envia tudo para um bucket S3, **fora do servidor**. No servidor ficam só as cópias dos últimos 7 dias, na pasta `backups/`.
 
-```bash
-# Banco
-dcp exec mysql sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction "$MYSQL_DATABASE"' > backup-$(date +%F).sql
+### Configurar uma vez
 
-# Uploads (fotos de capa e dos presentes)
-docker run --rm -v wishlisti-prod_storage_public:/dados -v "$PWD":/backup alpine \
-    tar czf /backup/uploads-$(date +%F).tar.gz -C /dados .
-```
+1. **Crie o bucket** no S3 (ex.: `wishlisti-backups`), com o acesso público bloqueado, que é o padrão. Em _Management → Lifecycle rules_, crie uma regra que apaga os arquivos depois de 30 dias, para o custo não crescer para sempre.
+2. **Dê permissão de envio** para o servidor, só nesse bucket (`s3:PutObject` em `arn:aws:s3:::wishlisti-backups/*`):
+    - **EC2:** anexe uma _IAM Role_ com essa permissão ao servidor e deixe as chaves `AWS_*` do `.env` vazias. Se aparecer um erro de credenciais, ajuste o _metadata hop limit_ do servidor para 2 (_Actions → Instance settings → Modify instance metadata options_).
+    - **Lightsail:** crie um usuário IAM com essa permissão e preencha `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` no `.env`.
+3. **Preencha** `BACKUP_S3_BUCKET` e `AWS_DEFAULT_REGION` no `.env`.
+4. **Teste** rodando uma vez à mão e confira se os dois arquivos aparecem no bucket, na pasta `wishlisti/`:
+    ```bash
+    ./docker/backup.sh
+    ```
+5. **Agende** para rodar todo dia às 3h. Rode `crontab -e` e adicione a linha abaixo, trocando o caminho pelo da pasta do projeto:
+    ```
+    0 3 * * * /home/ubuntu/wishlisti/docker/backup.sh >> /home/ubuntu/wishlisti/backups/backup.log 2>&1
+    ```
 
-Guarde os arquivos **fora do servidor** (ex.: num bucket S3). Na AWS, também dá para ativar os _snapshots_ automáticos do disco.
+De vez em quando, confira o `backups/backup.log`. Se o backup falhar, o erro aparece lá.
+
+### Restaurar
+
+Serve tanto para voltar os dados num servidor que já existe quanto para montar um servidor novo depois de perder o antigo. Neste segundo caso, faça antes o [primeiro deploy](#primeiro-deploy), **sem** o `migrate --seed`: o backup já traz as tabelas e os dados.
+
+1. **Pare o site**, para ninguém gravar nada durante a restauração:
+    ```bash
+    dcp stop app scheduler
+    ```
+2. **Baixe os arquivos** do dia escolhido. Se estiverem na pasta `backups/` do servidor, pule este passo.
+    ```bash
+    mkdir -p backups
+    docker run --rm -v "$PWD/backups:/backup" -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION \
+        amazon/aws-cli s3 cp s3://wishlisti-backups/wishlisti/ /backup/ --recursive --exclude '*' --include '*2026-09-28*'
+    ```
+    No Lightsail, antes do comando, defina as chaves na sessão: `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...`.
+3. **Restaure o banco.** Isso substitui todos os dados atuais pelos do backup:
+    ```bash
+    gzip -dc backups/db-2026-09-28-0300.sql.gz \
+        | dcp exec -T mysql sh -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+    ```
+4. **Restaure os uploads:**
+    ```bash
+    docker run --rm -v wishlisti-prod_storage_public:/dados -v "$PWD/backups:/backup:ro" alpine \
+        tar xzf /backup/uploads-2026-09-28-0300.tar.gz -C /dados
+    ```
+5. **Religue o site** e rode as migrations. Elas só fazem alguma coisa se o código for mais novo que o backup.
+    ```bash
+    dcp up -d
+    dcp exec app php artisan migrate --force
+    ```
+
+**Teste uma restauração de vez em quando**, num servidor de teste, antes de precisar dela de verdade.
 
 ## Logs e problemas
 

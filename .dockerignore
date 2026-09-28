@@ -30,3 +30,6 @@ storage
 .agents
 .cursor
 .junie
+
+# Production backups (docker/backup.sh)
+backups
