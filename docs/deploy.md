@@ -23,9 +23,28 @@ alias dcp='docker compose -f docker-compose.prod.yml'
 
 ## Antes de começar
 
-- Um servidor Linux com Docker e o plugin Compose (ex.: AWS Lightsail ou EC2, 2 GB de RAM ou mais).
-- As portas **80** e **443** liberadas para a internet. Na AWS, isso fica no _Security Group_ (EC2) ou em _Networking_ (Lightsail). A porta 22 (SSH) fica liberada só para o seu IP.
-- O domínio apontando para o IP do servidor: um registro **A** no DNS. Na AWS, use um IP fixo (_Elastic IP_ ou _Static IP_), senão ele muda quando o servidor reinicia.
+O guia usa a **Oracle Cloud (Always Free)**, mas vale para qualquer servidor Linux com Docker.
+
+1. **Crie a máquina** em _Compute → Instances → Create instance_:
+    - **Imagem:** Ubuntu 24.04.
+    - **Shape:** `VM.Standard.A1.Flex` (Ampere, ARM), com 2 OCPUs e 12 GB de RAM. O Always Free permite até 4 OCPUs e 24 GB no total. Todas as imagens do projeto têm versão ARM.
+    - Se aparecer _Out of capacity_, tente outro _Availability Domain_ ou tente de novo mais tarde. É comum nas máquinas gratuitas.
+2. **Libere as portas 80 e 443** em dois lugares, porque a Oracle bloqueia nos dois:
+    - No console: _Networking → Virtual Cloud Networks → (sua VCN) → Security Lists → Default_, adicione regras de entrada TCP para as portas 80 e 443, origem `0.0.0.0/0`.
+    - No servidor, o firewall do Ubuntu da Oracle também bloqueia:
+        ```bash
+        sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+        sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+        sudo netfilter-persistent save
+        ```
+3. **Instale o Docker** no servidor e saia e entre de novo no SSH, para o grupo `docker` valer:
+    ```bash
+    curl -fsSL https://get.docker.com | sudo sh
+    sudo usermod -aG docker $USER
+    ```
+4. **Aponte o domínio** para o IP público da máquina, com um registro **A** no DNS. Prefira um IP público **reservado** (_Networking → Reserved public IPs_), que não muda se a máquina for recriada.
+
+**Atenção:** a Oracle pode recuperar máquinas Always Free que ficam **ociosas** por dias seguidos. Para evitar isso, faça o _upgrade_ da conta para **Pay As You Go**. Os recursos Always Free continuam gratuitos e você só paga se passar dos limites, mas é preciso ter um cartão cadastrado.
 
 ## Primeiro deploy
 
@@ -72,19 +91,22 @@ dcp up -d --force-recreate app scheduler
 
 ### Configurar uma vez
 
-1. **Crie o bucket** no S3 (ex.: `wishlisti-backups`), com o acesso público bloqueado, que é o padrão. Em _Management → Lifecycle rules_, crie uma regra que apaga os arquivos depois de 30 dias, para o custo não crescer para sempre.
-2. **Dê permissão de envio** para o servidor, só nesse bucket (`s3:PutObject` em `arn:aws:s3:::wishlisti-backups/*`):
-    - **EC2:** anexe uma _IAM Role_ com essa permissão ao servidor e deixe as chaves `AWS_*` do `.env` vazias. Se aparecer um erro de credenciais, ajuste o _metadata hop limit_ do servidor para 2 (_Actions → Instance settings → Modify instance metadata options_).
-    - **Lightsail:** crie um usuário IAM com essa permissão e preencha `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` no `.env`.
-3. **Preencha** `BACKUP_S3_BUCKET` e `AWS_DEFAULT_REGION` no `.env`.
-4. **Teste** rodando uma vez à mão e confira se os dois arquivos aparecem no bucket, na pasta `wishlisti/`:
+O exemplo usa o **Object Storage da Oracle**, que tem 20 GB no Always Free e aceita a mesma API do S3. Na AWS, use um bucket S3 e deixe `BACKUP_S3_ENDPOINT` vazio.
+
+1. **Crie o bucket** em _Storage → Buckets_ (ex.: `wishlisti-backups`), no compartimento **root**, porque é nele que a API compatível com S3 procura os buckets. Deixe a visibilidade **Private**, que é o padrão.
+2. **Anote o namespace** da conta. Ele aparece nos detalhes do bucket, em _Namespace_.
+3. **Gere as chaves de acesso:** clique no seu perfil, no canto superior direito, e vá em _Customer secret keys → Generate secret key_. O valor da chave aparece **uma vez só**. Ele é o `AWS_SECRET_ACCESS_KEY`, e o _Access key_ da lista é o `AWS_ACCESS_KEY_ID`.
+4. **Preencha no `.env`:** `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (com o namespace), as duas chaves e `AWS_DEFAULT_REGION` (ex.: `sa-saopaulo-1`).
+5. **Teste** rodando uma vez à mão e confira se os dois arquivos aparecem no bucket, na pasta `wishlisti/`:
     ```bash
     ./docker/backup.sh
     ```
-5. **Agende** para rodar todo dia às 3h. Rode `crontab -e` e adicione a linha abaixo, trocando o caminho pelo da pasta do projeto:
+6. **Agende** para rodar todo dia às 3h. Rode `crontab -e` e adicione a linha abaixo, trocando o caminho pelo da pasta do projeto:
     ```
     0 3 * * * /home/ubuntu/wishlisti/docker/backup.sh >> /home/ubuntu/wishlisti/backups/backup.log 2>&1
     ```
+
+Os 20 GB gratuitos duram bastante, mas as cópias antigas se acumulam. De tempos em tempos, apague as mais velhas pelo console, no bucket. Outra opção é criar uma regra automática em _Lifecycle Policy Rules_. Para ela funcionar, a Oracle exige uma policy de IAM que autorize o serviço de Object Storage; o próprio console mostra o aviso e o texto da policy.
 
 De vez em quando, confira o `backups/backup.log`. Se o backup falhar, o erro aparece lá.
 
@@ -99,10 +121,12 @@ Serve tanto para voltar os dados num servidor que já existe quanto para montar 
 2. **Baixe os arquivos** do dia escolhido. Se estiverem na pasta `backups/` do servidor, pule este passo.
     ```bash
     mkdir -p backups
-    docker run --rm -v "$PWD/backups:/backup" -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION \
-        amazon/aws-cli s3 cp s3://wishlisti-backups/wishlisti/ /backup/ --recursive --exclude '*' --include '*2026-09-28*'
+    docker run --rm -v "$PWD/backups:/backup" --env-file .env \
+        -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+        amazon/aws-cli --endpoint-url "$(grep '^BACKUP_S3_ENDPOINT=' .env | cut -d= -f2-)" \
+        s3 cp s3://wishlisti-backups/wishlisti/ /backup/ --recursive --exclude '*' --include '*2026-09-28*'
     ```
-    No Lightsail, antes do comando, defina as chaves na sessão: `export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...`.
+    Troque `wishlisti-backups` pelo nome do bucket e a data pela do backup escolhido.
 3. **Restaure o banco.** Isso substitui todos os dados atuais pelos do backup:
     ```bash
     gzip -dc backups/db-2026-09-28-0300.sql.gz \

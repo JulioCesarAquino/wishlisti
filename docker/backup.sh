@@ -1,5 +1,6 @@
 #!/bin/sh
-# Daily production backup: database dump + uploads, sent to S3.
+# Daily production backup: database dump + uploads, sent to S3 or any
+# S3-compatible storage (e.g. Oracle Object Storage).
 # Runs on the server (host), usually from cron. Setup and restore: docs/deploy.md
 #
 #   0 3 * * * /caminho/do/wishlisti/docker/backup.sh >> /var/log/wishlisti-backup.log 2>&1
@@ -49,8 +50,19 @@ if [ -n "$BUCKET" ]; then
         fi
     done
 
+    # S3-compatible storage other than AWS (e.g. Oracle Object Storage).
+    ENDPOINT=$(env_value BACKUP_S3_ENDPOINT)
+    ENDPOINT_ARG=
+    if [ -n "$ENDPOINT" ]; then
+        ENDPOINT_ARG="--endpoint-url $ENDPOINT"
+        # Recent aws-cli versions send checksums that not every provider accepts.
+        set -- "$@" -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+            -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    fi
+
     for file in "$DB_FILE" "$UPLOADS_FILE"; do
-        docker run --rm "$@" -v "$PWD/$DIR:/backup:ro" amazon/aws-cli \
+        # shellcheck disable=SC2086 # ENDPOINT_ARG is two words on purpose
+        docker run --rm "$@" -v "$PWD/$DIR:/backup:ro" amazon/aws-cli $ENDPOINT_ARG \
             s3 cp "/backup/$(basename "$file")" "s3://$BUCKET/wishlisti/$(basename "$file")"
     done
 else
