@@ -1,0 +1,6 @@
+# Public entry point in production: gets and renews the HTTPS certificate
+# (Let's Encrypt) for APP_DOMAIN on its own and forwards everything to nginx.
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nginx:80
+}

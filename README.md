@@ -40,7 +40,7 @@ A plataforma é gratuita, com um **Premium por evento** (pagamento único, R$ 39
 | Banco                      | MySQL 8.4 (testes usam SQLite em memória)                 |
 | Pagamentos                 | Mercado Pago: SDK `mercadopago/dx-php` e Payment Brick    |
 | Auditoria                  | `spatie/laravel-activitylog`                              |
-| Infra local                | Docker Compose (`app`, `nginx`, `mysql`, `redis`, `node`) |
+| Infra local                | Docker Compose (`app`, `scheduler`, `nginx`, `mysql`, `redis`, `node`) |
 
 ---
 
@@ -312,7 +312,8 @@ Validado também **de ponta a ponta no navegador**, com pagamentos reais no sand
 
 ## Operação e produção
 
-- **Agendador:** `trash:purge` roda diariamente pelo scheduler do Laravel (`routes/console.php`). Em produção, configure um cron com `php artisan schedule:run` a cada minuto, ou um processo `php artisan schedule:work`. O Docker Compose local **não** tem esse serviço.
+- **Como subir:** o passo a passo está em [docs/deploy.md](docs/deploy.md). A stack é o `docker-compose.prod.yml`, com HTTPS automático pelo Caddy.
+- **Agendador:** `trash:purge` roda diariamente pelo scheduler do Laravel (`routes/console.php`). O serviço `scheduler` roda `php artisan schedule:work`, tanto no Docker local quanto no de produção.
 - **Webhooks:** as duas URLs precisam ser acessíveis publicamente. Em produção, `APP_URL` deve ser o domínio real, porque o sistema monta a `notification_url` a partir dele.
 - **Credenciais:** troque as credenciais de teste pelas de produção (`APP_USR-...`) só no ambiente de produção.
 - **Deploy:** rode as migrations. Algumas migrations movem dados (configurações para tabelas próprias, conversão de recursos premium) e têm rollback.
@@ -325,7 +326,6 @@ Validado também **de ponta a ponta no navegador**, com pagamentos reais no sand
 - **Retirada de recurso pelo admin:** retirar um recurso em "Liberar recursos" remove a concessão mesmo que ela tenha sido comprada.
 - **Mesmo navegador:** um acompanhante que confirma presença pelo navegador de quem o listou é reconhecido pelo cookie como essa pessoa.
 - **Pedidos não pagos:** checkouts abandonados ficam como "Pendente" até a limpeza da lixeira do convidado, sem expiração própria.
-- **Sem agendador no Docker local:** veja [Operação](#operação-e-produção).
 - **Ainda não feito:**
     - landing page (`welcome.tsx`) mais atrativa, com os recursos e os planos;
     - contador que vira "dias desde o evento" depois da data.

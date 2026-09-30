@@ -1,0 +1,86 @@
+#!/bin/sh
+# Daily production backup: database dump + uploads, sent to S3 or any
+# S3-compatible storage (e.g. Oracle Object Storage).
+# Runs on the server (host), usually from cron. Setup and restore: docs/deploy.md
+#
+#   0 3 * * * /caminho/do/wishlisti/docker/backup.sh >> /var/log/wishlisti-backup.log 2>&1
+set -eu
+
+cd "$(dirname "$0")/.."
+
+# Reads one variable from .env without executing the file.
+env_value() {
+    grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'
+}
+
+BUCKET=$(env_value BACKUP_S3_BUCKET)
+KEEP_LOCAL_DAYS=7
+DIR=backups
+STAMP=$(date +%F-%H%M)
+DB_FILE="$DIR/db-$STAMP.sql.gz"
+UPLOADS_FILE="$DIR/uploads-$STAMP.tar.gz"
+COMPOSE="docker compose -f docker-compose.prod.yml"
+
+mkdir -p "$DIR"
+
+echo "[$(date)] Início do backup"
+
+DB_HOST=$(env_value DB_HOST)
+DB_PORT=$(env_value DB_PORT)
+if [ "$DB_HOST" = mysql ]; then
+    $COMPOSE exec -T mysql sh -c \
+        'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines "$MYSQL_DATABASE"' \
+        | gzip > "$DB_FILE"
+else
+    # MySQL on another machine (docker-compose.micro-db.yml): dump over the
+    # network. MYSQL_PWD goes by name, so the password stays out of `ps`.
+    MYSQL_PWD=$(env_value DB_ROOT_PASSWORD) docker run --rm -e MYSQL_PWD mysql:8.4 \
+        mysqldump -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root \
+        --single-transaction --routines "$(env_value DB_DATABASE)" \
+        | gzip > "$DB_FILE"
+fi
+
+# sh has no pipefail: a dump that failed halfway would still leave a file.
+if ! gzip -dc "$DB_FILE" | tail -n 1 | grep -q 'Dump completed'; then
+    echo "ERRO: o dump do banco saiu incompleto ($DB_FILE)."
+    exit 1
+fi
+
+docker run --rm \
+    -v wishlisti-prod_storage_public:/dados:ro \
+    -v "$PWD/$DIR:/backup" \
+    alpine tar czf "/backup/$(basename "$UPLOADS_FILE")" -C /dados .
+
+if [ -n "$BUCKET" ]; then
+    # Access keys from .env if set; otherwise the EC2 instance role is used.
+    set --
+    for var in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
+        value=$(env_value "$var")
+        if [ -n "$value" ]; then
+            set -- "$@" -e "$var=$value"
+        fi
+    done
+
+    # S3-compatible storage other than AWS (e.g. Oracle Object Storage).
+    ENDPOINT=$(env_value BACKUP_S3_ENDPOINT)
+    ENDPOINT_ARG=
+    if [ -n "$ENDPOINT" ]; then
+        ENDPOINT_ARG="--endpoint-url $ENDPOINT"
+        # Recent aws-cli versions send checksums that not every provider accepts.
+        set -- "$@" -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+            -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    fi
+
+    for file in "$DB_FILE" "$UPLOADS_FILE"; do
+        # shellcheck disable=SC2086 # ENDPOINT_ARG is two words on purpose
+        docker run --rm "$@" -v "$PWD/$DIR:/backup:ro" amazon/aws-cli $ENDPOINT_ARG \
+            s3 cp "/backup/$(basename "$file")" "s3://$BUCKET/wishlisti/$(basename "$file")"
+    done
+else
+    echo "AVISO: BACKUP_S3_BUCKET vazio no .env; o backup ficou só neste servidor."
+fi
+
+# Local copies are only a convenience; the real copy is the one in S3.
+find "$DIR" -name '*.gz' -mtime +"$KEEP_LOCAL_DAYS" -delete
+
+echo "[$(date)] Backup concluído: $DB_FILE, $UPLOADS_FILE"

@@ -1,7 +1,35 @@
 node_modules
 vendor
 .git
-storage/logs
-storage/framework/cache
-storage/framework/sessions
-storage/framework/views
+.github
+.env
+.env.*
+!.env.example
+docker-compose*.yml
+
+# Generated during the image build
+public/build
+public/hot
+public/storage
+public/css/filament
+public/js/filament
+public/fonts
+public/fonts-manifest.dev.json
+resources/js/actions
+resources/js/routes
+resources/js/wayfinder
+bootstrap/cache/*.php
+
+# Runtime data (uploads live in Docker volumes)
+storage
+
+# Editor and agent folders
+.idea
+.vscode
+.claude
+.agents
+.cursor
+.junie
+
+# Production backups (docker/backup.sh)
+backups

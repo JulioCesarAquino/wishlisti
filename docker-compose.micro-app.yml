@@ -1,0 +1,45 @@
+# App machine of the two-micro setup (two E2.1.Micro, 1 GB each): everything
+# from docker-compose.prod.yml except MySQL, which runs on the other machine
+# (docker-compose.micro-db.yml). DB_HOST in .env is that machine's private IP.
+# Usage and deploy steps: docs/deploy.md
+#   docker compose -f docker-compose.micro-app.yml up -d
+#
+# Images come from GHCR: this machine is too small to build them.
+
+# Same name as docker-compose.prod.yml, so volumes (and docker/backup.sh) match.
+name: wishlisti-prod
+
+services:
+    app:
+        extends: { file: docker-compose.prod.yml, service: app }
+        depends_on: !override
+            - redis
+
+    scheduler:
+        extends: { file: docker-compose.prod.yml, service: scheduler }
+        depends_on: !override
+            - redis
+
+    nginx:
+        extends: { file: docker-compose.prod.yml, service: nginx }
+        depends_on:
+            - app
+
+    caddy:
+        extends: { file: docker-compose.prod.yml, service: caddy }
+        depends_on:
+            - nginx
+
+    redis:
+        extends: { file: docker-compose.prod.yml, service: redis }
+
+networks:
+    wishlisti:
+        driver: bridge
+
+volumes:
+    redis_data:
+    storage_public:
+    storage_private:
+    caddy_data:
+    caddy_config:

@@ -1,0 +1,122 @@
+# Production stack. Usage and deploy steps: docs/deploy.md
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Different from docker-compose.yml: the code is baked into the images (no
+# project folder mount), there is no Vite, MySQL is not published to the host,
+# and Caddy sits in front handling HTTPS.
+#
+# The app and nginx images are built by CI and published to GHCR, so the
+# server only needs `pull`. WISHLISTI_TAG picks a version (a commit hash);
+# `build:` stays so `up --build` still works on a server that can afford it.
+
+# Different name from the dev stack, so both never share containers or volumes.
+name: wishlisti-prod
+
+x-app: &app
+    build:
+        context: .
+        dockerfile: docker/php/Dockerfile.prod
+        target: app
+    image: ghcr.io/juliocesaraquino/wishlisti-app:${WISHLISTI_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+        - ./.env:/var/www/html/.env:ro
+        - storage_public:/var/www/html/storage/app/public
+        - storage_private:/var/www/html/storage/app/private
+    networks:
+        - wishlisti
+    depends_on:
+        mysql:
+            condition: service_healthy
+        redis:
+            condition: service_started
+
+services:
+    app:
+        <<: *app
+
+    # Runs the Laravel scheduler (routes/console.php), e.g. the daily trash:purge.
+    scheduler:
+        <<: *app
+        command: php artisan schedule:work
+
+    nginx:
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile.prod
+            target: nginx
+        image: ghcr.io/juliocesaraquino/wishlisti-nginx:${WISHLISTI_TAG:-latest}
+        restart: unless-stopped
+        volumes:
+            # Uploads (public disk) are served straight from the volume.
+            - storage_public:/var/www/html/public/storage:ro
+        networks:
+            - wishlisti
+        depends_on:
+            - app
+
+    caddy:
+        image: caddy:2-alpine
+        restart: unless-stopped
+        environment:
+            APP_DOMAIN: ${APP_DOMAIN:?Defina APP_DOMAIN no .env}
+        ports:
+            - '80:80'
+            - '443:443'
+            - '443:443/udp'
+        volumes:
+            - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+        networks:
+            - wishlisti
+        depends_on:
+            - nginx
+
+    mysql:
+        image: mysql:8.4
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE:?Defina DB_DATABASE no .env}
+            MYSQL_USER: ${DB_USERNAME:?Defina DB_USERNAME no .env}
+            MYSQL_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no .env}
+        volumes:
+            - mysql_data:/var/lib/mysql
+        networks:
+            - wishlisti
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'mysqladmin',
+                    'ping',
+                    '-h',
+                    'localhost',
+                    '-u',
+                    'root',
+                    '-p${DB_ROOT_PASSWORD}',
+                ]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        volumes:
+            - redis_data:/data
+        networks:
+            - wishlisti
+
+networks:
+    wishlisti:
+        driver: bridge
+
+volumes:
+    mysql_data:
+    redis_data:
+    storage_public:
+    storage_private:
+    caddy_data:
+    caddy_config:
