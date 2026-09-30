@@ -6,14 +6,14 @@ As imagens do `app` e do `nginx` são montadas pelo **GitHub Actions** a cada pu
 
 Enquanto a máquina A1 não sai, o site roda em **duas máquinas micro**, uma para o banco e outra para o resto. Veja [Duas máquinas micro](#duas-máquinas-micro).
 
-| Serviço     | O que faz                                                                   |
-| ----------- | --------------------------------------------------------------------------- |
-| `caddy`     | porta de entrada pública (80/443); emite e renova o certificado HTTPS sozinho |
-| `nginx`     | serve os arquivos estáticos e os uploads; repassa o resto para o `app`        |
-| `app`       | a aplicação Laravel (PHP-FPM)                                               |
-| `scheduler` | roda as tarefas agendadas (ex.: `trash:purge`, todo dia à meia-noite UTC)    |
+| Serviço     | O que faz                                                                         |
+| ----------- | --------------------------------------------------------------------------------- |
+| `caddy`     | porta de entrada pública (80/443); emite e renova o certificado HTTPS sozinho     |
+| `nginx`     | serve os arquivos estáticos e os uploads; repassa o resto para o `app`            |
+| `app`       | a aplicação Laravel (PHP-FPM)                                                     |
+| `scheduler` | roda as tarefas agendadas (ex.: `trash:purge`, todo dia à meia-noite UTC)         |
 | `mysql`     | banco de dados, acessível só de dentro do Docker (ou da rede privada, nas micros) |
-| `redis`     | sessões, cache e fila                                                       |
+| `redis`     | sessões, cache e fila                                                             |
 
 Os dados ficam em volumes do Docker e sobrevivem a atualizações e reinícios: `mysql_data` (banco), `storage_public` e `storage_private` (uploads) e `caddy_data` (certificados).
 
@@ -160,10 +160,10 @@ Serve tanto para voltar os dados num servidor que já existe quanto para montar 
 
 Solução temporária enquanto a A1 não sai. As duas máquinas são `VM.Standard.E2.1.Micro` (x86, 1 GB de RAM e 1/8 de OCPU cada), e o Always Free permite duas. Elas ficam na mesma subnet e conversam pela rede privada.
 
-| Máquina           | Compose                                                         | O que roda                             |
-| ----------------- | --------------------------------------------------------------- | -------------------------------------- |
+| Máquina           | Compose                                                         | O que roda                                    |
+| ----------------- | --------------------------------------------------------------- | --------------------------------------------- |
 | `wishlisti-micro` | [docker-compose.micro-app.yml](../docker-compose.micro-app.yml) | `caddy`, `nginx`, `app`, `scheduler`, `redis` |
-| `wishlisti-db`    | [docker-compose.micro-db.yml](../docker-compose.micro-db.yml)   | `mysql`, com a memória reduzida        |
+| `wishlisti-db`    | [docker-compose.micro-db.yml](../docker-compose.micro-db.yml)   | `mysql`, com a memória reduzida               |
 
 As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [tests.yml](../.github/workflows/tests.yml).
 

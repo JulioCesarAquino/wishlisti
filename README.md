@@ -32,14 +32,14 @@ A plataforma é gratuita, com um **Premium por evento** (pagamento único, R$ 39
 
 ## Stack
 
-| Camada                     | Tecnologia                                                |
-| -------------------------- | --------------------------------------------------------- |
-| Back-end                   | PHP 8.3, Laravel 13                                       |
-| Painel (admin e anfitrião) | Filament 4, em `/admin`                                   |
-| Página pública do evento   | Inertia + React + TypeScript (Vite, Tailwind)             |
-| Banco                      | MySQL 8.4 (testes usam SQLite em memória)                 |
-| Pagamentos                 | Mercado Pago: SDK `mercadopago/dx-php` e Payment Brick    |
-| Auditoria                  | `spatie/laravel-activitylog`                              |
+| Camada                     | Tecnologia                                                             |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Back-end                   | PHP 8.5, Laravel 13                                                    |
+| Painel (admin e anfitrião) | Filament 4, em `/admin`                                                |
+| Página pública do evento   | Inertia + React + TypeScript (Vite, Tailwind)                          |
+| Banco                      | MySQL 8.4 (testes usam SQLite em memória)                              |
+| Pagamentos                 | Mercado Pago: SDK `mercadopago/dx-php` e Payment Brick                 |
+| Auditoria                  | `spatie/laravel-activitylog`                                           |
 | Infra local                | Docker Compose (`app`, `scheduler`, `nginx`, `mysql`, `redis`, `node`) |
 
 ---
