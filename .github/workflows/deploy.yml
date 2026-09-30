@@ -127,5 +127,7 @@ jobs:
           dcp up -d --remove-orphans
           dcp exec -T app php artisan migrate --force
           dcp restart nginx
+          # The Caddyfile is mounted from the repo; reload picks up changes without downtime.
+          dcp exec -T caddy caddy reload --config /etc/caddy/Caddyfile
           docker image prune -f
           EOF
