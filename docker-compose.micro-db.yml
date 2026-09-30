@@ -1,0 +1,27 @@
+# Database machine of the two-micro setup (see docker-compose.micro-app.yml).
+# Usage and deploy steps: docs/deploy.md
+#   docker compose -f docker-compose.micro-db.yml up -d
+#
+# MySQL listens only on this machine's private IP (DB_BIND_IP in .env), and the
+# Oracle security list only lets the app machine reach port 3306.
+
+name: wishlisti-db
+
+services:
+    mysql:
+        extends: { file: docker-compose.prod.yml, service: mysql }
+        # Sized for a 1 GB machine. The defaults alone take ~500 MB.
+        command:
+            - --innodb-buffer-pool-size=256M
+            - --performance-schema=OFF
+            - --max-connections=40
+            - --skip-name-resolve
+        ports:
+            - '${DB_BIND_IP:?Defina DB_BIND_IP no .env}:3306:3306'
+
+networks:
+    wishlisti:
+        driver: bridge
+
+volumes:
+    mysql_data:

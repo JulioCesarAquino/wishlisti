@@ -25,9 +25,20 @@ mkdir -p "$DIR"
 
 echo "[$(date)] Início do backup"
 
-$COMPOSE exec -T mysql sh -c \
-    'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines "$MYSQL_DATABASE"' \
-    | gzip > "$DB_FILE"
+DB_HOST=$(env_value DB_HOST)
+DB_PORT=$(env_value DB_PORT)
+if [ "$DB_HOST" = mysql ]; then
+    $COMPOSE exec -T mysql sh -c \
+        'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines "$MYSQL_DATABASE"' \
+        | gzip > "$DB_FILE"
+else
+    # MySQL on another machine (docker-compose.micro-db.yml): dump over the
+    # network. MYSQL_PWD goes by name, so the password stays out of `ps`.
+    MYSQL_PWD=$(env_value DB_ROOT_PASSWORD) docker run --rm -e MYSQL_PWD mysql:8.4 \
+        mysqldump -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root \
+        --single-transaction --routines "$(env_value DB_DATABASE)" \
+        | gzip > "$DB_FILE"
+fi
 
 # sh has no pipefail: a dump that failed halfway would still leave a file.
 if ! gzip -dc "$DB_FILE" | tail -n 1 | grep -q 'Dump completed'; then

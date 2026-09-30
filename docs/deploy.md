@@ -2,13 +2,17 @@
 
 Tudo roda em Docker, a partir do [docker-compose.prod.yml](../docker-compose.prod.yml). O servidor só precisa do Docker. PHP, Node e o resto vão dentro das imagens.
 
+As imagens do `app` e do `nginx` são montadas pelo **GitHub Actions** a cada push na branch `production`, depois que os testes passam, e publicadas no GitHub Container Registry (`ghcr.io/juliocesaraquino/wishlisti-app` e `wishlisti-nginx`). O servidor só baixa as imagens prontas, sem precisar compilar nada. Cada imagem sai com duas tags: `latest` e o hash do commit.
+
+Enquanto a máquina A1 não sai, o site roda em **duas máquinas micro**, uma para o banco e outra para o resto. Veja [Duas máquinas micro](#duas-máquinas-micro).
+
 | Serviço     | O que faz                                                                   |
 | ----------- | --------------------------------------------------------------------------- |
 | `caddy`     | porta de entrada pública (80/443); emite e renova o certificado HTTPS sozinho |
 | `nginx`     | serve os arquivos estáticos e os uploads; repassa o resto para o `app`        |
 | `app`       | a aplicação Laravel (PHP-FPM)                                               |
 | `scheduler` | roda as tarefas agendadas (ex.: `trash:purge`, todo dia à meia-noite UTC)    |
-| `mysql`     | banco de dados, acessível só de dentro do Docker                            |
+| `mysql`     | banco de dados, acessível só de dentro do Docker (ou da rede privada, nas micros) |
 | `redis`     | sessões, cache e fila                                                       |
 
 Os dados ficam em volumes do Docker e sobrevivem a atualizações e reinícios: `mysql_data` (banco), `storage_public` e `storage_private` (uploads) e `caddy_data` (certificados).
@@ -56,7 +60,7 @@ git switch production
 cp .env.production.example .env
 nano .env                                   # preencha tudo que está marcado com TROCAR
 
-dcp build
+dcp pull
 dcp run --rm app php artisan key:generate --show   # copie o valor para APP_KEY no .env
 
 dcp up -d
@@ -71,11 +75,18 @@ Para conferir, acesse `https://SEU-DOMINIO`. O certificado pode levar alguns seg
 
 Depois de juntar as mudanças na branch `production`:
 
+Espere o workflow `tests` terminar no GitHub (_Actions_), porque é ele que publica as imagens novas. Depois:
+
 ```bash
-git pull
-dcp up -d --build
+git pull                                   # traz mudanças no compose, Caddyfile etc.
+dcp pull
+dcp up -d
 dcp exec app php artisan migrate --force
 ```
+
+**Voltar para uma versão anterior:** coloque `WISHLISTI_TAG=<hash do commit>` no `.env` e rode `dcp pull && dcp up -d`. Para voltar a seguir a versão mais nova, apague a linha.
+
+Na primeira publicação, o GitHub pode criar os pacotes como **privados**, mesmo com o repositório público. Se o `dcp pull` der _denied_, abra o pacote em _github.com/JulioCesarAquino?tab=packages_, vá em _Package settings → Change visibility_ e deixe **Public**. Só precisa fazer isso uma vez para cada pacote.
 
 ## Mudou o `.env`?
 
@@ -144,6 +155,74 @@ Serve tanto para voltar os dados num servidor que já existe quanto para montar 
     ```
 
 **Teste uma restauração de vez em quando**, num servidor de teste, antes de precisar dela de verdade.
+
+## Duas máquinas micro
+
+Solução temporária enquanto a A1 não sai. As duas máquinas são `VM.Standard.E2.1.Micro` (x86, 1 GB de RAM e 1/8 de OCPU cada), e o Always Free permite duas. Elas ficam na mesma subnet e conversam pela rede privada.
+
+| Máquina           | Compose                                                         | O que roda                             |
+| ----------------- | --------------------------------------------------------------- | -------------------------------------- |
+| `wishlisti-micro` | [docker-compose.micro-app.yml](../docker-compose.micro-app.yml) | `caddy`, `nginx`, `app`, `scheduler`, `redis` |
+| `wishlisti-db`    | [docker-compose.micro-db.yml](../docker-compose.micro-db.yml)   | `mysql`, com a memória reduzida        |
+
+As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [tests.yml](../.github/workflows/tests.yml).
+
+### Rede
+
+Na security list da subnet, além do SSH:
+
+- TCP 80 e 443 e UDP 443, origem `0.0.0.0/0`, para o site.
+- TCP 3306, origem **só o IP privado da micro da aplicação** (ex.: `10.0.0.72/32`). O MySQL nunca pode ficar aberto para a internet.
+
+O MySQL também só escuta no IP privado da máquina do banco (`DB_BIND_IP`), então não aparece no IP público dela.
+
+### Preparar as duas máquinas
+
+Em cada uma, instale o Docker (passo 3 de [Antes de começar](#antes-de-começar)) e crie 2 GB de swap, para um pico de memória não derrubar nada:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Depois, clone o projeto nas duas, como no [primeiro deploy](#primeiro-deploy).
+
+### Máquina do banco
+
+Crie o `.env` só com o que o MySQL usa. As senhas têm que ser **as mesmas** do `.env` da aplicação:
+
+```bash
+DB_BIND_IP=10.0.0.224          # IP privado desta máquina
+DB_DATABASE=wishlisti
+DB_USERNAME=wishlisti
+DB_PASSWORD=TROCAR
+DB_ROOT_PASSWORD=TROCAR
+```
+
+```bash
+docker compose -f docker-compose.micro-db.yml up -d
+```
+
+### Máquina da aplicação
+
+Siga o [primeiro deploy](#primeiro-deploy) com duas diferenças:
+
+- no `.env`, `DB_HOST` é o IP privado da máquina do banco (ex.: `DB_HOST=10.0.0.224`);
+- use o outro compose: `alias dcp='docker compose -f docker-compose.micro-app.yml'`.
+
+O resto do guia vale igual, com esse `dcp`. O [backup.sh](../docker/backup.sh) percebe pelo `DB_HOST` que o banco está em outra máquina e faz o dump pela rede. Por isso, ele roda na máquina da aplicação, onde também estão os uploads.
+
+Na **restauração**, o passo 3 muda, porque não existe `mysql` no compose da aplicação:
+
+```bash
+gzip -dc backups/db-2026-09-28-0300.sql.gz | docker run --rm -i -e MYSQL_PWD="$(grep '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)" \
+    mysql:8.4 mysql -h "$(grep '^DB_HOST=' .env | cut -d= -f2-)" -u root "$(grep '^DB_DATABASE=' .env | cut -d= -f2-)"
+```
+
+### Ao migrar para a A1
+
+Faça um backup, monte a A1 com o [docker-compose.prod.yml](../docker-compose.prod.yml) (com `DB_HOST=mysql`), [restaure](#restaurar) o backup nela e aponte o DNS para o IP novo. Depois, apague as duas micros.
 
 ## Logs e problemas
 
