@@ -1,10 +1,10 @@
 name: tests
 
+# Runs only when a PR is merged into production: checks, then publish and deploy.
 on:
   push:
     branches:
       - production
-  pull_request:
 
 permissions:
   contents: read
@@ -45,11 +45,9 @@ jobs:
         run: composer ci:check
 
   # Builds the production images and publishes them to GHCR, so the servers
-  # only pull them (docs/deploy.md). Runs only on pushes to production, after
-  # the checks pass.
+  # only pull them (docs/deploy.md). Runs after the checks pass.
   publish:
     needs: ci
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
@@ -95,7 +93,6 @@ jobs:
   # Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
   deploy:
     needs: publish
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # One deploy at a time; a newer push waits for the running one.
     concurrency:
