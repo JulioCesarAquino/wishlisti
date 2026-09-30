@@ -198,6 +198,7 @@ DB_DATABASE=wishlisti
 DB_USERNAME=wishlisti
 DB_PASSWORD=TROCAR
 DB_ROOT_PASSWORD=TROCAR
+APP_DOMAIN=nao-usado           # exigido pelo docker-compose.prod.yml (via extends); não é usado aqui
 ```
 
 ```bash
