@@ -73,7 +73,7 @@ Para conferir, acesse `https://SEU-DOMINIO`. O certificado pode levar alguns seg
 
 ## Atualizar o site
 
-É automático. Crie uma branch a partir da `production`, abra um PR para a `production` e aprove o merge. O workflow `tests` roda os testes, publica as imagens novas e atualiza o servidor por SSH (job `deploy`, com os secrets `DEPLOY_*` do repositório). Leva uns 5 minutos; acompanhe em _Actions_.
+É automático. Crie uma branch a partir da `production`, abra um PR para a `production` e aprove o merge. O workflow `deploy` roda os testes, publica as imagens novas e atualiza o servidor por SSH (job `deploy`, com os secrets `DEPLOY_*` do repositório). Leva uns 5 minutos; acompanhe em _Actions_.
 
 Se os testes falharem, nada é publicado e o site continua na versão anterior. Corrija em outro PR.
 
@@ -167,7 +167,7 @@ Solução temporária enquanto a A1 não sai. As duas máquinas são `VM.Standar
 | `wishlisti-micro` | [docker-compose.micro-app.yml](../docker-compose.micro-app.yml) | `caddy`, `nginx`, `app`, `scheduler`, `redis` |
 | `wishlisti-db`    | [docker-compose.micro-db.yml](../docker-compose.micro-db.yml)   | `mysql`, com a memória reduzida               |
 
-As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [tests.yml](../.github/workflows/tests.yml).
+As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [deploy.yml](../.github/workflows/deploy.yml).
 
 ### Rede
 

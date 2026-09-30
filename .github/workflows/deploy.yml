@@ -1,4 +1,4 @@
-name: tests
+name: deploy
 
 # Runs only when a PR is merged into production: checks, then publish and deploy.
 on:
