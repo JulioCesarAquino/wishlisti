@@ -73,9 +73,11 @@ Para conferir, acesse `https://SEU-DOMINIO`. O certificado pode levar alguns seg
 
 ## Atualizar o site
 
-Depois de juntar as mudanças na branch `production`:
+É automático. Crie uma branch a partir da `production`, abra um PR para a `production` e aprove o merge. O workflow `deploy` roda os testes, publica as imagens novas e atualiza o servidor por SSH (job `deploy`, com os secrets `DEPLOY_*` do repositório). Leva uns 5 minutos; acompanhe em _Actions_.
 
-Espere o workflow `tests` terminar no GitHub (_Actions_), porque é ele que publica as imagens novas. Depois:
+Se os testes falharem, nada é publicado e o site continua na versão anterior. Corrija em outro PR.
+
+Para atualizar à mão (por exemplo, se o deploy falhar por SSH), na máquina da aplicação:
 
 ```bash
 git pull                                   # traz mudanças no compose, Caddyfile etc.
@@ -84,7 +86,7 @@ dcp up -d
 dcp exec app php artisan migrate --force
 ```
 
-**Voltar para uma versão anterior:** coloque `WISHLISTI_TAG=<hash do commit>` no `.env` e rode `dcp pull && dcp up -d`. Para voltar a seguir a versão mais nova, apague a linha.
+**Voltar para uma versão anterior:** o jeito mais simples é reverter o PR no GitHub (_Revert_), que gera um PR novo e passa pelo deploy normal. Na pressa, à mão: coloque `WISHLISTI_TAG=<hash do commit>` no `.env` e rode `dcp pull && dcp up -d` (o próximo deploy automático volta para a versão mais nova).
 
 Na primeira publicação, o GitHub pode criar os pacotes como **privados**, mesmo com o repositório público. Se o `dcp pull` der _denied_, abra o pacote em _github.com/JulioCesarAquino?tab=packages_, vá em _Package settings → Change visibility_ e deixe **Public**. Só precisa fazer isso uma vez para cada pacote.
 
@@ -165,7 +167,7 @@ Solução temporária enquanto a A1 não sai. As duas máquinas são `VM.Standar
 | `wishlisti-micro` | [docker-compose.micro-app.yml](../docker-compose.micro-app.yml) | `caddy`, `nginx`, `app`, `scheduler`, `redis` |
 | `wishlisti-db`    | [docker-compose.micro-db.yml](../docker-compose.micro-db.yml)   | `mysql`, com a memória reduzida               |
 
-As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [tests.yml](../.github/workflows/tests.yml).
+As imagens do CI são só para x86 (`linux/amd64`). Na A1, que é ARM, adicione `linux/arm64` em `platforms`, no job `publish` do [deploy.yml](../.github/workflows/deploy.yml).
 
 ### Rede
 
