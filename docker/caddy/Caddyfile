@@ -4,3 +4,8 @@
 	encode zstd gzip
 	reverse_proxy nginx:80
 }
+
+# www is only a redirect to the main address (needs a DNS record for www too).
+www.{$APP_DOMAIN} {
+	redir https://{$APP_DOMAIN}{uri} permanent
+}
