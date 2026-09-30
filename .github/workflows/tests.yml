@@ -90,3 +90,45 @@ jobs:
             ghcr.io/juliocesaraquino/wishlisti-${{ matrix.target }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,scope=${{ matrix.target }},mode=max
+
+  # Updates the server to this commit's images over SSH (docs/deploy.md).
+  # Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
+  deploy:
+    needs: publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # One deploy at a time; a newer push waits for the running one.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      # The micro compose file; switch to docker-compose.prod.yml on the A1.
+      # nginx is restarted too, in case the app container got a new IP.
+      - name: Deploy
+        env:
+          DEPLOY_TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh "$DEPLOY_TARGET" bash -se <<'EOF'
+          set -euo pipefail
+          cd ~/wishlisti
+          git fetch -q origin production
+          git reset -q --hard ${{ github.sha }}
+          export WISHLISTI_TAG=${{ github.sha }}
+          dcp() { docker compose -f docker-compose.micro-app.yml "$@"; }
+          dcp pull -q
+          dcp up -d --remove-orphans
+          dcp exec -T app php artisan migrate --force
+          dcp restart nginx
+          docker image prune -f
+          EOF
