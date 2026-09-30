@@ -13,6 +13,12 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # `composer setup` copies .env.example, which points at the Docker MySQL.
+    # There is none here, so migrate runs on SQLite, like the tests.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -22,7 +28,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.3'
+          # Same as docker/php/Dockerfile.prod; composer.lock needs >= 8.4.
+          php-version: '8.5'
           tools: composer:v2
           coverage: none
 
