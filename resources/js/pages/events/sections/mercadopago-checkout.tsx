@@ -50,7 +50,7 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
                             paymentMethods: {
                                 creditCard: 'all',
                                 debitCard: 'all',
-                                pix: 'all',
+                                bankTransfer: 'all', // Pix
                                 ticket: 'all',
                             },
                         },

@@ -53,7 +53,7 @@
                     paymentMethods: {
                         creditCard: 'all',
                         debitCard: 'all',
-                        pix: 'all',
+                        bankTransfer: 'all', // Pix
                         ticket: 'all',
                     },
                 },
