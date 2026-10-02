@@ -41,5 +41,6 @@ volumes:
     redis_data:
     storage_public:
     storage_private:
+    storage_logs:
     caddy_data:
     caddy_config:
