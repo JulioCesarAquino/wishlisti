@@ -233,3 +233,32 @@ Faça um backup, monte a A1 com o [docker-compose.prod.yml](../docker-compose.pr
 dcp ps                  # o que está rodando
 dcp logs -f app         # erros da aplicação (ou nginx, caddy, scheduler...)
 ```
+
+Os logs da aplicação também ficam em arquivos diários no volume `storage_logs`, que sobrevive aos deploys e guarda `LOG_DAILY_DAYS` dias (14 por padrão). Para lê-los sem entrar na máquina, use o painel: **Logs do sistema**, em `/admin/logs` (só o admin). Lá dá para buscar, filtrar por nível e baixar os arquivos.
+
+O Docker guarda no máximo 50 MB de saída por container (5 arquivos de 10 MB), para não encher o disco.
+
+### Alertas de erro no Telegram
+
+Com `telegram` no `LOG_STACK`, cada erro vai na hora para o seu Telegram. A mesma mensagem é mandada no máximo uma vez a cada `LOG_TELEGRAM_QUIET_MINUTES` minutos (10 por padrão). Sem token, o canal não faz nada.
+
+1. No Telegram, abra o **@BotFather**, mande `/newbot` e escolha um nome (ex.: "Wishlisti Alertas"). Ele responde com o **token** (algo como `123456789:AAH...`).
+2. Abra a conversa com o bot novo e mande qualquer mensagem (ex.: "oi"). Sem isso, o bot não pode escrever para você.
+3. No navegador, abra `https://api.telegram.org/bot<TOKEN>/getUpdates` (troque `<TOKEN>`). Na resposta, o número em `"chat":{"id":...}` é o **chat id**.
+4. No `.env` do servidor:
+
+    ```
+    LOG_STACK=daily,stderr,telegram
+    LOG_TELEGRAM_BOT_TOKEN=123456789:AAH...
+    LOG_TELEGRAM_CHAT_ID=987654321
+    ```
+
+5. Recrie o app para ler o `.env` (`dcp up -d app scheduler`) e teste:
+
+    ```bash
+    dcp exec app php artisan tinker --execute="Log::error('Teste de alerta do Wishlisti');"
+    ```
+
+    A mensagem deve chegar no Telegram em alguns segundos.
+
+Só vão erros (`error` ou pior). Avisos, como "não foi possível cancelar o pagamento em aberto", ficam só no arquivo e na tela de logs.

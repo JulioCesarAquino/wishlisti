@@ -13,6 +13,7 @@ public/hot
 public/storage
 public/css/filament
 public/js/filament
+public/vendor/log-viewer
 public/fonts
 public/fonts-manifest.dev.json
 resources/js/actions

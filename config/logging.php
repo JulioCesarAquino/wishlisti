@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\CreateTelegramLogger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -71,6 +72,16 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+        ],
+
+        // Errors to the admin's Telegram (see App\Logging\CreateTelegramLogger).
+        'telegram' => [
+            'driver' => 'custom',
+            'via' => CreateTelegramLogger::class,
+            'token' => env('LOG_TELEGRAM_BOT_TOKEN'),
+            'chat_id' => env('LOG_TELEGRAM_CHAT_ID'),
+            'level' => env('LOG_TELEGRAM_LEVEL', 'error'),
+            'quiet_minutes' => env('LOG_TELEGRAM_QUIET_MINUTES', 10),
         ],
 
         'monthly' => [
