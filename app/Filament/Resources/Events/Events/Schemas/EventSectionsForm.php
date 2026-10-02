@@ -34,7 +34,7 @@ class EventSectionsForm
             ->deletable(false)
             // The raw state: the snapshot leaves out "type", which isn't
             // saved.
-            ->itemLabel(fn (Schema $item): ?string => self::type($item->getRawState()['type'] ?? null)?->label())
+            ->itemLabel(fn (Schema $item): ?string => self::type(data_get($item->getRawState(), 'type'))?->label())
             ->schema([
                 Hidden::make('type')->dehydrated(false),
                 Toggle::make('is_active')
