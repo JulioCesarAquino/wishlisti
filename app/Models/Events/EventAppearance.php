@@ -16,6 +16,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $event_id
  * @property string|null $primary_color
  * @property string|null $secondary_color
+ * @property string|null $button_color
  * @property string|null $font_color_primary
  * @property string|null $font_color_secondary
  * @property string|null $font_family
@@ -24,12 +25,28 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'primary_color', 'secondary_color', 'font_color_primary', 'font_color_secondary',
+    'primary_color', 'secondary_color', 'button_color', 'font_color_primary', 'font_color_secondary',
     'font_family', 'cover_effect_intensity',
 ])]
 class EventAppearance extends Model
 {
     use LogsActivity;
+
+    /**
+     * Ready-made button colors offered in the panel: lively, and dark enough
+     * for white text. Any other color works too — the page picks white or
+     * dark text for it.
+     */
+    public const BUTTON_COLOR_PRESETS = [
+        '#2f855a' => 'Verde',
+        '#2b6cb0' => 'Azul',
+        '#c2410c' => 'Coral',
+        '#975a16' => 'Dourado',
+        '#8b2343' => 'Vinho',
+    ];
+
+    /** Used while the host hasn't picked a button color. */
+    public const DEFAULT_BUTTON_COLOR = '#2f855a';
 
     /**
      * @var array<string, mixed>

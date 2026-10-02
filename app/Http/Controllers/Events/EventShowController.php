@@ -6,6 +6,7 @@ use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Events\Event;
+use App\Models\Events\EventAppearance;
 use App\Models\Events\EventGiftSetting;
 use App\Models\Events\EventLocation;
 use App\Models\Guests\Guest;
@@ -78,6 +79,7 @@ class EventShowController extends Controller
                 ]),
                 'primary_color' => $event->appearance->primary_color,
                 'secondary_color' => $event->appearance->secondary_color,
+                'button_color' => $event->appearance->button_color ?: EventAppearance::DEFAULT_BUTTON_COLOR,
                 'font_color_primary' => $event->appearance->font_color_primary,
                 'font_color_secondary' => $event->appearance->font_color_secondary,
                 'font_family' => $event->appearance->font_family,

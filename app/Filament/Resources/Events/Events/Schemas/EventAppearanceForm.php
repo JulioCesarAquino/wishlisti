@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Events\Events\Schemas;
 
+use App\Models\Events\EventAppearance;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Slider;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class EventAppearanceForm
@@ -76,7 +80,22 @@ class EventAppearanceForm
                             ->helperText('Tom de fundo geral da página.'),
                         ColorPicker::make('secondary_color')
                             ->label('Cor secundária')
-                            ->helperText('Usada nos botões e detalhes decorativos.'),
+                            ->helperText('Usada nos detalhes decorativos.'),
+                        ColorPicker::make('button_color')
+                            ->label('Cor dos botões')
+                            ->placeholder(EventAppearance::DEFAULT_BUTTON_COLOR)
+                            ->helperText('Botões de presentear, pagar, "Como chegar" e a aba selecionada no menu. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
+                            ->live()
+                            // Keeps the ready-made choice below in step.
+                            ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color_preset', $state)),
+                        ToggleButtons::make('button_color_preset')
+                            ->label('Cores prontas para os botões')
+                            ->options(EventAppearance::BUTTON_COLOR_PRESETS)
+                            ->inline()
+                            ->dehydrated(false)
+                            ->afterStateHydrated(fn (ToggleButtons $component, Get $get) => $component->state($get('button_color')))
+                            ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color', $state))
+                            ->live(),
                         ColorPicker::make('font_color_primary')
                             ->label('Cor da fonte principal')
                             ->helperText('Usada no nome do casal e títulos.'),

@@ -27,6 +27,8 @@ export type EventData = {
     gallery_urls: string[];
     primary_color: string | null;
     secondary_color: string | null;
+    /** Main buttons; the server fills in the default when unset. */
+    button_color: string;
     font_color_primary: string | null;
     font_color_secondary: string | null;
     font_family: FontFamily | null;
@@ -207,9 +209,52 @@ export function bodyTextStyle(event: EventData): CSSProperties {
 
 export function accentButtonStyle(event: EventData): CSSProperties {
     return {
-        backgroundColor: event.secondary_color ?? DEFAULT_SECONDARY_COLOR,
-        color: '#ffffff',
+        backgroundColor: event.button_color,
+        color: readableTextOn(event.button_color),
     };
+}
+
+const DARK_TEXT = '#1f1f1f';
+
+/**
+ * White or dark text, whichever contrasts more with the background (WCAG
+ * relative luminance) — so a light button color the host picked still
+ * reads.
+ */
+export function readableTextOn(background: string): string {
+    const luminance = relativeLuminance(background);
+
+    if (luminance === null) {
+        return '#ffffff';
+    }
+
+    const darkLuminance = relativeLuminance(DARK_TEXT) ?? 0;
+    const againstWhite = 1.05 / (luminance + 0.05);
+    const againstDark = (luminance + 0.05) / (darkLuminance + 0.05);
+
+    return againstWhite >= againstDark ? '#ffffff' : DARK_TEXT;
+}
+
+function relativeLuminance(color: string): number | null {
+    let hex = color.trim().replace('#', '');
+
+    if (hex.length === 3) {
+        hex = hex.replace(/./g, (digit) => digit + digit);
+    }
+
+    if (!/^[0-9a-f]{6}$/i.test(hex)) {
+        return null;
+    }
+
+    const [r, g, b] = [0, 2, 4].map((start) => {
+        const channel = parseInt(hex.slice(start, start + 2), 16) / 255;
+
+        return channel <= 0.03928
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /**
