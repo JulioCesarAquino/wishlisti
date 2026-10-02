@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Premium\PremiumPurchases;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Premium\PremiumPurchases\Pages\ListPremiumPurchases;
 use App\Models\Premium\PremiumPurchase;
+use App\Services\Payments\PaymentPayerLookupService;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -79,6 +81,21 @@ class PremiumPurchaseResource extends Resource
                     ->placeholder('—'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->recordActions([
+                // Admin only: asked of Mercado Pago on opening, never stored,
+                // and logged in the audit trail (see PaymentPayerLookupService).
+                Action::make('viewPayer')
+                    ->label('Ver pagador')
+                    ->icon(Heroicon::OutlinedIdentification)
+                    ->color('gray')
+                    ->visible(fn (PremiumPurchase $record): bool => (bool) auth()->user()?->isAdmin() && filled($record->payment_id))
+                    ->modalHeading('Quem pagou')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar')
+                    ->modalContent(fn (PremiumPurchase $record) => view('filament.payments.payer', [
+                        'payer' => app(PaymentPayerLookupService::class)->execute($record, auth()->user()),
+                    ])),
+            ])
             ->filters([
                 SelectFilter::make('status')
                     ->options([

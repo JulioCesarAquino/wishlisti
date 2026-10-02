@@ -8,6 +8,7 @@ use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
 use App\Services\Orders\OrderCancelService;
 use App\Services\Orders\OrderReceiveService;
+use App\Services\Payments\PaymentPayerLookupService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
@@ -111,6 +112,19 @@ class OrdersTable
                     ]),
             ])
             ->recordActions([
+                // Admin only: asked of Mercado Pago on opening, never stored,
+                // and logged in the audit trail (see PaymentPayerLookupService).
+                Action::make('viewPayer')
+                    ->label('Ver pagador')
+                    ->icon(Heroicon::OutlinedIdentification)
+                    ->color('gray')
+                    ->visible(fn (Order $record): bool => (bool) auth()->user()?->isAdmin() && filled($record->payment_id))
+                    ->modalHeading('Quem pagou')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar')
+                    ->modalContent(fn (Order $record) => view('filament.payments.payer', [
+                        'payer' => app(PaymentPayerLookupService::class)->execute($record, auth()->user()),
+                    ])),
                 Action::make('markReceived')
                     ->label('Marcar como recebido')
                     ->icon(Heroicon::OutlinedCheckCircle)

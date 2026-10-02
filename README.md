@@ -198,6 +198,7 @@ Regras comuns:
 
 - **Valor:** vem sempre do servidor (total do pedido ou `PREMIUM_PRICE`), nunca do navegador.
 - **Status:** o webhook só informa o id do pagamento, e o status é **reconsultado** na API do Mercado Pago. Aplicar o mesmo pagamento duas vezes não tem efeito extra.
+- **Quem pagou (só admin):** o botão "Ver pagador" em Pedidos e em Vendas Premium consulta nome, e-mail e documento do pagador no Mercado Pago na hora (`app/Services/Payments/PaymentPayerLookupService.php`). Nada é gravado no banco, e cada consulta fica na Auditoria (tipo "Pagamento").
 - **Pagamento em dobro:** evitado em três camadas (`app/Support/MercadoPagoPayments.php`):
     - o Pix vale 15 minutos;
     - um pagamento por vez: pagar de novo o mesmo pedido, pedir de novo o mesmo presente no mesmo navegador ou comprar o Premium com um pagamento em aberto **cancela** o anterior no Mercado Pago. Se ele não puder ser cancelado por já ter sido pago, o novo é recusado;

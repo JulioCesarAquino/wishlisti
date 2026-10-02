@@ -7,8 +7,11 @@ use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Events\EventAppearance;
 use App\Models\Events\EventRsvpSetting;
+use App\Models\Events\EventSection;
 use App\Models\Guests\Guest;
+use App\Models\Orders\Order;
 use App\Models\Premium\FeatureGrant;
+use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -71,8 +74,10 @@ class ActivityLogsTable
                 TextColumn::make('subject_type')
                     ->label('Tipo')
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        Event::class, EventAppearance::class, EventRsvpSetting::class => 'Evento',
+                        Event::class, EventAppearance::class, EventRsvpSetting::class, EventSection::class => 'Evento',
                         EventProduct::class => 'Presente',
+                        Order::class => 'Pedido',
+                        PremiumPurchase::class => 'Compra Premium',
                         FeatureGrant::class => 'Recurso premium',
                         Guest::class => 'Convidado',
                         default => '—',
@@ -84,7 +89,9 @@ class ActivityLogsTable
 
                         return match (true) {
                             $subject instanceof Event => $subject->title,
-                            $subject instanceof EventAppearance, $subject instanceof EventRsvpSetting => $subject->event->title,
+                            $subject instanceof EventAppearance, $subject instanceof EventRsvpSetting, $subject instanceof EventSection => $subject->event->title,
+                            $subject instanceof Order => "Pedido #{$subject->id} ({$subject->event?->title})",
+                            $subject instanceof PremiumPurchase => "Compra #{$subject->id} ({$subject->event?->title})",
                             $subject instanceof EventProduct => $subject->name,
                             $subject instanceof Guest => "{$subject->name} ({$subject->event?->title})",
                             $subject instanceof FeatureGrant => $subject->feature->label().' — '.match (true) {
@@ -105,6 +112,7 @@ class ActivityLogsTable
                         'product' => 'Presente',
                         'premium' => 'Recurso premium',
                         'guest' => 'Convidado',
+                        'payment' => 'Pagamento',
                     ])
                     ->query(fn (Builder $query, array $data) => $query->when(
                         $data['value'] ?? null,
@@ -112,6 +120,7 @@ class ActivityLogsTable
                             'event' => [Event::class, EventAppearance::class, EventRsvpSetting::class],
                             'product' => [EventProduct::class],
                             'guest' => [Guest::class],
+                            'payment' => [Order::class, PremiumPurchase::class],
                             default => [FeatureGrant::class],
                         }),
                     )),
