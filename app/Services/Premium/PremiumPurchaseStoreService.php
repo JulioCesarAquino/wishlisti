@@ -5,17 +5,17 @@ namespace App\Services\Premium;
 use App\Models\Events\Event;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
+use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Exceptions\MPApiException;
 
 class PremiumPurchaseStoreService
 {
     public function __construct(
-        protected PaymentClient $paymentClient,
         protected PremiumPurchaseUpdateService $updateService,
+        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -33,7 +33,9 @@ class PremiumPurchaseStoreService
             ]);
         }
 
-        if ($this->updateService->hasEverything($event)) {
+        $this->closeOpenPurchases($event);
+
+        if ($this->updateService->hasEverything($event->refresh())) {
             throw ValidationException::withMessages([
                 'formData' => 'Este evento já tem todos os recursos Premium.',
             ]);
@@ -46,12 +48,12 @@ class PremiumPurchaseStoreService
             'status' => PremiumPurchase::STATUS_PENDING,
         ]);
 
-        $request = [
+        $request = MercadoPagoPayments::withPixExpiration([
             ...$formData,
             'transaction_amount' => (float) $purchase->amount,
             'description' => "Wishlisti Premium - {$event->title}",
             'external_reference' => $purchase->externalReference(),
-        ];
+        ]);
 
         // Mercado Pago rejects the payment if notification_url isn't
         // publicly reachable (e.g. localhost in local dev).
@@ -62,7 +64,7 @@ class PremiumPurchaseStoreService
         }
 
         try {
-            $payment = $this->paymentClient->create($request, MercadoPagoPlatform::requestOptions());
+            $payment = $this->payments->create($request, MercadoPagoPlatform::requestOptions(), ['premium_purchase_id' => $purchase->id]);
         } catch (MPApiException $exception) {
             Log::error('Mercado Pago: falha ao cobrar o Premium', [
                 'premium_purchase_id' => $purchase->id,
@@ -77,8 +79,43 @@ class PremiumPurchaseStoreService
             ]);
         }
 
+        // The Pix code or boleto page, to go back to while it's open.
+        $paymentUrl = data_get($payment, 'point_of_interaction.transaction_data.ticket_url')
+            ?? data_get($payment, 'transaction_details.external_resource_url');
+
+        $purchase->update(['payment_url' => is_string($paymentUrl) ? $paymentUrl : null]);
+
         $this->updateService->applyPayment($payment);
 
         return $purchase->refresh();
+    }
+
+    /**
+     * Paying again while a payment is still open (a Pix not paid yet, say)
+     * cancels it first, so both can't be paid. If Mercado Pago won't cancel
+     * it, it was most likely paid meanwhile: that's applied instead.
+     */
+    private function closeOpenPurchases(Event $event): void
+    {
+        $open = PremiumPurchase::where('event_id', $event->id)
+            ->where('status', PremiumPurchase::STATUS_PENDING)
+            ->whereNotNull('payment_id')
+            ->get();
+
+        foreach ($open as $purchase) {
+            if ($this->payments->cancel((string) $purchase->payment_id, MercadoPagoPlatform::requestOptions(), ['premium_purchase_id' => $purchase->id])) {
+                $purchase->update(['status' => PremiumPurchase::STATUS_CANCELLED]);
+
+                continue;
+            }
+
+            $this->updateService->execute((string) $purchase->payment_id);
+
+            if ($purchase->refresh()->status === PremiumPurchase::STATUS_PENDING) {
+                throw ValidationException::withMessages([
+                    'formData' => 'Ainda há um pagamento em andamento. Tente de novo em alguns minutos.',
+                ]);
+            }
+        }
     }
 }

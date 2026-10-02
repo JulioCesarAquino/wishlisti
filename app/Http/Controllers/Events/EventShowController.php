@@ -2,25 +2,44 @@
 
 namespace App\Http\Controllers\Events;
 
+use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Events\Event;
+use App\Models\Events\EventAppearance;
 use App\Models\Events\EventGiftSetting;
+use App\Models\Events\EventLocation;
 use App\Models\Guests\Guest;
 use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
+use App\Services\Events\EventSharePreviewService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EventShowController extends Controller
 {
-    public function __invoke(Request $request, Event $event): Response
-    {
+    /**
+     * Also serves the location links (see routes/web.php): the same page,
+     * opened on the location tab.
+     */
+    public function __invoke(
+        Request $request,
+        Event $event,
+        EventSharePreviewService $sharePreview,
+        ?EventLocation $location = null,
+    ): Response {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants']);
+        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections']);
+
+        $onLocationTab = $request->routeIs('events.locations', 'events.location');
+
+        // Also when the host turned the tab off after sharing the link.
+        abort_if($onLocationTab && ! $event->showsSection(PageSection::Location), 404);
 
         $guest = null;
         $identifier = Guest::identifierFrom($request, $event);
@@ -44,11 +63,23 @@ class EventShowController extends Controller
                 'cover_image_url' => $event->coverImageUrl(),
                 'gallery_urls' => $event->galleryUrls(),
                 'story' => $event->story,
-                'address' => $event->address,
-                'latitude' => $event->latitude,
-                'longitude' => $event->longitude,
+                'url' => route('events.show', ['event' => $event->slug]),
+                'sections' => array_map(fn (PageSection $section) => [
+                    'key' => $section->key(),
+                    'label' => $section->label(),
+                ], $event->visibleSections()),
+                'locations' => $event->locations->map(fn (EventLocation $eventLocation) => [
+                    'name' => $eventLocation->name,
+                    'slug' => $eventLocation->slug,
+                    'address' => $eventLocation->address,
+                    'maps_url' => $eventLocation->maps_url,
+                    'latitude' => $eventLocation->latitude,
+                    'longitude' => $eventLocation->longitude,
+                    'url' => $eventLocation->setRelation('event', $event)->publicUrl(),
+                ]),
                 'primary_color' => $event->appearance->primary_color,
                 'secondary_color' => $event->appearance->secondary_color,
+                'button_color' => $event->appearance->button_color ?: EventAppearance::DEFAULT_BUTTON_COLOR,
                 'font_color_primary' => $event->appearance->font_color_primary,
                 'font_color_secondary' => $event->appearance->font_color_secondary,
                 'font_family' => $event->appearance->font_family,
@@ -66,6 +97,9 @@ class EventShowController extends Controller
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
+            // Where the page opens when the URL carries no #section.
+            'initial_section' => $onLocationTab ? 'localizacao' : null,
+            'initial_location' => $location?->slug,
             'messages' => $event->hasFeature(Feature::Guestbook)
                 ? $event->messages()->approved()->latest('approved_at')->get()->map(fn (GuestMessage $message) => [
                     'id' => $message->id,
@@ -117,6 +151,35 @@ class EventShowController extends Controller
                         'cpf' => $companion->cpf,
                     ]),
             ] : null,
-        ]);
+        ])->withViewData('share', $this->shareCard($request, $event, $location, $sharePreview));
+    }
+
+    /**
+     * The card WhatsApp and other apps show for the link. They don't run
+     * JavaScript, so it goes in the HTML sent by the server.
+     *
+     * @return array{title: string, description: string, image: ?string, url: string}
+     */
+    private function shareCard(Request $request, Event $event, ?EventLocation $location, EventSharePreviewService $sharePreview): array
+    {
+        $date = null;
+
+        if ($event->event_date) {
+            $day = Carbon::parse($event->event_date);
+            $day->setLocale('pt_BR');
+            $date = $day->isoFormat('D [de] MMMM [de] YYYY');
+        }
+        $type = $event->type === 'outro' ? null : (Event::TYPE_LABELS[$event->type] ?? null);
+
+        $description = $location
+            ? $location->address
+            : (filled($event->description) ? $event->description : implode(' · ', array_filter([$type, $date])));
+
+        return [
+            'title' => $location ? "{$event->title} · {$location->name}" : $event->title,
+            'description' => Str::limit(Str::squish((string) $description), 200),
+            'image' => $sharePreview->url($event),
+            'url' => $request->url(),
+        ];
     }
 }

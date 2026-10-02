@@ -7,6 +7,8 @@ use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Orders\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Net\MPDefaultHttpClient;
@@ -145,5 +147,41 @@ class OrderPaymentStoreControllerTest extends TestCase
         ]);
 
         $response->assertNotFound();
+    }
+
+    public function test_a_failed_payment_logs_no_personal_data(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create();
+        $order = $this->createPendingOrder($event);
+
+        MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
+            new MPResponse(400, ['message' => 'invalid card', 'status' => 400]),
+        ));
+
+        $logged = [];
+        Log::listen(function (MessageLogged $message) use (&$logged): void {
+            $logged[] = $message;
+        });
+
+        $this->postJson("/{$event->slug}/orders/{$order->id}/mercadopago-payment", [
+            'formData' => [
+                'payment_method_id' => 'master',
+                'token' => 'card-token-abc',
+                'installments' => 3,
+                'payer' => [
+                    'email' => 'maria@example.com',
+                    'identification' => ['type' => 'CPF', 'number' => '12345678909'],
+                ],
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors('formData');
+
+        $this->assertCount(1, $logged);
+        $context = json_encode($logged[0]->context);
+
+        $this->assertStringNotContainsString('maria@example.com', $context);
+        $this->assertStringNotContainsString('12345678909', $context);
+        $this->assertStringNotContainsString('card-token-abc', $context);
+        $this->assertSame('master', $logged[0]->context['request']['payment_method_id']);
+        $this->assertSame(3, $logged[0]->context['request']['installments']);
     }
 }

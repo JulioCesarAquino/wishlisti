@@ -16,6 +16,12 @@ Route::post('/solicitar-convite', InviteRequestStoreController::class)->name('in
 Route::post('/webhooks/mercadopago/premium', PremiumPurchaseWebhookController::class)->name('premium.mercadopago-webhook');
 
 Route::get('/{event:slug}', EventShowController::class)->name('events.show');
+// Shareable links that open the page straight on the location tab — on a
+// given location, when the event has more than one.
+Route::get('/{event:slug}/localizacao', EventShowController::class)->name('events.locations');
+Route::get('/{event:slug}/localizacao/{location:slug}', EventShowController::class)
+    ->name('events.location')
+    ->scopeBindings();
 Route::post('/{event:slug}/orders', OrderStoreController::class)
     ->middleware('throttle:20,1')
     ->name('orders.store');

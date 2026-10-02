@@ -5,6 +5,7 @@ namespace App\Services\Orders;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Orders\Order;
+use App\Support\MercadoPagoPayments;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use MercadoPago\Client\Common\RequestOptions;
@@ -16,6 +17,7 @@ class OrderPaymentUpdateService
 {
     public function __construct(
         protected PaymentClient $paymentClient,
+        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -28,11 +30,8 @@ class OrderPaymentUpdateService
             return;
         }
 
-        $requestOptions = new RequestOptions;
-        $requestOptions->setAccessToken($event->paymentSettings->mp_access_token);
-
         try {
-            $payment = $this->paymentClient->get((int) $paymentId, $requestOptions);
+            $payment = $this->paymentClient->get((int) $paymentId, $this->requestOptions($event));
         } catch (MPApiException $exception) {
             Log::warning('Mercado Pago: falha ao buscar pagamento do webhook', [
                 'event_id' => $event->id,
@@ -50,6 +49,11 @@ class OrderPaymentUpdateService
      * Applies an already-fetched payment's status to its matching order.
      * Stock is only adjusted on the transition into/out of "paid", so
      * calling this repeatedly for the same payment stays idempotent.
+     *
+     * An order can see more than one payment (a Pix abandoned, then a card
+     * that went through). Only the order's own payment moves it: a stale
+     * one expiring must not cancel an order paid by another, and a second
+     * approved payment for an order already paid is refunded.
      */
     public function applyPayment(Event $event, Payment $payment): void
     {
@@ -57,7 +61,7 @@ class OrderPaymentUpdateService
             return;
         }
 
-        DB::transaction(function () use ($event, $payment) {
+        $duplicate = DB::transaction(function () use ($event, $payment): bool {
             $order = Order::where('event_id', $event->id)
                 ->where('fulfillment', Order::FULFILLMENT_ONLINE)
                 ->where('id', $payment->external_reference)
@@ -71,7 +75,7 @@ class OrderPaymentUpdateService
                     'external_reference' => $payment->external_reference,
                 ]);
 
-                return;
+                return false;
             }
 
             $newStatus = match ($payment->status) {
@@ -82,6 +86,21 @@ class OrderPaymentUpdateService
             };
 
             $wasPaid = $order->status === Order::STATUS_PAID;
+            $isOwnPayment = blank($order->payment_id) || $order->payment_id === (string) $payment->id;
+
+            if (! $isOwnPayment) {
+                if ($wasPaid) {
+                    // Paid twice: give this one back. Anything else from it
+                    // (expiring, refunded) doesn't concern the order.
+                    return $newStatus === Order::STATUS_PAID;
+                }
+
+                // An older attempt that's no longer going anywhere.
+                if ($newStatus !== Order::STATUS_PAID) {
+                    return false;
+                }
+            }
+
             $isNowPaid = $newStatus === Order::STATUS_PAID;
 
             $order->update([
@@ -103,6 +122,23 @@ class OrderPaymentUpdateService
                         ->decrement('quantity_purchased', $item->quantity);
                 }
             }
+
+            return false;
         });
+
+        if ($duplicate) {
+            $this->payments->refundDuplicate((string) $payment->id, $this->requestOptions($event), [
+                'event_id' => $event->id,
+                'order_id' => $payment->external_reference,
+            ]);
+        }
+    }
+
+    public function requestOptions(Event $event): RequestOptions
+    {
+        $requestOptions = new RequestOptions;
+        $requestOptions->setAccessToken((string) $event->paymentSettings->mp_access_token);
+
+        return $requestOptions;
     }
 }

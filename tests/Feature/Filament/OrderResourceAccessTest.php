@@ -105,7 +105,7 @@ class OrderResourceAccessTest extends TestCase
         Livewire::test(ListOrders::class)
             ->assertDontSee('Maria Segredo')
             ->assertDontSee('27/09/2026 21:36')
-            ->assertSee('Anônimo')
+            ->assertSee('Presente anônimo')
             ->assertSee('Felicidades!');
 
         $this->actingAs(User::factory()->create(['is_admin' => true]));

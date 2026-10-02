@@ -2,11 +2,16 @@
 
 namespace App\Filament\Resources\Events\Events\Schemas;
 
+use App\Models\Events\EventAppearance;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Slider;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class EventAppearanceForm
@@ -26,6 +31,18 @@ class EventAppearanceForm
                             ->imageEditor()
                             ->imagePreviewHeight('160')
                             ->directory('events/covers'),
+                        FileUpload::make('share_image')
+                            ->label('Imagem do link compartilhado')
+                            ->helperText('A foto que aparece quando o link do evento é enviado no WhatsApp, Instagram ou Facebook. Fica no formato retangular desses cartões (1200×630). Sem ela, usamos a capa.')
+                            ->image()
+                            ->disk('public')
+                            ->imageEditor()
+                            ->imageCropAspectRatio('40:21')
+                            ->imageResizeMode('cover')
+                            ->imageResizeTargetWidth('1200')
+                            ->imageResizeTargetHeight('630')
+                            ->imagePreviewHeight('160')
+                            ->directory('events/share'),
                         FileUpload::make('gallery')
                             ->label('Galeria de fotos')
                             ->image()
@@ -59,19 +76,59 @@ class EventAppearanceForm
                             ->default('default')
                             ->native(false)
                             ->columnSpanFull(),
-                        ColorPicker::make('primary_color')
-                            ->label('Cor primária')
-                            ->helperText('Tom de fundo geral da página.'),
-                        ColorPicker::make('secondary_color')
-                            ->label('Cor secundária')
-                            ->helperText('Usada nos botões e detalhes decorativos.'),
-                        ColorPicker::make('font_color_primary')
-                            ->label('Cor da fonte principal')
-                            ->helperText('Usada no nome do casal e títulos.'),
-                        ColorPicker::make('font_color_secondary')
-                            ->label('Cor da fonte secundária')
-                            ->helperText('Usada nos textos e menu.'),
+                        Fieldset::make('Cores da página')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('primary_color')
+                                    ->label('Cor primária')
+                                    ->helperText('Tom de fundo geral da página.'),
+                                ColorPicker::make('secondary_color')
+                                    ->label('Cor secundária')
+                                    ->helperText('Usada nos botões em geral, no menu e nos detalhes decorativos.'),
+                            ]),
+                        Fieldset::make('Cores das fontes')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('font_color_primary')
+                                    ->label('Cor da fonte principal')
+                                    ->helperText('Usada no nome do casal e títulos.'),
+                                ColorPicker::make('font_color_secondary')
+                                    ->label('Cor da fonte secundária')
+                                    ->helperText('Usada nos textos e menu.'),
+                            ]),
+                        Fieldset::make('Cor dos botões de presente')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('button_color')
+                                    ->label('Cor dos botões de presente')
+                                    ->placeholder(EventAppearance::DEFAULT_BUTTON_COLOR)
+                                    ->helperText('Só nos botões de presentes e do carrinho (presentear, contribuir, pagar, reservar), para que se destaquem. Os demais botões seguem a cor secundária. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
+                                    ->live()
+                                    // Highlights the ready-made color below when
+                                    // the picked one is among them.
+                                    ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color_preset', self::preset($state))),
+                                ToggleButtons::make('button_color_preset')
+                                    ->label('Cores prontas')
+                                    ->helperText('Um clique preenche a cor dos botões.')
+                                    ->options(EventAppearance::BUTTON_COLOR_PRESETS)
+                                    ->inline()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(fn (ToggleButtons $component, Get $get) => $component->state(self::preset($get('button_color'))))
+                                    ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color', $state))
+                                    ->live(),
+                            ]),
                     ]),
             ]);
+    }
+
+    /**
+     * The ready-made color matching the given one, if any — anything else
+     * would fail the buttons' validation.
+     */
+    private static function preset(?string $color): ?string
+    {
+        $color = strtolower((string) $color);
+
+        return array_key_exists($color, EventAppearance::BUTTON_COLOR_PRESETS) ? $color : null;
     }
 }

@@ -26,7 +26,7 @@ class OrderStoreController extends Controller
 
         $order = $service->execute(
             event: $event,
-            guestData: $request->validated('guest'),
+            guestData: $request->validated('guest', []),
             items: $request->validated('items') ?? [],
             message: $request->validated('message'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,

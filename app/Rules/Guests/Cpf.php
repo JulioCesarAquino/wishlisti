@@ -16,7 +16,7 @@ class Cpf implements ValidationRule
         $cpf = preg_replace('/\D+/', '', (string) $value);
 
         if (! self::isValid($cpf)) {
-            $fail('O :attribute informado não é válido.');
+            $fail('Esse CPF não parece válido. Pode conferir os números?');
         }
     }
 

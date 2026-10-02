@@ -45,6 +45,17 @@ class RsvpStoreRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            ...$this->guestContactMessages('guest'),
+            ...$this->guestContactMessages('companions.*', 'do acompanhante'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function attributes(): array
     {
         return [

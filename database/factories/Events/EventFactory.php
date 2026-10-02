@@ -54,6 +54,18 @@ class EventFactory extends Factory
         return $this->afterCreating(fn (Event $event) => $event->appearance()->create($attributes));
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function withLocation(array $attributes = []): static
+    {
+        return $this->afterCreating(fn (Event $event) => $event->locations()->create([
+            'name' => 'Local do evento',
+            'address' => 'Rua das Flores, 123, São Paulo - SP',
+            ...$attributes,
+        ]));
+    }
+
     public function withMercadoPago(?string $accessToken = 'TEST-token', ?string $publicKey = 'TEST-public-key'): static
     {
         return $this->afterCreating(fn (Event $event) => $event->paymentSettings()->create([

@@ -21,11 +21,12 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property string|null $payment_id
  * @property string|null $payment_method
+ * @property string|null $payment_url
  * @property Carbon|null $paid_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['event_id', 'user_id', 'amount', 'status', 'payment_id', 'payment_method', 'paid_at'])]
+#[Fillable(['event_id', 'user_id', 'amount', 'status', 'payment_id', 'payment_method', 'payment_url', 'paid_at'])]
 class PremiumPurchase extends Model
 {
     public const STATUS_PENDING = 'pending';

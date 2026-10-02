@@ -77,6 +77,13 @@ class AdminPanelProvider extends PanelProvider
                     .'<style>'
                     .'.fi-sidebar-header-logo-ctn .fi-logo, .fi-topbar .fi-logo { height: 2.5rem !important; }'
                     .'.fi-sidebar-header-logo-ctn .fi-logo span, .fi-topbar .fi-logo span { font-size: 1.05rem !important; margin-top: 0 !important; }'
+                    // Keeps the signature footer (BODY_END) at the bottom of
+                    // the screen on short pages, instead of right under the
+                    // content: the page grows to fill the screen, the footer
+                    // takes what's left.
+                    .'.fi-body { display: flex; flex-direction: column; }'
+                    .'.fi-body > .fi-layout, .fi-body > .fi-simple-layout { flex: 1 0 auto; min-height: 0; height: auto; }'
+                    .'.fi-body > .wishlisti-signature { flex-shrink: 0; }'
                     .'</style>',
                 ),
             )
@@ -85,7 +92,7 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn () => new HtmlString(
-                    '<footer style="display:flex;align-items:center;justify-content:center;gap:0.375rem;padding:1.5rem 1rem;font-size:0.8rem;color:rgb(113 113 122)">'
+                    '<footer class="wishlisti-signature" style="display:flex;flex-wrap:wrap;text-align:center;align-items:center;justify-content:center;gap:0.375rem;padding:1.5rem 1rem;font-size:0.8rem;color:rgb(113 113 122)">'
                     .'<span>© '.now()->year.' Wishlisti | Desenvolvido por Julio Cesar Aquino</span>'
                     .'<a href="https://instagram.com/juliucaezer" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Julio Cesar Aquino" style="display:inline-flex;color:inherit">'
                     .'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'

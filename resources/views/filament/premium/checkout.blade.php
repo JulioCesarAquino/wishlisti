@@ -52,7 +52,6 @@
                 customization: {
                     paymentMethods: {
                         creditCard: 'all',
-                        debitCard: 'all',
                         bankTransfer: 'all', // Pix
                         ticket: 'all',
                     },

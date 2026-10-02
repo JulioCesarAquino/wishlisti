@@ -134,8 +134,9 @@ Cada evento tem um submenu lateral com uma página por assunto, cada uma com seu
 | Página                  | Conteúdo                                                                                                   |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Detalhes                | anfitrião, tipo, título, slug, data, textos, publicado; arquivar, lixeira e exclusão definitiva (só admin) |
-| Localização             | endereço (obrigatório), coordenadas, "usar minha localização atual"                                        |
-| Página pública          | capa, galeria, intensidade do desfoque da capa, fonte, cores                                               |
+| Localização             | uma ou mais (cerimônia, festa…) com nome, link próprio, endereço, link do mapa, coordenadas                |
+| Página pública          | capa, galeria, imagem do link compartilhado, desfoque da capa, fonte, cores e cor dos botões               |
+| Abas da página          | liga/desliga e ordena as abas do menu público (Início não desliga)                                         |
 | Presentes               | itens da lista; botão **Exibição na página**; contador do plano gratuito                                   |
 | Convidados              | respostas e acompanhantes; lixeira, restaurar, anonimizar                                                  |
 | Recados                 | mural (Premium): aprovar ou tirar da página                                                                |
@@ -166,7 +167,7 @@ Menu: **Início**, **Galeria**, **Presentes** (só no modo "Lista"), **Confirmar
 - **Entrega pessoal (reserva):** o convidado se identifica com os mesmos dados obrigatórios da confirmação de presença e reserva o item. A quantidade é separada na hora ("Já escolhido" para os outros). Ele pode **desistir** pela página, em "Seus presentes reservados", e o anfitrião marca como **Recebido** ou **cancela a reserva** em Pedidos. No gratuito, essa é a única forma de presentear. No Premium, o convidado escolhe entre esta e o pagamento online, e o anfitrião pode desligar a entrega pessoal.
 - **Pagamento online (Premium):** o carrinho gera um pedido pendente, e o Payment Brick cobra na conta Mercado Pago do anfitrião.
 - **Valor livre (Premium):** contribuição de qualquer valor, sem item, pelo checkout online. Aparece em qualquer modo de exibição quando o anfitrião liga a opção na aba Pagamentos.
-- **Presente anônimo** (qualquer forma de presentear): o anfitrião vê item, valor e mensagem, mas **não** o nome, o contato nem as datas, que permitiriam cruzar com o horário da confirmação de presença. O presente anônimo não entra no "Presentes dados" do convidado, e quem só se ligou ao evento por ele não aparece na lista de convidados. O admin vê tudo.
+- **Presente anônimo** (só no pagamento online; na entrega pessoal o anfitrião vê quem entregou): nome e contatos ficam opcionais e, se preenchidos, só o admin vê. O anfitrião vê item, valor e mensagem, mas **não** o nome, o contato nem as datas, que permitiriam cruzar com o horário da confirmação de presença. O presente anônimo não entra no "Presentes dados" do convidado, e quem só se ligou ao evento por ele não aparece na lista de convidados. O admin vê tudo.
 - **Limites do gratuito:** só itens do catálogo (nome, descrição e imagem vêm do catálogo; o preço é livre), uma unidade cada, até `FREE_GIFT_LIMIT`. O que um evento já tinha antes dos limites é mantido: itens personalizados continuam editáveis e cotas antigas só podem diminuir. As regras valem também no servidor.
 
 ### Mural de recados (Premium)
@@ -197,6 +198,11 @@ Regras comuns:
 
 - **Valor:** vem sempre do servidor (total do pedido ou `PREMIUM_PRICE`), nunca do navegador.
 - **Status:** o webhook só informa o id do pagamento, e o status é **reconsultado** na API do Mercado Pago. Aplicar o mesmo pagamento duas vezes não tem efeito extra.
+- **Quem pagou (só admin):** o botão "Ver pagador" em Pedidos e em Vendas Premium consulta nome, e-mail e documento do pagador no Mercado Pago na hora (`app/Services/Payments/PaymentPayerLookupService.php`). Nada é gravado no banco, e cada consulta fica na Auditoria (tipo "Pagamento").
+- **Pagamento em dobro:** evitado em três camadas (`app/Support/MercadoPagoPayments.php`):
+    - o Pix vale 15 minutos;
+    - um pagamento por vez: pagar de novo o mesmo pedido, pedir de novo o mesmo presente no mesmo navegador ou comprar o Premium com um pagamento em aberto **cancela** o anterior no Mercado Pago. Se ele não puder ser cancelado por já ter sido pago, o novo é recusado;
+    - só o pagamento do próprio pedido muda o status dele (um Pix abandonado que expira não cancela um pedido pago no cartão), e um segundo pagamento aprovado para algo já pago é **estornado** automaticamente. Se o estorno falhar, fica um erro no log pedindo estorno manual.
 - **`notification_url`:** só é enviada quando o endereço é público. Em `localhost`, o Mercado Pago recusaria o pagamento inteiro.
 - **Premium:**
     - pagamento abaixo do preço não libera nada;

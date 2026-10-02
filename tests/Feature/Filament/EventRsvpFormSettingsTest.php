@@ -39,7 +39,6 @@ class EventRsvpFormSettingsTest extends TestCase
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->withFeatures(Feature::GuestList)->create([
             'user_id' => $host->id,
-            'address' => 'Rua das Flores, 123',
         ]);
 
         $this->actingAs($host);
@@ -64,7 +63,6 @@ class EventRsvpFormSettingsTest extends TestCase
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->withFeatures(Feature::GuestList)->create([
             'user_id' => $host->id,
-            'address' => 'Rua das Flores, 123',
         ]);
 
         $this->actingAs($host);
@@ -78,7 +76,7 @@ class EventRsvpFormSettingsTest extends TestCase
     public function test_admins_can_enable_and_disable_premium_features(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
-        $event = Event::factory()->create(['address' => 'Rua das Flores, 123']);
+        $event = Event::factory()->create();
 
         $this->actingAs($admin);
 
@@ -109,7 +107,7 @@ class EventRsvpFormSettingsTest extends TestCase
     public function test_hosts_cannot_grant_themselves_premium_features(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->create(['user_id' => $host->id, 'address' => 'Rua das Flores, 123']);
+        $event = Event::factory()->create(['user_id' => $host->id]);
 
         $this->actingAs($host);
 

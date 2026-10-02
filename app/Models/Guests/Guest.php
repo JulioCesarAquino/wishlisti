@@ -52,6 +52,12 @@ class Guest extends Model
     /** Name left on a guest whose personal data was erased. */
     public const ANONYMIZED_NAME = 'Convidado removido';
 
+    /**
+     * Name given to a new guest behind an anonymous gift who chose not to
+     * tell their name.
+     */
+    public const ANONYMOUS_GIVER_NAME = 'Presente anônimo';
+
     public const RSVP_CONFIRMED = 'confirmed';
 
     public const RSVP_DECLINED = 'declined';

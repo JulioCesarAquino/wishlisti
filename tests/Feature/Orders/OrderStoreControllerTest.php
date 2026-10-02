@@ -184,4 +184,83 @@ class OrderStoreControllerTest extends TestCase
 
         $this->assertTrue($event->orders()->first()->is_anonymous);
     }
+
+    public function test_an_anonymous_giver_does_not_have_to_identify_themselves(): void
+    {
+        $event = Event::factory()
+            ->withFeatures(Feature::Payments, Feature::GuestList)
+            ->withMercadoPago()
+            ->withRsvpSettings(['required_fields' => ['email', 'cpf']])
+            ->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => '', 'whatsapp' => '', 'email' => '', 'cpf' => ''],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+            'anonymous' => true,
+        ])->assertOk();
+
+        $guest = $event->orders()->first()->guest;
+
+        $this->assertSame(Guest::ANONYMOUS_GIVER_NAME, $guest->name);
+        $this->assertNull($guest->whatsapp);
+        $this->assertNull($guest->email);
+        $this->assertNull($guest->cpf);
+    }
+
+    public function test_an_anonymous_giver_still_has_their_contact_details_validated(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['email' => 'not-an-email'],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+            'anonymous' => true,
+        ])->assertUnprocessable()->assertJsonValidationErrors('guest.email');
+    }
+
+    public function test_an_anonymous_gift_keeps_the_name_of_a_guest_the_browser_already_knows(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+        $guest = Guest::factory()->create(['event_id' => $event->id, 'name' => 'Maria']);
+
+        // JSON requests only carry cookies "with credentials".
+        $this->withCredentials()
+            ->withCookie(Guest::cookieName($event), $guest->identifier)
+            ->postJson("/{$event->slug}/orders", [
+                'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+                'anonymous' => true,
+            ])->assertOk();
+
+        $this->assertSame($guest->id, $event->orders()->first()->guest_id);
+        $this->assertSame('Maria', $guest->fresh()->name);
+    }
+
+    public function test_identified_givers_must_still_tell_their_name(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => ''],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('guest.name');
+    }
+
+    public function test_missing_details_get_a_polite_message(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => '', 'whatsapp' => '', 'email' => 'maria@'],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors([
+            'guest.name' => 'Por favor, informe seu nome.',
+            'guest.whatsapp' => 'Por favor, informe seu WhatsApp.',
+            'guest.email' => 'Esse e-mail parece incompleto. Pode conferir?',
+        ]);
+    }
 }

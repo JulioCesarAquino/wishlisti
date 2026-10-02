@@ -10,6 +10,7 @@ use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
 use App\Models\Events\Event;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Repeater;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -23,7 +24,7 @@ class EventSubNavigationTest extends TestCase
      */
     private function pages(): array
     {
-        return ['edit', 'location', 'appearance', 'products', 'guests', 'rsvp', 'payment', 'premium'];
+        return ['edit', 'location', 'appearance', 'sections', 'products', 'guests', 'rsvp', 'payment', 'premium'];
     }
 
     public function test_the_payments_page_is_locked_without_the_premium_feature(): void
@@ -90,20 +91,22 @@ class EventSubNavigationTest extends TestCase
     public function test_each_page_only_saves_its_own_part(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago('TEST-original')->create([
-            'user_id' => $host->id,
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago('TEST-original')->withLocation([
             'address' => 'Rua Antiga, 1',
+        ])->create([
+            'user_id' => $host->id,
         ]);
 
         $this->actingAs($host);
+        Repeater::fake();
 
         Livewire::test(EditEventLocation::class, ['record' => $event->getRouteKey()])
-            ->fillForm(['address' => 'Rua Nova, 2'])
+            ->fillForm(['locations' => [['name' => 'Local do evento', 'address' => 'Rua Nova, 2']]])
             ->call('save')
             ->assertHasNoFormErrors();
 
         $event->refresh();
-        $this->assertSame('Rua Nova, 2', $event->address);
+        $this->assertSame('Rua Nova, 2', $event->locations->sole()->address);
         $this->assertSame('TEST-original', $event->paymentSettings->mp_access_token);
 
         Livewire::test(EditEventPayment::class, ['record' => $event->getRouteKey()])

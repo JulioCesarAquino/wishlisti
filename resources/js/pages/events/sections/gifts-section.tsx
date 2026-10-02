@@ -28,7 +28,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { FreeAmountCard } from '@/pages/events/sections/free-amount-card';
 import {
-    accentButtonStyle,
+    giftButtonStyle,
     bodyTextStyle,
     DEFAULT_SECONDARY_COLOR,
     formatCurrency,
@@ -308,7 +308,7 @@ function GiftCard({
         <Button
             size="sm"
             className={layout === 'grid' ? 'w-full' : ''}
-            style={accentButtonStyle(event)}
+            style={giftButtonStyle(event)}
             disabled={
                 product.is_sold_out || inCart >= product.quantity_available
             }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Events\Events\Schemas;
 
+use App\Models\Events\Event;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -53,13 +54,7 @@ class EventDetailsForm
                 ->dehydrated(),
             Select::make('type')
                 ->label('Tipo de evento')
-                ->options([
-                    'casamento' => 'Casamento',
-                    'cha_bebe' => 'Chá de bebê',
-                    'cha_panela' => 'Chá de panela',
-                    'aniversario' => 'Aniversário',
-                    'outro' => 'Outro',
-                ])
+                ->options(Event::TYPE_LABELS)
                 ->required(),
             TextInput::make('title')
                 ->label('Título')

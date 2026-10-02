@@ -19,13 +19,16 @@ export type EventData = {
     event_date: string | null;
     description: string | null;
     story: string | null;
-    address: string | null;
-    latitude: number | null;
-    longitude: number | null;
+    url: string;
+    /** Tabs of the menu, in the host's order (only those turned on). */
+    sections: { key: PageSectionKey; label: string }[];
+    locations: EventLocation[];
     cover_image_url: string | null;
     gallery_urls: string[];
     primary_color: string | null;
     secondary_color: string | null;
+    /** Gift and checkout buttons; the server fills in the default when unset. */
+    button_color: string;
     font_color_primary: string | null;
     font_color_secondary: string | null;
     font_family: FontFamily | null;
@@ -41,6 +44,25 @@ export type EventData = {
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
+};
+
+export type PageSectionKey =
+    | 'inicio'
+    | 'galeria'
+    | 'presentes'
+    | 'confirmar-presenca'
+    | 'recados'
+    | 'localizacao';
+
+export type EventLocation = {
+    name: string;
+    slug: string;
+    address: string;
+    maps_url: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    /** Shareable link that opens the page on this location. */
+    url: string;
 };
 
 export type RsvpContactField = 'whatsapp' | 'email' | 'cpf';
@@ -145,23 +167,31 @@ export function grainBackgroundStyle(
 }
 
 /**
- * Google Maps iframe URL with a pin on the event. Uses the classic
+ * Google Maps iframe URL with a pin on the location. Uses the classic
  * `maps?q=…&output=embed` format: a search for the coordinates (or, without
  * them, for the address), which — unlike the `embed?pb=` "share a map"
  * format — drops a marker on the spot. Unofficial like the other one, but
  * needs no API key and no billing account.
  */
-export function googleMapsEmbedUrl(event: EventData): string | null {
-    const query =
-        event.latitude !== null && event.longitude !== null
-            ? `${event.latitude},${event.longitude}`
-            : event.address;
+export function googleMapsEmbedUrl(location: EventLocation): string {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(mapsQuery(location))}&z=16&hl=pt-BR&output=embed`;
+}
 
-    if (!query) {
-        return null;
-    }
+/**
+ * Where "Abrir no mapa" goes: the host's own link (Google Maps, Waze…) or,
+ * without one, a Google Maps search that opens the app on phones.
+ */
+export function openMapUrl(location: EventLocation): string {
+    return (
+        location.maps_url ??
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery(location))}`
+    );
+}
 
-    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&hl=pt-BR&output=embed`;
+function mapsQuery(location: EventLocation): string {
+    return location.latitude !== null && location.longitude !== null
+        ? `${location.latitude},${location.longitude}`
+        : location.address;
 }
 
 export function headingStyle(event: EventData): CSSProperties {
@@ -177,11 +207,68 @@ export function bodyTextStyle(event: EventData): CSSProperties {
     };
 }
 
+/** Buttons and highlights in general: the secondary color. */
 export function accentButtonStyle(event: EventData): CSSProperties {
+    const background = event.secondary_color ?? DEFAULT_SECONDARY_COLOR;
+
     return {
-        backgroundColor: event.secondary_color ?? DEFAULT_SECONDARY_COLOR,
-        color: '#ffffff',
+        backgroundColor: background,
+        color: readableTextOn(background),
     };
+}
+
+/**
+ * The gift and checkout buttons — the ones that should stand out — in the
+ * button color the host picked.
+ */
+export function giftButtonStyle(event: EventData): CSSProperties {
+    return {
+        backgroundColor: event.button_color,
+        color: readableTextOn(event.button_color),
+    };
+}
+
+const DARK_TEXT = '#1f1f1f';
+
+/**
+ * White or dark text, whichever contrasts more with the background (WCAG
+ * relative luminance) — so a light button color the host picked still
+ * reads.
+ */
+export function readableTextOn(background: string): string {
+    const luminance = relativeLuminance(background);
+
+    if (luminance === null) {
+        return '#ffffff';
+    }
+
+    const darkLuminance = relativeLuminance(DARK_TEXT) ?? 0;
+    const againstWhite = 1.05 / (luminance + 0.05);
+    const againstDark = (luminance + 0.05) / (darkLuminance + 0.05);
+
+    return againstWhite >= againstDark ? '#ffffff' : DARK_TEXT;
+}
+
+function relativeLuminance(color: string): number | null {
+    let hex = color.trim().replace('#', '');
+
+    if (hex.length === 3) {
+        hex = hex.replace(/./g, (digit) => digit + digit);
+    }
+
+    if (!/^[0-9a-f]{6}$/i.test(hex)) {
+        return null;
+    }
+
+    const [r, g, b] = [0, 2, 4].map((start) => {
+        const channel = parseInt(hex.slice(start, start + 2), 16) / 255;
+
+        return channel <= 0.03928
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /**

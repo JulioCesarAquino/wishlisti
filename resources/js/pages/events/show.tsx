@@ -26,6 +26,7 @@ import { Footer } from '@/pages/events/sections/footer';
 import { GuestbookSection } from '@/pages/events/sections/guestbook-section';
 import { NoGiftsMessage } from '@/pages/events/sections/no-gifts-message';
 import { HomeSection } from '@/pages/events/sections/home-section';
+import { LocationSection } from '@/pages/events/sections/location-section';
 import { GallerySection } from '@/pages/events/sections/gallery-section';
 import { GiftsSection } from '@/pages/events/sections/gifts-section';
 import { MercadoPagoCheckout } from '@/pages/events/sections/mercadopago-checkout';
@@ -33,6 +34,7 @@ import { RsvpSection } from '@/pages/events/sections/rsvp-section';
 import {
     type Fulfillment,
     accentButtonStyle,
+    giftButtonStyle,
     bodyTextStyle,
     formatCurrency,
     FONT_FAMILIES,
@@ -42,6 +44,7 @@ import {
     type EventData,
     type Guest,
     type GuestMessage,
+    type PageSectionKey,
     type Product,
 } from '@/pages/events/types';
 
@@ -51,43 +54,35 @@ type Props = {
     guest: Guest | null;
     messages: GuestMessage[];
     is_preview: boolean;
+    initial_section: Section | null;
+    initial_location: string | null;
 };
 
-type Section =
-    | 'inicio'
-    | 'galeria'
-    | 'presentes'
-    | 'confirmar-presenca'
-    | 'recados';
-
-/**
- * The gift list only gets its own menu item in the "list" display mode
- * (discreet tucks it into the home section, "none" hides it), and the
- * guestbook only exists on premium events.
- */
-function navItems(event: EventData): { key: Section; label: string }[] {
-    return [
-        { key: 'inicio', label: 'Início' },
-        { key: 'galeria', label: 'Galeria' },
-        ...(event.gift_display_mode === 'list'
-            ? [{ key: 'presentes' as const, label: 'Presentes' }]
-            : []),
-        { key: 'confirmar-presenca', label: 'Confirmar presença' },
-        ...(event.has_guestbook
-            ? [{ key: 'recados' as const, label: 'Recados' }]
-            : []),
-    ];
-}
+type Section = PageSectionKey;
 
 function cartStorageKey(slug: string): string {
     return `wishlisti_cart_${slug}`;
 }
 
-function sectionFromHash(items: { key: Section }[]): Section {
-    const hash = window.location.hash.replace('#', '');
+type Place = { section: Section; location: string | null };
+
+/**
+ * Where the page is, from the URL hash ("#galeria", "#localizacao/festa").
+ * Without a hash, it's where the link pointed to (a location link opens on
+ * the location tab), or the first tab of the menu.
+ */
+function placeFromUrl(items: { key: Section }[], fallback: Place): Place {
+    const [hash, location = null] = window.location.hash
+        .replace('#', '')
+        .split('/');
+
+    if (!hash) {
+        return fallback;
+    }
+
     const match = items.find((item) => item.key === hash);
 
-    return match?.key ?? 'inicio';
+    return match ? { section: match.key, location } : fallback;
 }
 
 export default function EventShow({
@@ -96,9 +91,22 @@ export default function EventShow({
     guest,
     messages,
     is_preview,
+    initial_section,
+    initial_location,
 }: Props) {
-    const items = useMemo(() => navItems(event), [event]);
-    const [section, setSection] = useState<Section>('inicio');
+    const items = event.sections;
+    const linkedPlace = useMemo<Place>(
+        () =>
+            initial_section &&
+            items.some((item) => item.key === initial_section)
+                ? { section: initial_section, location: initial_location }
+                : { section: items[0].key, location: null },
+        [items, initial_section, initial_location],
+    );
+    const [section, setSection] = useState<Section>(linkedPlace.section);
+    const [focusedLocation, setFocusedLocation] = useState<string | null>(
+        linkedPlace.location,
+    );
     const [showDiscreetGifts, setShowDiscreetGifts] = useState(false);
     const [freeAmountOpen, setFreeAmountOpen] = useState(false);
     const [freeAmount, setFreeAmount] = useState('');
@@ -108,13 +116,17 @@ export default function EventShow({
     const font = FONT_FAMILIES[event.font_family ?? 'default'];
 
     useEffect(() => {
-        setSection(sectionFromHash(items));
+        const sync = () => {
+            const place = placeFromUrl(items, linkedPlace);
+            setSection(place.section);
+            setFocusedLocation(place.location);
+        };
 
-        const onHashChange = () => setSection(sectionFromHash(items));
-        window.addEventListener('hashchange', onHashChange);
+        sync();
+        window.addEventListener('hashchange', sync);
 
-        return () => window.removeEventListener('hashchange', onHashChange);
-    }, [items]);
+        return () => window.removeEventListener('hashchange', sync);
+    }, [items, linkedPlace]);
 
     useEffect(() => {
         try {
@@ -133,9 +145,10 @@ export default function EventShow({
         }
     }, [event.slug]);
 
-    const navigate = (key: Section) => {
-        window.location.hash = key;
+    const navigate = (key: Section, location: string | null = null) => {
+        window.location.hash = location ? `${key}/${location}` : key;
         setSection(key);
+        setFocusedLocation(location);
     };
 
     const persistCart = (next: Record<number, number>) => {
@@ -363,7 +376,17 @@ export default function EventShow({
                 <div className="flex-1">
                     {section === 'inicio' && (
                         <>
-                            <HomeSection event={event} />
+                            <HomeSection
+                                event={event}
+                                onOpenLocation={(slug) => {
+                                    navigate('localizacao', slug);
+                                    // The button sits halfway down the page.
+                                    window.scrollTo({
+                                        top: 0,
+                                        behavior: 'smooth',
+                                    });
+                                }}
+                            />
                             {event.gift_display_mode === 'discreet' && (
                                 <div className="pb-8 text-center">
                                     {showDiscreetGifts ? (
@@ -399,6 +422,13 @@ export default function EventShow({
                     {section === 'confirmar-presenca' && (
                         <RsvpSection event={event} guest={guest} />
                     )}
+                    {section === 'localizacao' && (
+                        <LocationSection
+                            event={event}
+                            focused={focusedLocation}
+                            onFocus={(slug) => navigate('localizacao', slug)}
+                        />
+                    )}
                     {section === 'recados' && (
                         <GuestbookSection
                             event={event}
@@ -429,7 +459,7 @@ export default function EventShow({
                                 <Button
                                     size="lg"
                                     className="fixed right-6 bottom-6 z-50 shadow-lg"
-                                    style={accentButtonStyle(event)}
+                                    style={giftButtonStyle(event)}
                                 >
                                     <ShoppingCart />
                                     {cartCount}{' '}
@@ -467,6 +497,16 @@ export default function EventShow({
                                             min={1}
                                             step="0.01"
                                             inputMode="decimal"
+                                            aria-invalid={
+                                                (
+                                                    form.errors as Record<
+                                                        string,
+                                                        string | undefined
+                                                    >
+                                                ).free_amount
+                                                    ? true
+                                                    : undefined
+                                            }
                                             placeholder="R$ 0,00"
                                             value={freeAmount}
                                             onChange={(e) =>
@@ -613,9 +653,9 @@ export default function EventShow({
                                             reservados para você.
                                         </p>
                                         <p className="text-sm">
-                                            {orderResult.is_anonymous
-                                                ? 'Como você preferiu não se identificar, a entrega fica por sua conta: leve no dia do evento ou combine com os anfitriões.'
-                                                : 'Combine a entrega com os anfitriões. Se mudar de ideia, você pode desistir na lista de presentes.'}
+                                            Combine a entrega com os anfitriões.
+                                            Se mudar de ideia, você pode
+                                            desistir na lista de presentes.
                                         </p>
                                     </div>
                                 ) : orderResult ? (
@@ -626,6 +666,48 @@ export default function EventShow({
                                     />
                                 ) : (
                                     <div className="space-y-3">
+                                        {/* Anonymity only for gifts paid online: whoever hands one
+                                            over in person is seen doing it. */}
+                                        {event.accepts_online_gifts && (
+                                            <label
+                                                className="flex cursor-pointer items-start gap-2 text-sm"
+                                                style={bodyTextStyle(event)}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="mt-0.5 size-4 accent-current"
+                                                    checked={
+                                                        form.data.anonymous
+                                                    }
+                                                    onChange={(e) =>
+                                                        form.setData(
+                                                            'anonymous',
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                />
+                                                <span>
+                                                    Presentear anonimamente
+                                                    <span className="block text-xs opacity-80">
+                                                        Os anfitriões veem o
+                                                        presente e a sua
+                                                        mensagem, mas não quem
+                                                        enviou. Seus dados ficam
+                                                        opcionais e, se
+                                                        preenchidos, só a equipe
+                                                        do Wishlisti tem acesso.
+                                                        Se quiser se identificar
+                                                        para os anfitriões,
+                                                        assine a mensagem. Só
+                                                        vale para o pagamento
+                                                        online: quem entrega
+                                                        pessoalmente é visto
+                                                        pelos anfitriões.
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        )}
+
                                         <ContactFields
                                             idPrefix="guest"
                                             errorPrefix="guest"
@@ -634,9 +716,15 @@ export default function EventShow({
                                                 event.rsvp_required_fields,
                                             )}
                                             requiredFields={
-                                                event.rsvp_required_fields
+                                                form.data.anonymous
+                                                    ? []
+                                                    : event.rsvp_required_fields
                                             }
-                                            nameLabel="Seu nome"
+                                            nameLabel={
+                                                form.data.anonymous
+                                                    ? 'Seu nome (opcional)'
+                                                    : 'Seu nome'
+                                            }
                                             errors={
                                                 form.errors as Record<
                                                     string,
@@ -667,39 +755,17 @@ export default function EventShow({
                                                 placeholder="Deixe uma mensagem para os anfitriões"
                                             />
                                         </div>
-
-                                        <label
-                                            className="flex cursor-pointer items-start gap-2 text-sm"
-                                            style={bodyTextStyle(event)}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                className="mt-0.5 size-4 accent-current"
-                                                checked={form.data.anonymous}
-                                                onChange={(e) =>
-                                                    form.setData(
-                                                        'anonymous',
-                                                        e.target.checked,
-                                                    )
-                                                }
-                                            />
-                                            <span>
-                                                Presentear anonimamente
-                                                <span className="block text-xs opacity-80">
-                                                    Os anfitriões veem o
-                                                    presente e a sua mensagem,
-                                                    mas não o seu nome. Se
-                                                    quiser se identificar,
-                                                    assine a mensagem.
-                                                </span>
-                                            </span>
-                                        </label>
                                     </div>
                                 )}
                             </div>
 
                             {!orderResult && (
                                 <SheetFooter className="gap-2">
+                                    {form.errors.anonymous && (
+                                        <p className="text-sm text-red-600">
+                                            {form.errors.anonymous}
+                                        </p>
+                                    )}
                                     {form.errors.items && (
                                         <p className="text-sm text-red-600">
                                             {form.errors.items}
@@ -712,13 +778,14 @@ export default function EventShow({
                                             }
                                             disabled={submitting}
                                             className="w-full"
-                                            style={accentButtonStyle(event)}
+                                            style={giftButtonStyle(event)}
                                         >
                                             Pagar agora (Pix, cartão ou boleto)
                                         </Button>
                                     )}
                                     {event.accepts_in_person_gifts &&
-                                        !freeAmountOpen && (
+                                        !freeAmountOpen &&
+                                        !form.data.anonymous && (
                                             <Button
                                                 onClick={() =>
                                                     submitOrder('in_person')
@@ -733,9 +800,7 @@ export default function EventShow({
                                                 style={
                                                     event.accepts_online_gifts
                                                         ? undefined
-                                                        : accentButtonStyle(
-                                                              event,
-                                                          )
+                                                        : giftButtonStyle(event)
                                                 }
                                             >
                                                 {event.accepts_online_gifts

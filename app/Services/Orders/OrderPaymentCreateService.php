@@ -3,17 +3,17 @@
 namespace App\Services\Orders;
 
 use App\Models\Orders\Order;
+use App\Support\MercadoPagoPayments;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use MercadoPago\Client\Common\RequestOptions;
-use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Exceptions\MPApiException;
 
 class OrderPaymentCreateService
 {
     public function __construct(
-        protected PaymentClient $paymentClient,
         protected OrderPaymentUpdateService $updateService,
+        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -36,15 +36,16 @@ class OrderPaymentCreateService
             ]);
         }
 
-        $requestOptions = new RequestOptions;
-        $requestOptions->setAccessToken($event->paymentSettings->mp_access_token);
+        $requestOptions = $this->updateService->requestOptions($event);
 
-        $request = [
+        $this->closePreviousAttempt($order, $requestOptions);
+
+        $request = MercadoPagoPayments::withPixExpiration([
             ...$formData,
             'transaction_amount' => (float) $order->total_amount,
             'description' => "Presente - {$event->title}",
             'external_reference' => (string) $order->id,
-        ];
+        ]);
 
         // Mercado Pago rejects the whole payment if notification_url isn't a
         // publicly reachable address (e.g. localhost in local dev), so we
@@ -56,13 +57,13 @@ class OrderPaymentCreateService
         }
 
         try {
-            $payment = $this->paymentClient->create($request, $requestOptions);
+            $payment = $this->payments->create($request, $requestOptions, ['order_id' => $order->id]);
         } catch (MPApiException $exception) {
             Log::error('Mercado Pago: falha ao criar pagamento via Brick', [
                 'order_id' => $order->id,
                 'status_code' => $exception->getApiResponse()->getStatusCode(),
                 'content' => $exception->getApiResponse()->getContent(),
-                'request' => [...$request, 'token' => array_key_exists('token', $request) ? '[hidden]' : null],
+                'request' => $this->loggable($request),
             ]);
 
             throw ValidationException::withMessages([
@@ -77,5 +78,52 @@ class OrderPaymentCreateService
             'status' => (string) $payment->status,
             'status_detail' => (string) $payment->status_detail,
         ];
+    }
+
+    /**
+     * What of the payment request may go to the log: enough to tell why it
+     * failed, nothing about the payer. Listed (not filtered out), so the
+     * card token, the payer's e-mail and CPF — or any field Mercado Pago
+     * adds later — stay out.
+     *
+     * @param  array<string, mixed>  $request
+     * @return array<string, mixed>
+     */
+    private function loggable(array $request): array
+    {
+        return [
+            ...array_intersect_key($request, array_flip([
+                'payment_method_id', 'payment_type_id', 'issuer_id', 'installments',
+                'transaction_amount', 'description', 'external_reference',
+            ])),
+            'has_token' => array_key_exists('token', $request),
+            'has_payer' => array_key_exists('payer', $request),
+        ];
+    }
+
+    /**
+     * A second try on the same order (a Pix left unpaid, now by card, say):
+     * the first payment is cancelled, so its code can't be paid as well.
+     * If Mercado Pago won't cancel it, it was most likely paid meanwhile.
+     */
+    private function closePreviousAttempt(Order $order, RequestOptions $requestOptions): void
+    {
+        if (blank($order->payment_id)) {
+            return;
+        }
+
+        if ($this->payments->cancel($order->payment_id, $requestOptions, ['order_id' => $order->id])) {
+            $order->update(['payment_id' => null]);
+
+            return;
+        }
+
+        $this->updateService->execute($order->event, $order->payment_id);
+
+        throw ValidationException::withMessages([
+            'formData' => $order->refresh()->status === Order::STATUS_PAID
+                ? 'Este presente já foi pago. Obrigado!'
+                : 'Ainda há um pagamento em andamento para este presente. Tente de novo em alguns minutos.',
+        ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Events\Event;
 use App\Models\Premium\FeatureGrant;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
+use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class PremiumPurchaseUpdateService
 {
     public function __construct(
         protected PaymentClient $paymentClient,
+        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -58,13 +60,13 @@ class PremiumPurchaseUpdateService
             return;
         }
 
-        DB::transaction(function () use ($purchaseId, $payment): void {
+        $duplicate = DB::transaction(function () use ($purchaseId, $payment): bool {
             $purchase = PremiumPurchase::whereKey($purchaseId)->lockForUpdate()->first();
 
             if (! $purchase) {
                 Log::warning('Mercado Pago: compra Premium não encontrada', ['external_reference' => $payment->external_reference]);
 
-                return;
+                return false;
             }
 
             $newStatus = match ($payment->status) {
@@ -80,17 +82,31 @@ class PremiumPurchaseUpdateService
                     'paid' => $payment->transaction_amount,
                 ]);
 
-                return;
+                return false;
             }
 
             $wasPaid = $purchase->status === PremiumPurchase::STATUS_PAID;
 
+            // Only the purchase's own payment moves it.
+            if (filled($purchase->payment_id) && $purchase->payment_id !== (string) $payment->id) {
+                return $wasPaid && $newStatus === PremiumPurchase::STATUS_PAID;
+            }
+
+            // Another purchase already unlocked everything (two payments left
+            // open, both paid): this one buys nothing, so it's given back.
+            $alreadyBought = $newStatus === PremiumPurchase::STATUS_PAID && ! $wasPaid
+                && $this->hasEverything($purchase->event);
+
             $purchase->forceFill([
-                'status' => $newStatus,
+                'status' => $alreadyBought ? PremiumPurchase::STATUS_CANCELLED : $newStatus,
                 'payment_id' => (string) $payment->id,
                 'payment_method' => $payment->payment_method_id,
-                'paid_at' => $newStatus === PremiumPurchase::STATUS_PAID ? ($purchase->paid_at ?? now()) : $purchase->paid_at,
+                'paid_at' => $newStatus === PremiumPurchase::STATUS_PAID && ! $alreadyBought ? ($purchase->paid_at ?? now()) : $purchase->paid_at,
             ])->save();
+
+            if ($alreadyBought) {
+                return true;
+            }
 
             if ($newStatus === PremiumPurchase::STATUS_PAID && ! $wasPaid) {
                 $this->grant($purchase);
@@ -99,7 +115,15 @@ class PremiumPurchaseUpdateService
             if ($wasPaid && $newStatus !== PremiumPurchase::STATUS_PAID) {
                 $purchase->featureGrants()->get()->each->delete();
             }
+
+            return false;
         });
+
+        if ($duplicate) {
+            $this->payments->refundDuplicate((string) $payment->id, MercadoPagoPlatform::requestOptions(), [
+                'premium_purchase_id' => $purchaseId,
+            ]);
+        }
     }
 
     /**

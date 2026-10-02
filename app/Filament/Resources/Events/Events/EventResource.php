@@ -9,6 +9,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventLocation;
 use App\Filament\Resources\Events\Events\Pages\EditEventPayment;
 use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
 use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
+use App\Filament\Resources\Events\Events\Pages\EditEventSections;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventMessages;
@@ -84,6 +85,7 @@ class EventResource extends Resource
             EditEvent::class,
             EditEventLocation::class,
             EditEventAppearance::class,
+            EditEventSections::class,
             ManageEventProducts::class,
             ManageEventGuests::class,
             ManageEventMessages::class,
@@ -102,6 +104,7 @@ class EventResource extends Resource
             'edit' => EditEvent::route('/{record}/edit'),
             'location' => EditEventLocation::route('/{record}/location'),
             'appearance' => EditEventAppearance::route('/{record}/appearance'),
+            'sections' => EditEventSections::route('/{record}/sections'),
             'products' => ManageEventProducts::route('/{record}/products'),
             'guests' => ManageEventGuests::route('/{record}/guests'),
             'messages' => ManageEventMessages::route('/{record}/messages'),
