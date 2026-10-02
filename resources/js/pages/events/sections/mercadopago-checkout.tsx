@@ -1,10 +1,11 @@
+import { Lock } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { getCsrfToken } from '@/lib/csrf';
 import {
     loadMercadoPago,
     type MercadoPagoBrickController,
 } from '@/lib/mercadopago';
-import type { EventData } from '@/pages/events/types';
+import { bodyTextStyle, type EventData } from '@/pages/events/types';
 
 type Props = {
     event: EventData;
@@ -177,6 +178,18 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
     return (
         <div className="space-y-3">
             {error && <p className="text-sm text-red-600">{error}</p>}
+            {!paymentId && (
+                // True whatever the payment method: card details go from the
+                // browser straight to Mercado Pago (see the payment service).
+                <p
+                    className="flex items-start gap-1.5 text-xs opacity-80"
+                    style={bodyTextStyle(event)}
+                >
+                    <Lock className="mt-0.5 size-3 shrink-0" />
+                    Pagamento processado pelo Mercado Pago. O Wishlisti não vê
+                    nem guarda os dados do seu cartão.
+                </p>
+            )}
             {!paymentId && <div id={paymentContainerId} />}
             {paymentId && <div id={statusContainerId} />}
         </div>
