@@ -11,8 +11,11 @@ use App\Models\Events\EventLocation;
 use App\Models\Guests\Guest;
 use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
+use App\Services\Events\EventSharePreviewService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,8 +25,12 @@ class EventShowController extends Controller
      * Also serves the location links (see routes/web.php): the same page,
      * opened on the location tab.
      */
-    public function __invoke(Request $request, Event $event, ?EventLocation $location = null): Response
-    {
+    public function __invoke(
+        Request $request,
+        Event $event,
+        EventSharePreviewService $sharePreview,
+        ?EventLocation $location = null,
+    ): Response {
         abort_unless($event->isViewableBy($request->user()), 404);
 
         $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections']);
@@ -142,6 +149,35 @@ class EventShowController extends Controller
                         'cpf' => $companion->cpf,
                     ]),
             ] : null,
-        ]);
+        ])->withViewData('share', $this->shareCard($request, $event, $location, $sharePreview));
+    }
+
+    /**
+     * The card WhatsApp and other apps show for the link. They don't run
+     * JavaScript, so it goes in the HTML sent by the server.
+     *
+     * @return array{title: string, description: string, image: ?string, url: string}
+     */
+    private function shareCard(Request $request, Event $event, ?EventLocation $location, EventSharePreviewService $sharePreview): array
+    {
+        $date = null;
+
+        if ($event->event_date) {
+            $day = Carbon::parse($event->event_date);
+            $day->setLocale('pt_BR');
+            $date = $day->isoFormat('D [de] MMMM [de] YYYY');
+        }
+        $type = $event->type === 'outro' ? null : (Event::TYPE_LABELS[$event->type] ?? null);
+
+        $description = $location
+            ? $location->address
+            : (filled($event->description) ? $event->description : implode(' · ', array_filter([$type, $date])));
+
+        return [
+            'title' => $location ? "{$event->title} · {$location->name}" : $event->title,
+            'description' => Str::limit(Str::squish((string) $description), 200),
+            'image' => $sharePreview->url($event),
+            'url' => $request->url(),
+        ];
     }
 }

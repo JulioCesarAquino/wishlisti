@@ -26,6 +26,18 @@ class EventAppearanceForm
                             ->imageEditor()
                             ->imagePreviewHeight('160')
                             ->directory('events/covers'),
+                        FileUpload::make('share_image')
+                            ->label('Imagem do link compartilhado')
+                            ->helperText('A foto que aparece quando o link do evento é enviado no WhatsApp, Instagram ou Facebook. Fica no formato retangular desses cartões (1200×630). Sem ela, usamos a capa.')
+                            ->image()
+                            ->disk('public')
+                            ->imageEditor()
+                            ->imageCropAspectRatio('40:21')
+                            ->imageResizeMode('cover')
+                            ->imageResizeTargetWidth('1200')
+                            ->imageResizeTargetHeight('630')
+                            ->imagePreviewHeight('160')
+                            ->directory('events/share'),
                         FileUpload::make('gallery')
                             ->label('Galeria de fotos')
                             ->image()

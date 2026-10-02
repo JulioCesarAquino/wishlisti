@@ -34,6 +34,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $title
  * @property Carbon|null $event_date
  * @property string|null $cover_image
+ * @property string|null $share_image
  * @property array<int, string>|null $gallery
  * @property string|null $description
  * @property string|null $story
@@ -51,7 +52,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image',
+    'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image', 'share_image',
     'gallery', 'description', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
@@ -61,12 +62,20 @@ class Event extends Model
 
     use HasFeatureGrants, LogsActivity, SoftDeletes;
 
+    public const TYPE_LABELS = [
+        'casamento' => 'Casamento',
+        'cha_bebe' => 'Chá de bebê',
+        'cha_panela' => 'Chá de panela',
+        'aniversario' => 'Aniversário',
+        'outro' => 'Outro',
+    ];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('event')
             ->logOnly([
-                'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'gallery',
+                'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'share_image', 'gallery',
                 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()
