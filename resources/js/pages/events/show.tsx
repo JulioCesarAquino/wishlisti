@@ -375,7 +375,17 @@ export default function EventShow({
                 <div className="flex-1">
                     {section === 'inicio' && (
                         <>
-                            <HomeSection event={event} />
+                            <HomeSection
+                                event={event}
+                                onOpenLocation={(slug) => {
+                                    navigate('localizacao', slug);
+                                    // The button sits halfway down the page.
+                                    window.scrollTo({
+                                        top: 0,
+                                        behavior: 'smooth',
+                                    });
+                                }}
+                            />
                             {event.gift_display_mode === 'discreet' && (
                                 <div className="pb-8 text-center">
                                     {showDiscreetGifts ? (
