@@ -27,7 +27,7 @@ export type EventData = {
     gallery_urls: string[];
     primary_color: string | null;
     secondary_color: string | null;
-    /** Main buttons; the server fills in the default when unset. */
+    /** Gift and checkout buttons; the server fills in the default when unset. */
     button_color: string;
     font_color_primary: string | null;
     font_color_secondary: string | null;
@@ -207,23 +207,24 @@ export function bodyTextStyle(event: EventData): CSSProperties {
     };
 }
 
+/** Buttons and highlights in general: the secondary color. */
 export function accentButtonStyle(event: EventData): CSSProperties {
-    return {
-        backgroundColor: event.button_color,
-        color: readableTextOn(event.button_color),
-    };
-}
-
-/**
- * Decorative blocks (the countdown, say): the secondary color, which the
- * button color doesn't touch.
- */
-export function accentSurfaceStyle(event: EventData): CSSProperties {
     const background = event.secondary_color ?? DEFAULT_SECONDARY_COLOR;
 
     return {
         backgroundColor: background,
         color: readableTextOn(background),
+    };
+}
+
+/**
+ * The gift and checkout buttons — the ones that should stand out — in the
+ * button color the host picked.
+ */
+export function giftButtonStyle(event: EventData): CSSProperties {
+    return {
+        backgroundColor: event.button_color,
+        color: readableTextOn(event.button_color),
     };
 }
 

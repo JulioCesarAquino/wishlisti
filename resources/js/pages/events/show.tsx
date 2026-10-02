@@ -34,6 +34,7 @@ import { RsvpSection } from '@/pages/events/sections/rsvp-section';
 import {
     type Fulfillment,
     accentButtonStyle,
+    giftButtonStyle,
     bodyTextStyle,
     formatCurrency,
     FONT_FAMILIES,
@@ -458,7 +459,7 @@ export default function EventShow({
                                 <Button
                                     size="lg"
                                     className="fixed right-6 bottom-6 z-50 shadow-lg"
-                                    style={accentButtonStyle(event)}
+                                    style={giftButtonStyle(event)}
                                 >
                                     <ShoppingCart />
                                     {cartCount}{' '}
@@ -751,7 +752,7 @@ export default function EventShow({
                                             }
                                             disabled={submitting}
                                             className="w-full"
-                                            style={accentButtonStyle(event)}
+                                            style={giftButtonStyle(event)}
                                         >
                                             Pagar agora (Pix, cartão ou boleto)
                                         </Button>
@@ -772,9 +773,7 @@ export default function EventShow({
                                                 style={
                                                     event.accepts_online_gifts
                                                         ? undefined
-                                                        : accentButtonStyle(
-                                                              event,
-                                                          )
+                                                        : giftButtonStyle(event)
                                                 }
                                             >
                                                 {event.accepts_online_gifts

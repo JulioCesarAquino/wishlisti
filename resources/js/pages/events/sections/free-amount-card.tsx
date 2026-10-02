@@ -1,7 +1,7 @@
 import { HandHeart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-    accentButtonStyle,
+    giftButtonStyle,
     bodyTextStyle,
     headingStyle,
     type EventData,
@@ -33,7 +33,7 @@ export function FreeAmountCard({ event, onContribute }: Props) {
                 Sem precisar escolher um item: contribua com o valor que o seu
                 coração mandar.
             </p>
-            <Button style={accentButtonStyle(event)} onClick={onContribute}>
+            <Button style={giftButtonStyle(event)} onClick={onContribute}>
                 Contribuir
             </Button>
         </div>

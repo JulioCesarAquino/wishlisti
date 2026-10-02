@@ -84,7 +84,7 @@ class EventAppearanceForm
                                     ->helperText('Tom de fundo geral da página.'),
                                 ColorPicker::make('secondary_color')
                                     ->label('Cor secundária')
-                                    ->helperText('Usada nos detalhes decorativos, como a contagem regressiva.'),
+                                    ->helperText('Usada nos botões em geral, no menu e nos detalhes decorativos.'),
                             ]),
                         Fieldset::make('Cores das fontes')
                             ->columnSpanFull()
@@ -96,13 +96,13 @@ class EventAppearanceForm
                                     ->label('Cor da fonte secundária')
                                     ->helperText('Usada nos textos e menu.'),
                             ]),
-                        Fieldset::make('Cor dos botões')
+                        Fieldset::make('Cor dos botões de presente')
                             ->columnSpanFull()
                             ->components([
                                 ColorPicker::make('button_color')
-                                    ->label('Cor dos botões')
+                                    ->label('Cor dos botões de presente')
                                     ->placeholder(EventAppearance::DEFAULT_BUTTON_COLOR)
-                                    ->helperText('Botões de presentear, pagar, "Como chegar" e a aba selecionada no menu. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
+                                    ->helperText('Só nos botões de presentes e do carrinho (presentear, contribuir, pagar, reservar), para que se destaquem. Os demais botões seguem a cor secundária. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
                                     ->live()
                                     // Highlights the ready-made color below when
                                     // the picked one is among them.
