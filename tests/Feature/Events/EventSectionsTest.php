@@ -126,7 +126,9 @@ class EventSectionsTest extends TestCase
 
         $this->actingAs($host);
 
-        $component = Livewire::test(EditEventSections::class, ['record' => $event->getRouteKey()]);
+        $component = Livewire::test(EditEventSections::class, ['record' => $event->getRouteKey()])
+            ->assertSee('Galeria')
+            ->assertSee('Confirmar presença');
 
         $this->assertCount(count(PageSection::cases()), $event->sections()->get());
 
