@@ -169,6 +169,19 @@ class PurchaseEventPremium extends Page
         $components = [];
 
         if ($pending = $this->pendingPurchase()) {
+            // The payment itself first (QR code, code to copy, validity), as
+            // the guests see it; what the host can do about it, below.
+            if (! $this->payAnotherWay) {
+                $components[] = Section::make('Seu pagamento')
+                    ->icon(Heroicon::OutlinedClock)
+                    ->schema([
+                        View::make('filament.premium.payment-status')->viewData([
+                            'publicKey' => MercadoPagoPlatform::publicKey(),
+                            'paymentId' => $pending->payment_id,
+                        ]),
+                    ]);
+            }
+
             $components[] = Callout::make('Pagamento aguardando confirmação')
                 ->key('pendingPayment')
                 ->description($pending->payment_method === 'pix'
