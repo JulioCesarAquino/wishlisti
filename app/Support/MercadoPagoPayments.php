@@ -7,6 +7,7 @@ use MercadoPago\Client\Common\RequestOptions;
 use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Client\Payment\PaymentRefundClient;
 use MercadoPago\Exceptions\MPApiException;
+use MercadoPago\Resources\Payment;
 
 /**
  * What keeps a gift or the Premium from being paid twice: Pix codes that
@@ -41,6 +42,41 @@ class MercadoPagoPayments
             ...$request,
             'date_of_expiration' => now()->addMinutes(self::PIX_EXPIRATION_MINUTES)->format('Y-m-d\TH:i:s.vP'),
         ];
+    }
+
+    /**
+     * Creates the payment. Should Mercado Pago refuse the Pix expiration
+     * (its format or limits — only checkable in production, where Pix
+     * works), it's tried again without it: Pix keeps working, with
+     * Mercado Pago's default validity, and the log tells what to fix.
+     *
+     * @param  array<string, mixed>  $request
+     * @param  array<string, mixed>  $context  for the log
+     *
+     * @throws MPApiException when the payment itself is refused
+     */
+    public function create(array $request, RequestOptions $options, array $context = []): Payment
+    {
+        try {
+            return $this->paymentClient->create($request, $options);
+        } catch (MPApiException $exception) {
+            $content = json_encode($exception->getApiResponse()->getContent()) ?: '';
+
+            if (! array_key_exists('date_of_expiration', $request) || ! str_contains(strtolower($content), 'expiration')) {
+                throw $exception;
+            }
+
+            Log::warning('Mercado Pago: expiração do Pix recusada; Pix criado sem prazo', [
+                ...$context,
+                'date_of_expiration' => $request['date_of_expiration'],
+                'status_code' => $exception->getApiResponse()->getStatusCode(),
+                'content' => $exception->getApiResponse()->getContent(),
+            ]);
+
+            unset($request['date_of_expiration']);
+
+            return $this->paymentClient->create($request, $options);
+        }
     }
 
     /**

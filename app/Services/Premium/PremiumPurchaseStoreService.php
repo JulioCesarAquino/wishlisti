@@ -9,13 +9,11 @@ use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Exceptions\MPApiException;
 
 class PremiumPurchaseStoreService
 {
     public function __construct(
-        protected PaymentClient $paymentClient,
         protected PremiumPurchaseUpdateService $updateService,
         protected MercadoPagoPayments $payments,
     ) {}
@@ -66,7 +64,7 @@ class PremiumPurchaseStoreService
         }
 
         try {
-            $payment = $this->paymentClient->create($request, MercadoPagoPlatform::requestOptions());
+            $payment = $this->payments->create($request, MercadoPagoPlatform::requestOptions(), ['premium_purchase_id' => $purchase->id]);
         } catch (MPApiException $exception) {
             Log::error('Mercado Pago: falha ao cobrar o Premium', [
                 'premium_purchase_id' => $purchase->id,

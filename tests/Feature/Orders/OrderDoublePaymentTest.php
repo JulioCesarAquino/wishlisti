@@ -238,4 +238,33 @@ class OrderDoublePaymentTest extends TestCase
         $this->assertCount(0, $fake->requests);
         $this->assertSame(Order::STATUS_PENDING, $previous->fresh()->status);
     }
+
+    public function test_pix_still_works_if_mercado_pago_refuses_the_expiration(): void
+    {
+        $order = $this->order();
+        $fake = $this->fake(
+            new MPResponse(400, ['message' => 'Invalid date_of_expiration', 'cause' => [['description' => 'date_of_expiration is invalid']]]),
+            $this->payment(1, 'pending', $order),
+        );
+
+        $this->postJson("/{$this->event->slug}/orders/{$order->id}/mercadopago-payment", [
+            'formData' => ['payment_method_id' => 'pix'],
+        ])->assertOk();
+
+        $this->assertArrayHasKey('date_of_expiration', json_decode($fake->requests[0]->getPayload(), true));
+        $this->assertArrayNotHasKey('date_of_expiration', json_decode($fake->requests[1]->getPayload(), true));
+        $this->assertSame('1', $order->fresh()->payment_id);
+    }
+
+    public function test_other_refusals_are_not_retried(): void
+    {
+        $order = $this->order();
+        $fake = $this->fake(new MPResponse(400, ['message' => 'Invalid payer email']));
+
+        $this->postJson("/{$this->event->slug}/orders/{$order->id}/mercadopago-payment", [
+            'formData' => ['payment_method_id' => 'pix'],
+        ])->assertUnprocessable();
+
+        $this->assertCount(1, $fake->requests);
+    }
 }

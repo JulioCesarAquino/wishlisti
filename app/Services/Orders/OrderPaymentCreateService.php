@@ -7,13 +7,11 @@ use App\Support\MercadoPagoPayments;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use MercadoPago\Client\Common\RequestOptions;
-use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Exceptions\MPApiException;
 
 class OrderPaymentCreateService
 {
     public function __construct(
-        protected PaymentClient $paymentClient,
         protected OrderPaymentUpdateService $updateService,
         protected MercadoPagoPayments $payments,
     ) {}
@@ -59,7 +57,7 @@ class OrderPaymentCreateService
         }
 
         try {
-            $payment = $this->paymentClient->create($request, $requestOptions);
+            $payment = $this->payments->create($request, $requestOptions, ['order_id' => $order->id]);
         } catch (MPApiException $exception) {
             Log::error('Mercado Pago: falha ao criar pagamento via Brick', [
                 'order_id' => $order->id,
