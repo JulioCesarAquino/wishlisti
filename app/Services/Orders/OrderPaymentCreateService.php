@@ -62,7 +62,7 @@ class OrderPaymentCreateService
                 'order_id' => $order->id,
                 'status_code' => $exception->getApiResponse()->getStatusCode(),
                 'content' => $exception->getApiResponse()->getContent(),
-                'request' => [...$request, 'token' => array_key_exists('token', $request) ? '[hidden]' : null],
+                'request' => $this->loggable($request),
             ]);
 
             throw ValidationException::withMessages([
@@ -76,6 +76,27 @@ class OrderPaymentCreateService
             'id' => (string) $payment->id,
             'status' => (string) $payment->status,
             'status_detail' => (string) $payment->status_detail,
+        ];
+    }
+
+    /**
+     * What of the payment request may go to the log: enough to tell why it
+     * failed, nothing about the payer. Listed (not filtered out), so the
+     * card token, the payer's e-mail and CPF — or any field Mercado Pago
+     * adds later — stay out.
+     *
+     * @param  array<string, mixed>  $request
+     * @return array<string, mixed>
+     */
+    private function loggable(array $request): array
+    {
+        return [
+            ...array_intersect_key($request, array_flip([
+                'payment_method_id', 'payment_type_id', 'issuer_id', 'installments',
+                'transaction_amount', 'description', 'external_reference',
+            ])),
+            'has_token' => array_key_exists('token', $request),
+            'has_payer' => array_key_exists('payer', $request),
         ];
     }
 }

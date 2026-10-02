@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\Net\MPHttpClient;
 use MercadoPago\Net\MPRequest;
 use MercadoPago\Net\MPResponse;
@@ -28,6 +29,14 @@ class FakeMercadoPagoHttpClient implements MPHttpClient
     {
         $this->requests[] = $request;
 
-        return array_shift($this->responses) ?? new MPResponse(200, []);
+        $response = array_shift($this->responses) ?? new MPResponse(200, []);
+
+        // Like the real client (MPDefaultHttpClient), which turns error
+        // statuses into exceptions.
+        if ($response->getStatusCode() >= 400) {
+            throw new MPApiException('Api error. Check response for details', $response);
+        }
+
+        return $response;
     }
 }
