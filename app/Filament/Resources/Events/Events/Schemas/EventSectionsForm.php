@@ -17,7 +17,7 @@ class EventSectionsForm
         return $schema
             ->components([
                 Section::make('Abas do menu')
-                    ->description('Estas são as abas do menu da página do evento. Arraste pelas setas para mudar a ordem e use a chave para mostrar ou esconder cada uma. Uma aba escondida também deixa de abrir para quem já tinha o link dela.')
+                    ->description('Estas são as abas do menu da página do evento. Arraste pelas setas para mudar a ordem e use a chave para mostrar ou esconder cada uma. A página abre na primeira aba visível: para abrir direto na localização, por exemplo, coloque-a no topo. Uma aba escondida também deixa de abrir para quem já tinha o link dela.')
                     ->columnSpanFull()
                     ->components([self::repeater()]),
             ]);
@@ -32,6 +32,11 @@ class EventSectionsForm
             ->reorderable()
             ->addable(false)
             ->deletable(false)
+            ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! collect(is_array($value) ? $value : [])->contains(fn (mixed $item) => (bool) data_get($item, 'is_active'))) {
+                    $fail('Deixe ao menos uma aba visível.');
+                }
+            })
             // The raw state: the snapshot leaves out "type", which isn't
             // saved.
             ->itemLabel(fn (Schema $item): ?string => self::type(data_get($item->getRawState(), 'type'))?->label())
@@ -39,10 +44,7 @@ class EventSectionsForm
                 Hidden::make('type')->dehydrated(false),
                 Toggle::make('is_active')
                     ->label('Mostrar no menu')
-                    ->disabled(fn (Get $get): bool => ! (self::type($get('type'))?->canBeDisabled() ?? true))
-                    ->helperText(fn (Get $get): ?string => self::type($get('type')) === PageSection::Home
-                        ? 'A página sempre abre no Início, então ele não pode ser desligado.'
-                        : self::type($get('type'))?->requirement()),
+                    ->helperText(fn (Get $get): ?string => self::type($get('type'))?->requirement()),
             ]);
     }
 

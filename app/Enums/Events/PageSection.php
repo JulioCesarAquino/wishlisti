@@ -4,8 +4,8 @@ namespace App\Enums\Events;
 
 /**
  * The tabs of an event's public page, in their default order. The host
- * turns each one on or off and reorders them (see EventSection) — except
- * the home tab, which is where the page opens.
+ * turns each one on or off and reorders them (see EventSection); the page
+ * opens on the first one.
  */
 enum PageSection: string
 {
@@ -42,11 +42,6 @@ enum PageSection: string
         };
     }
 
-    public function canBeDisabled(): bool
-    {
-        return $this !== self::Home;
-    }
-
     /**
      * When the tab shows up regardless of the host's choice — tabs with
      * nothing to show stay out of the menu.
@@ -54,6 +49,7 @@ enum PageSection: string
     public function requirement(): ?string
     {
         return match ($this) {
+            self::Home => 'Capa, título, data e textos do evento. Também é onde ficam os presentes nos modos "discreto" e "sem lista".',
             self::Gifts => 'Só aparece quando os presentes estão no modo "lista" (em Presentes → Exibição na página).',
             self::Guestbook => 'Só aparece em eventos com o mural de recados (Premium).',
             self::Location => 'Só aparece quando o evento tem ao menos uma localização.',

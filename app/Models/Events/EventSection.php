@@ -32,18 +32,6 @@ class EventSection extends Model
         'position' => 0,
     ];
 
-    protected static function booted(): void
-    {
-        // The home tab is where the page opens: it can't be turned off.
-        static::saving(function (EventSection $section): void {
-            $type = $section->getAttribute('type');
-
-            if ($type instanceof PageSection && ! $type->canBeDisabled()) {
-                $section->is_active = true;
-            }
-        });
-    }
-
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

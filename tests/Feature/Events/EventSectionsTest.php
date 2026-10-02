@@ -6,7 +6,6 @@ use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\Pages\EditEventSections;
 use App\Models\Events\Event;
-use App\Models\Events\EventSection;
 use App\Models\Guests\GuestMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -67,16 +66,51 @@ class EventSectionsTest extends TestCase
             ->has('event.sections', 5));
     }
 
-    public function test_the_home_tab_cannot_be_turned_off(): void
+    public function test_the_home_tab_can_be_turned_off_so_another_tab_opens_the_page(): void
     {
-        $event = Event::factory()->create();
-        $event->ensureSections();
+        $event = Event::factory()->withLocation()->create(['is_published' => true]);
 
-        $home = $event->sections()->get()->first(fn (EventSection $section) => $section->type === PageSection::Home);
-        $home->update(['is_active' => false]);
+        $this->configure(
+            $event,
+            active: ['inicio' => false],
+            order: ['localizacao', 'inicio', 'galeria', 'presentes', 'confirmar_presenca', 'recado'],
+        );
 
-        $this->assertTrue($home->fresh()->is_active);
-        $this->assertTrue($event->fresh()->showsSection(PageSection::Home));
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.sections.0.key', 'localizacao')
+            ->where('event.sections.1.key', 'galeria'));
+    }
+
+    public function test_the_home_tab_stands_in_when_no_tab_with_content_is_left(): void
+    {
+        // Only the guestbook on, but the event doesn't have it.
+        $event = Event::factory()->create(['is_published' => true]);
+
+        $this->configure($event, active: [
+            'inicio' => false, 'galeria' => false, 'presentes' => false,
+            'confirmar_presenca' => false, 'localizacao' => false,
+        ]);
+
+        $this->assertSame([PageSection::Home], $event->visibleSections());
+    }
+
+    public function test_the_panel_requires_at_least_one_visible_tab(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        $component = Livewire::test(EditEventSections::class, ['record' => $event->getRouteKey()]);
+
+        $component
+            ->set('data.sections', collect($component->get('data.sections'))
+                ->map(fn (array $section) => [...$section, 'is_active' => false])
+                ->all())
+            ->call('save')
+            ->assertHasFormErrors(['sections']);
+
+        $this->assertTrue($event->fresh()->isSectionEnabled(PageSection::Home));
     }
 
     public function test_a_turned_off_location_tab_is_not_found_even_from_a_shared_link(): void

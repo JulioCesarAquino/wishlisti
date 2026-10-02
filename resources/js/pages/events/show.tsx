@@ -68,7 +68,7 @@ type Place = { section: Section; location: string | null };
 /**
  * Where the page is, from the URL hash ("#galeria", "#localizacao/festa").
  * Without a hash, it's where the link pointed to (a location link opens on
- * the location tab), or the home section.
+ * the location tab), or the first tab of the menu.
  */
 function placeFromUrl(items: { key: Section }[], fallback: Place): Place {
     const [hash, location = null] = window.location.hash
@@ -81,9 +81,7 @@ function placeFromUrl(items: { key: Section }[], fallback: Place): Place {
 
     const match = items.find((item) => item.key === hash);
 
-    return match
-        ? { section: match.key, location }
-        : { section: 'inicio', location: null };
+    return match ? { section: match.key, location } : fallback;
 }
 
 export default function EventShow({
@@ -101,7 +99,7 @@ export default function EventShow({
             initial_section &&
             items.some((item) => item.key === initial_section)
                 ? { section: initial_section, location: initial_location }
-                : { section: 'inicio', location: null },
+                : { section: items[0].key, location: null },
         [items, initial_section, initial_location],
     );
     const [section, setSection] = useState<Section>(linkedPlace.section);

@@ -180,17 +180,20 @@ class Event extends Model
 
     /**
      * The tabs in the page's menu: the ones the host left on that also have
-     * something to show.
+     * something to show. The page opens on the first. Should none be left
+     * (the only tabs on had nothing to show), the home tab stands in.
      *
      * @return array<int, PageSection>
      */
     public function visibleSections(): array
     {
-        return $this->pageSections()
+        $sections = $this->pageSections()
             ->filter(fn (EventSection $section) => $section->is_active && $this->hasContentFor($section->type))
             ->map(fn (EventSection $section) => $section->type)
             ->values()
             ->all();
+
+        return $sections ?: [PageSection::Home];
     }
 
     public function showsSection(PageSection $section): bool
