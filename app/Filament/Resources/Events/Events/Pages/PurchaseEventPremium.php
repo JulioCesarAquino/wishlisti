@@ -170,6 +170,7 @@ class PurchaseEventPremium extends Page
 
         if ($pending = $this->pendingPurchase()) {
             $components[] = Callout::make('Pagamento aguardando confirmação')
+                ->key('pendingPayment')
                 ->description($pending->payment_method === 'pix'
                     ? 'Seu Pix vale por '.MercadoPagoPayments::PIX_EXPIRATION_MINUTES.' minutos. A liberação acontece assim que o Mercado Pago confirmar. Já pagou? Verifique agora. Para não pagar duas vezes, use o mesmo código em vez de gerar outro.'
                     : 'A liberação acontece assim que o Mercado Pago confirmar. Já pagou? Verifique agora.')
@@ -187,6 +188,15 @@ class PurchaseEventPremium extends Page
                         ->label('Pagar de outro jeito')
                         ->color('gray')
                         ->action(fn () => $this->payAnotherWay = true),
+                    Action::make('cancelPayment')
+                        ->label($pending->payment_method === 'pix' ? 'Cancelar o Pix' : 'Cancelar o pagamento')
+                        ->color('danger')
+                        ->link()
+                        ->requiresConfirmation()
+                        ->modalHeading('Cancelar este pagamento?')
+                        ->modalDescription('O código deixa de funcionar e não poderá mais ser pago. Se você já pagou, não cancele: use "Verificar pagamento".')
+                        ->modalSubmitActionLabel('Sim, cancelar')
+                        ->action(fn () => $this->cancelPayment($pending)),
                 ])));
 
             // One payment open at a time: the form only comes back if the
@@ -240,6 +250,41 @@ class PurchaseEventPremium extends Page
         return ['payment_id' => $purchase->payment_id, 'status' => $purchase->status];
     }
 
+    /**
+     * Drops the open payment: Mercado Pago cancels it, so the code can't be
+     * paid later. If it won't, the payment most likely went through.
+     */
+    protected function cancelPayment(PremiumPurchase $purchase): void
+    {
+        $cancelled = app(MercadoPagoPayments::class)->cancel(
+            (string) $purchase->payment_id,
+            MercadoPagoPlatform::requestOptions(),
+            ['premium_purchase_id' => $purchase->id],
+        );
+
+        if ($cancelled) {
+            $purchase->update(['status' => PremiumPurchase::STATUS_CANCELLED]);
+            $this->payAnotherWay = false;
+
+            Notification::make()->success()->title('Pagamento cancelado')->body('O código não pode mais ser pago. Quando quiser, é só pagar de novo.')->send();
+
+            $this->reloadPage();
+
+            return;
+        }
+
+        $this->checkPayment($purchase);
+    }
+
+    /**
+     * The page's content is put together once per request: reloading shows
+     * the purchase as it is now (the notification goes along).
+     */
+    protected function reloadPage(): void
+    {
+        $this->redirect(static::getUrl(['record' => $this->getRecord()]), navigate: true);
+    }
+
     protected function checkPayment(PremiumPurchase $purchase): void
     {
         app(PremiumPurchaseUpdateService::class)->execute((string) $purchase->payment_id);
@@ -250,5 +295,7 @@ class PurchaseEventPremium extends Page
         $purchase->status === PremiumPurchase::STATUS_PAID
             ? Notification::make()->success()->title('Pagamento confirmado — Premium ativado!')->send()
             : Notification::make()->warning()->title('O pagamento ainda não foi confirmado')->body('Tente de novo em alguns minutos.')->send();
+
+        $this->reloadPage();
     }
 }

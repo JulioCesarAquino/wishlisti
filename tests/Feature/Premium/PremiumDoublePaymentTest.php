@@ -7,6 +7,7 @@ use App\Models\Events\Event;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
 use App\Services\Premium\PremiumPurchaseUpdateService;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -194,5 +195,44 @@ class PremiumDoublePaymentTest extends TestCase
         $this->assertStringContainsString('PLATFORM-token', implode(' ', $fake->requests[2]->getHeaders()));
         $this->assertTrue($first->featureGrants()->exists());
         $this->assertFalse($second->featureGrants()->exists());
+    }
+
+    public function test_the_host_can_cancel_the_open_pix(): void
+    {
+        $open = $this->openPixPurchase();
+        $fake = $this->fake($this->payment(1, 'cancelled', $open->id));
+
+        $this->actingAs($this->host);
+
+        Livewire::test(PurchaseEventPremium::class, ['record' => $this->event->getRouteKey()])
+            ->callAction(TestAction::make('cancelPayment')->schemaComponent('pendingPayment', schema: 'content'))
+            ->assertNotified('Pagamento cancelado')
+            ->assertRedirect(PurchaseEventPremium::getUrl(['record' => $this->event]));
+
+        // Reloaded, the page offers the form again.
+        Livewire::test(PurchaseEventPremium::class, ['record' => $this->event->getRouteKey()])
+            ->assertDontSee('Pagamento aguardando confirmação')
+            ->assertSee('premium-payment-brick', false);
+
+        $this->assertSame('PUT', $fake->requests[0]->getMethod());
+        $this->assertStringEndsWith('/v1/payments/1', $fake->requests[0]->getUri());
+        $this->assertSame(PremiumPurchase::STATUS_CANCELLED, $open->fresh()->status);
+    }
+
+    public function test_a_pix_already_paid_is_not_cancelled_but_confirmed(): void
+    {
+        $open = $this->openPixPurchase();
+        $this->fake(
+            new MPResponse(400, ['message' => 'Payment already approved']), // the cancel
+            $this->payment(1, 'approved', $open->id),                      // checking it
+        );
+
+        $this->actingAs($this->host);
+
+        Livewire::test(PurchaseEventPremium::class, ['record' => $this->event->getRouteKey()])
+            ->callAction(TestAction::make('cancelPayment')->schemaComponent('pendingPayment', schema: 'content'))
+            ->assertNotified('Pagamento confirmado — Premium ativado!');
+
+        $this->assertSame(PremiumPurchase::STATUS_PAID, $open->fresh()->status);
     }
 }
