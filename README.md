@@ -134,7 +134,7 @@ Cada evento tem um submenu lateral com uma página por assunto, cada uma com seu
 | Página                  | Conteúdo                                                                                                   |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Detalhes                | anfitrião, tipo, título, slug, data, textos, publicado; arquivar, lixeira e exclusão definitiva (só admin) |
-| Localização             | endereço (obrigatório), coordenadas, "usar minha localização atual"                                        |
+| Localização             | uma ou mais (cerimônia, festa…) com nome, link próprio, endereço, link do mapa, coordenadas                |
 | Página pública          | capa, galeria, intensidade do desfoque da capa, fonte, cores                                               |
 | Presentes               | itens da lista; botão **Exibição na página**; contador do plano gratuito                                   |
 | Convidados              | respostas e acompanhantes; lixeira, restaurar, anonimizar                                                  |

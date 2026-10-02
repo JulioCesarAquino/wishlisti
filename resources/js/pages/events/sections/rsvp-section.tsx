@@ -11,7 +11,6 @@ import {
     toContactForm,
     type ContactForm,
 } from '@/pages/events/sections/contact-fields';
-import { LocationSection } from '@/pages/events/sections/location-section';
 import {
     accentButtonStyle,
     bodyTextStyle,
@@ -122,8 +121,6 @@ export function RsvpSection({ event, guest }: Props) {
                 <Button variant="outline" onClick={() => setEditing(true)}>
                     Alterar resposta
                 </Button>
-
-                <LocationSection event={event} />
             </div>
         );
     }
@@ -262,8 +259,6 @@ export function RsvpSection({ event, guest }: Props) {
                     Enviar confirmação
                 </Button>
             </div>
-
-            <LocationSection event={event} />
         </div>
     );
 }

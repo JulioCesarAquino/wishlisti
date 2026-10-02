@@ -6,6 +6,7 @@ use App\Filament\Resources\Events\Events\Pages\CreateEvent;
 use App\Filament\Resources\Events\Events\Pages\EditEventAppearance;
 use App\Models\Events\Event;
 use App\Models\User;
+use Filament\Forms\Components\Repeater;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -19,12 +20,13 @@ class EventCoverEffectFormTest extends TestCase
         $host = User::factory()->create(['is_admin' => false]);
 
         $this->actingAs($host);
+        Repeater::fake();
 
         Livewire::test(CreateEvent::class)
             ->fillForm([
                 'type' => 'aniversario',
                 'title' => 'Festa da Maria',
-                'address' => 'Rua das Flores, 123',
+                'locations' => [['name' => 'Local do evento', 'address' => 'Rua das Flores, 123']],
             ])
             ->call('create')
             ->assertHasNoFormErrors();

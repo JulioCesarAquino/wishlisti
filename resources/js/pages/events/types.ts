@@ -19,9 +19,8 @@ export type EventData = {
     event_date: string | null;
     description: string | null;
     story: string | null;
-    address: string | null;
-    latitude: number | null;
-    longitude: number | null;
+    url: string;
+    locations: EventLocation[];
     cover_image_url: string | null;
     gallery_urls: string[];
     primary_color: string | null;
@@ -41,6 +40,17 @@ export type EventData = {
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
+};
+
+export type EventLocation = {
+    name: string;
+    slug: string;
+    address: string;
+    maps_url: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    /** Shareable link that opens the page on this location. */
+    url: string;
 };
 
 export type RsvpContactField = 'whatsapp' | 'email' | 'cpf';
@@ -145,23 +155,31 @@ export function grainBackgroundStyle(
 }
 
 /**
- * Google Maps iframe URL with a pin on the event. Uses the classic
+ * Google Maps iframe URL with a pin on the location. Uses the classic
  * `maps?q=…&output=embed` format: a search for the coordinates (or, without
  * them, for the address), which — unlike the `embed?pb=` "share a map"
  * format — drops a marker on the spot. Unofficial like the other one, but
  * needs no API key and no billing account.
  */
-export function googleMapsEmbedUrl(event: EventData): string | null {
-    const query =
-        event.latitude !== null && event.longitude !== null
-            ? `${event.latitude},${event.longitude}`
-            : event.address;
+export function googleMapsEmbedUrl(location: EventLocation): string {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(mapsQuery(location))}&z=16&hl=pt-BR&output=embed`;
+}
 
-    if (!query) {
-        return null;
-    }
+/**
+ * Where "Abrir no mapa" goes: the host's own link (Google Maps, Waze…) or,
+ * without one, a Google Maps search that opens the app on phones.
+ */
+export function openMapUrl(location: EventLocation): string {
+    return (
+        location.maps_url ??
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery(location))}`
+    );
+}
 
-    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&hl=pt-BR&output=embed`;
+function mapsQuery(location: EventLocation): string {
+    return location.latitude !== null && location.longitude !== null
+        ? `${location.latitude},${location.longitude}`
+        : location.address;
 }
 
 export function headingStyle(event: EventData): CSSProperties {

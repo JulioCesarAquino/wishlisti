@@ -11,6 +11,7 @@ use App\Models\Orders\Order;
 use App\Models\User;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,9 +35,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property array<int, string>|null $gallery
  * @property string|null $description
  * @property string|null $story
- * @property string|null $address
- * @property float|null $latitude
- * @property float|null $longitude
  * @property bool $is_published
  * @property Carbon|null $archived_at
  * @property Carbon|null $deleted_at
@@ -45,13 +43,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read EventRsvpSetting $rsvpSettings
  * @property-read EventPaymentSetting $paymentSettings
  * @property-read EventGiftSetting $giftSettings
+ * @property-read Collection<int, EventLocation> $locations
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image',
-    'gallery', 'description', 'story', 'address', 'latitude', 'longitude',
-    'is_published', 'archived_at',
+    'gallery', 'description', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
 {
@@ -66,7 +64,7 @@ class Event extends Model
             ->useLogName('event')
             ->logOnly([
                 'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'gallery',
-                'address', 'latitude', 'longitude', 'is_published', 'archived_at',
+                'is_published', 'archived_at',
             ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
@@ -110,8 +108,6 @@ class Event extends Model
             'gallery' => 'array',
             'is_published' => 'boolean',
             'archived_at' => 'datetime',
-            'latitude' => 'float',
-            'longitude' => 'float',
         ];
     }
 
@@ -121,6 +117,16 @@ class Event extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Where the event happens, in the order the host chose.
+     *
+     * @return HasMany<EventLocation, $this>
+     */
+    public function locations(): HasMany
+    {
+        return $this->hasMany(EventLocation::class)->orderBy('position')->orderBy('id');
     }
 
     /**

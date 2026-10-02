@@ -26,6 +26,7 @@ import { Footer } from '@/pages/events/sections/footer';
 import { GuestbookSection } from '@/pages/events/sections/guestbook-section';
 import { NoGiftsMessage } from '@/pages/events/sections/no-gifts-message';
 import { HomeSection } from '@/pages/events/sections/home-section';
+import { LocationSection } from '@/pages/events/sections/location-section';
 import { GallerySection } from '@/pages/events/sections/gallery-section';
 import { GiftsSection } from '@/pages/events/sections/gifts-section';
 import { MercadoPagoCheckout } from '@/pages/events/sections/mercadopago-checkout';
@@ -51,6 +52,8 @@ type Props = {
     guest: Guest | null;
     messages: GuestMessage[];
     is_preview: boolean;
+    initial_section: Section | null;
+    initial_location: string | null;
 };
 
 type Section =
@@ -58,7 +61,8 @@ type Section =
     | 'galeria'
     | 'presentes'
     | 'confirmar-presenca'
-    | 'recados';
+    | 'recados'
+    | 'localizacao';
 
 /**
  * The gift list only gets its own menu item in the "list" display mode
@@ -76,6 +80,9 @@ function navItems(event: EventData): { key: Section; label: string }[] {
         ...(event.has_guestbook
             ? [{ key: 'recados' as const, label: 'Recados' }]
             : []),
+        ...(event.locations.length > 0
+            ? [{ key: 'localizacao' as const, label: 'Localização' }]
+            : []),
     ];
 }
 
@@ -83,11 +90,27 @@ function cartStorageKey(slug: string): string {
     return `wishlisti_cart_${slug}`;
 }
 
-function sectionFromHash(items: { key: Section }[]): Section {
-    const hash = window.location.hash.replace('#', '');
+type Place = { section: Section; location: string | null };
+
+/**
+ * Where the page is, from the URL hash ("#galeria", "#localizacao/festa").
+ * Without a hash, it's where the link pointed to (a location link opens on
+ * the location tab), or the home section.
+ */
+function placeFromUrl(items: { key: Section }[], fallback: Place): Place {
+    const [hash, location = null] = window.location.hash
+        .replace('#', '')
+        .split('/');
+
+    if (!hash) {
+        return fallback;
+    }
+
     const match = items.find((item) => item.key === hash);
 
-    return match?.key ?? 'inicio';
+    return match
+        ? { section: match.key, location }
+        : { section: 'inicio', location: null };
 }
 
 export default function EventShow({
@@ -96,9 +119,22 @@ export default function EventShow({
     guest,
     messages,
     is_preview,
+    initial_section,
+    initial_location,
 }: Props) {
     const items = useMemo(() => navItems(event), [event]);
-    const [section, setSection] = useState<Section>('inicio');
+    const linkedPlace = useMemo<Place>(
+        () =>
+            initial_section &&
+            items.some((item) => item.key === initial_section)
+                ? { section: initial_section, location: initial_location }
+                : { section: 'inicio', location: null },
+        [items, initial_section, initial_location],
+    );
+    const [section, setSection] = useState<Section>(linkedPlace.section);
+    const [focusedLocation, setFocusedLocation] = useState<string | null>(
+        linkedPlace.location,
+    );
     const [showDiscreetGifts, setShowDiscreetGifts] = useState(false);
     const [freeAmountOpen, setFreeAmountOpen] = useState(false);
     const [freeAmount, setFreeAmount] = useState('');
@@ -108,13 +144,17 @@ export default function EventShow({
     const font = FONT_FAMILIES[event.font_family ?? 'default'];
 
     useEffect(() => {
-        setSection(sectionFromHash(items));
+        const sync = () => {
+            const place = placeFromUrl(items, linkedPlace);
+            setSection(place.section);
+            setFocusedLocation(place.location);
+        };
 
-        const onHashChange = () => setSection(sectionFromHash(items));
-        window.addEventListener('hashchange', onHashChange);
+        sync();
+        window.addEventListener('hashchange', sync);
 
-        return () => window.removeEventListener('hashchange', onHashChange);
-    }, [items]);
+        return () => window.removeEventListener('hashchange', sync);
+    }, [items, linkedPlace]);
 
     useEffect(() => {
         try {
@@ -133,9 +173,10 @@ export default function EventShow({
         }
     }, [event.slug]);
 
-    const navigate = (key: Section) => {
-        window.location.hash = key;
+    const navigate = (key: Section, location: string | null = null) => {
+        window.location.hash = location ? `${key}/${location}` : key;
         setSection(key);
+        setFocusedLocation(location);
     };
 
     const persistCart = (next: Record<number, number>) => {
@@ -398,6 +439,13 @@ export default function EventShow({
                     {section === 'presentes' && giftsSection(false)}
                     {section === 'confirmar-presenca' && (
                         <RsvpSection event={event} guest={guest} />
+                    )}
+                    {section === 'localizacao' && (
+                        <LocationSection
+                            event={event}
+                            focused={focusedLocation}
+                            onFocus={(slug) => navigate('localizacao', slug)}
+                        />
                     )}
                     {section === 'recados' && (
                         <GuestbookSection

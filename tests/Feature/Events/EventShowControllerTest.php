@@ -28,19 +28,71 @@ class EventShowControllerTest extends TestCase
             ->where('products.0.name', 'Liquidificador'));
     }
 
-    public function test_it_exposes_the_events_location(): void
+    public function test_it_exposes_the_events_locations_in_order(): void
     {
-        $event = Event::factory()->create([
-            'is_published' => true,
+        $event = Event::factory()->create(['is_published' => true]);
+        $event->locations()->create(['name' => 'Festa', 'address' => 'Salão Azul', 'position' => 1]);
+        $event->locations()->create([
+            'name' => 'Cerimônia',
             'address' => 'Av. Paulista, 1000, São Paulo - SP',
+            'maps_url' => 'https://maps.app.goo.gl/abc',
             'latitude' => -23.5613,
             'longitude' => -46.6565,
+            'position' => 0,
         ]);
 
         $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
-            ->where('event.address', 'Av. Paulista, 1000, São Paulo - SP')
-            ->where('event.latitude', -23.5613)
-            ->where('event.longitude', -46.6565));
+            ->has('event.locations', 2)
+            ->where('event.locations.0.name', 'Cerimônia')
+            ->where('event.locations.0.slug', 'cerimonia')
+            ->where('event.locations.0.address', 'Av. Paulista, 1000, São Paulo - SP')
+            ->where('event.locations.0.maps_url', 'https://maps.app.goo.gl/abc')
+            ->where('event.locations.0.latitude', -23.5613)
+            ->where('event.locations.0.longitude', -46.6565)
+            ->where('event.locations.0.url', url("/{$event->slug}/localizacao/cerimonia"))
+            ->where('event.locations.1.name', 'Festa')
+            ->where('initial_section', null)
+            ->where('initial_location', null));
+    }
+
+    public function test_a_location_link_opens_the_page_on_that_location(): void
+    {
+        $event = Event::factory()->withLocation(['name' => 'Festa'])->create(['is_published' => true]);
+
+        $this->get("/{$event->slug}/localizacao/festa")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('events/show')
+                ->where('initial_section', 'localizacao')
+                ->where('initial_location', 'festa'));
+
+        $this->get("/{$event->slug}/localizacao")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('initial_section', 'localizacao')
+                ->where('initial_location', null));
+    }
+
+    public function test_a_location_link_only_finds_locations_of_that_event(): void
+    {
+        $event = Event::factory()->withLocation(['name' => 'Festa'])->create(['is_published' => true]);
+        Event::factory()->withLocation(['name' => 'Cerimônia'])->create(['is_published' => true]);
+
+        $this->get("/{$event->slug}/localizacao/cerimonia")->assertNotFound();
+    }
+
+    public function test_the_location_tab_is_not_found_without_locations(): void
+    {
+        $event = Event::factory()->create(['is_published' => true]);
+
+        $this->get("/{$event->slug}/localizacao")->assertNotFound();
+    }
+
+    public function test_location_links_of_unpublished_events_are_not_found(): void
+    {
+        $event = Event::factory()->withLocation(['name' => 'Festa'])->create(['is_published' => false]);
+
+        $this->get("/{$event->slug}/localizacao/festa")->assertNotFound();
     }
 
     public function test_only_premium_events_take_gifts_online(): void
