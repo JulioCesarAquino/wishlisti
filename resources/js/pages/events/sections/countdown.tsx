@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { EventData } from '@/pages/events/types';
-import { accentButtonStyle } from '@/pages/events/types';
+import { accentSurfaceStyle } from '@/pages/events/types';
 
 type TimeLeft = {
     days: number;
@@ -59,7 +59,7 @@ export function Countdown({ event }: { event: EventData }) {
                 <div key={unit.label} className="text-center">
                     <div
                         className="mb-1 min-w-16 rounded-md px-3 py-2 text-2xl font-semibold tabular-nums"
-                        style={accentButtonStyle(event)}
+                        style={accentSurfaceStyle(event)}
                     >
                         {String(unit.value).padStart(2, '0')}
                     </div>

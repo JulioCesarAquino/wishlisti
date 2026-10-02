@@ -8,6 +8,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Slider;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -75,34 +76,59 @@ class EventAppearanceForm
                             ->default('default')
                             ->native(false)
                             ->columnSpanFull(),
-                        ColorPicker::make('primary_color')
-                            ->label('Cor primária')
-                            ->helperText('Tom de fundo geral da página.'),
-                        ColorPicker::make('secondary_color')
-                            ->label('Cor secundária')
-                            ->helperText('Usada nos detalhes decorativos.'),
-                        ColorPicker::make('button_color')
-                            ->label('Cor dos botões')
-                            ->placeholder(EventAppearance::DEFAULT_BUTTON_COLOR)
-                            ->helperText('Botões de presentear, pagar, "Como chegar" e a aba selecionada no menu. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
-                            ->live()
-                            // Keeps the ready-made choice below in step.
-                            ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color_preset', $state)),
-                        ToggleButtons::make('button_color_preset')
-                            ->label('Cores prontas para os botões')
-                            ->options(EventAppearance::BUTTON_COLOR_PRESETS)
-                            ->inline()
-                            ->dehydrated(false)
-                            ->afterStateHydrated(fn (ToggleButtons $component, Get $get) => $component->state($get('button_color')))
-                            ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color', $state))
-                            ->live(),
-                        ColorPicker::make('font_color_primary')
-                            ->label('Cor da fonte principal')
-                            ->helperText('Usada no nome do casal e títulos.'),
-                        ColorPicker::make('font_color_secondary')
-                            ->label('Cor da fonte secundária')
-                            ->helperText('Usada nos textos e menu.'),
+                        Fieldset::make('Cores da página')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('primary_color')
+                                    ->label('Cor primária')
+                                    ->helperText('Tom de fundo geral da página.'),
+                                ColorPicker::make('secondary_color')
+                                    ->label('Cor secundária')
+                                    ->helperText('Usada nos detalhes decorativos, como a contagem regressiva.'),
+                            ]),
+                        Fieldset::make('Cores das fontes')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('font_color_primary')
+                                    ->label('Cor da fonte principal')
+                                    ->helperText('Usada no nome do casal e títulos.'),
+                                ColorPicker::make('font_color_secondary')
+                                    ->label('Cor da fonte secundária')
+                                    ->helperText('Usada nos textos e menu.'),
+                            ]),
+                        Fieldset::make('Cor dos botões')
+                            ->columnSpanFull()
+                            ->components([
+                                ColorPicker::make('button_color')
+                                    ->label('Cor dos botões')
+                                    ->placeholder(EventAppearance::DEFAULT_BUTTON_COLOR)
+                                    ->helperText('Botões de presentear, pagar, "Como chegar" e a aba selecionada no menu. Prefira uma cor viva: o texto fica branco ou escuro sozinho, conforme a cor. Em branco, usamos o verde.')
+                                    ->live()
+                                    // Highlights the ready-made color below when
+                                    // the picked one is among them.
+                                    ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color_preset', self::preset($state))),
+                                ToggleButtons::make('button_color_preset')
+                                    ->label('Cores prontas')
+                                    ->helperText('Um clique preenche a cor dos botões.')
+                                    ->options(EventAppearance::BUTTON_COLOR_PRESETS)
+                                    ->inline()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(fn (ToggleButtons $component, Get $get) => $component->state(self::preset($get('button_color'))))
+                                    ->afterStateUpdated(fn (?string $state, Set $set) => $set('button_color', $state))
+                                    ->live(),
+                            ]),
                     ]),
             ]);
+    }
+
+    /**
+     * The ready-made color matching the given one, if any — anything else
+     * would fail the buttons' validation.
+     */
+    private static function preset(?string $color): ?string
+    {
+        $color = strtolower((string) $color);
+
+        return array_key_exists($color, EventAppearance::BUTTON_COLOR_PRESETS) ? $color : null;
     }
 }

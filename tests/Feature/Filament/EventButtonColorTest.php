@@ -50,4 +50,21 @@ class EventButtonColorTest extends TestCase
 
         $this->assertSame('#2b6cb0', $event->fresh()->appearance->button_color);
     }
+
+    public function test_any_color_from_the_picker_can_be_saved(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->withAppearance(['button_color' => '#123456'])->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        Livewire::test(EditEventAppearance::class, ['record' => $event->getRouteKey()])
+            ->assertFormSet(['appearance.button_color_preset' => null])
+            ->fillForm(['appearance.button_color' => '#7fa190'])
+            ->assertFormSet(['appearance.button_color_preset' => null])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('#7fa190', $event->fresh()->appearance->button_color);
+    }
 }

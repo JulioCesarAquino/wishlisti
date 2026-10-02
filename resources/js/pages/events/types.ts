@@ -214,6 +214,19 @@ export function accentButtonStyle(event: EventData): CSSProperties {
     };
 }
 
+/**
+ * Decorative blocks (the countdown, say): the secondary color, which the
+ * button color doesn't touch.
+ */
+export function accentSurfaceStyle(event: EventData): CSSProperties {
+    const background = event.secondary_color ?? DEFAULT_SECONDARY_COLOR;
+
+    return {
+        backgroundColor: background,
+        color: readableTextOn(background),
+    };
+}
+
 const DARK_TEXT = '#1f1f1f';
 
 /**
