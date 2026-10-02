@@ -73,6 +73,7 @@ class OrderStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...$this->guestContactMessages('guest'),
             'anonymous.declined_if' => 'Presentes entregues pessoalmente não podem ser anônimos. Desmarque "Presentear anonimamente" ou pague online.',
         ];
     }

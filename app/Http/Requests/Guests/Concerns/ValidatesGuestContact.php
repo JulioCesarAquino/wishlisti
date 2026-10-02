@@ -26,4 +26,26 @@ trait ValidatesGuestContact
             "{$prefix}.cpf" => [$presence('cpf'), 'string', new Cpf],
         ];
     }
+
+    /**
+     * Guests aren't filling in a system form: a polite word per field, in
+     * place of the generic "É obrigatória a indicação de um valor…".
+     *
+     * @param  string  $whose  "seu" for the guest, "do acompanhante"…
+     * @return array<string, string>
+     */
+    protected function guestContactMessages(string $prefix, string $whose = 'seu'): array
+    {
+        $own = $whose === 'seu';
+        $field = fn (string $article, string $name) => $own ? "{$article} {$name}" : "{$article} {$name} {$whose}";
+
+        return [
+            "{$prefix}.name.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'nome').'.',
+            "{$prefix}.whatsapp.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'WhatsApp').'.',
+            "{$prefix}.email.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'e-mail').'.',
+            "{$prefix}.email.email" => 'Esse e-mail parece incompleto. Pode conferir?',
+            "{$prefix}.cpf.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'CPF').'.',
+            "{$prefix}.*.max" => 'Esse texto ficou longo demais. Pode encurtar?',
+        ];
+    }
 }

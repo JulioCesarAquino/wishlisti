@@ -252,4 +252,20 @@ class RsvpCompanionsTest extends TestCase
         $this->assertSame(1, $event->guests()->count());
         $this->assertNull(Guest::firstWhere('name', 'Maria')->rsvp_guests_count);
     }
+
+    public function test_missing_details_get_a_polite_message(): void
+    {
+        $event = $this->premiumEvent(['whatsapp', 'cpf']);
+
+        $this->post("/{$event->slug}/rsvp", [
+            'guest' => ['name' => 'Maria', 'whatsapp' => '', 'cpf' => '111.111.111-11'],
+            'attending' => true,
+            'guests_count' => 2,
+            'companions' => [['name' => '', 'whatsapp' => '11988887777', 'cpf' => '529.982.247-25']],
+        ])->assertSessionHasErrors([
+            'guest.whatsapp' => 'Por favor, informe seu WhatsApp.',
+            'guest.cpf' => 'Esse CPF não parece válido. Pode conferir os números?',
+            'companions.0.name' => 'Por favor, informe o nome do acompanhante.',
+        ]);
+    }
 }

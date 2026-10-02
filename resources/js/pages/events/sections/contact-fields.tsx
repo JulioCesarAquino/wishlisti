@@ -75,13 +75,22 @@ export function ContactFields({
                             id={`${idPrefix}_${key}`}
                             type={type}
                             inputMode={key === 'cpf' ? 'numeric' : undefined}
+                            aria-invalid={error ? true : undefined}
+                            aria-describedby={
+                                error ? `${idPrefix}_${key}_error` : undefined
+                            }
                             value={value[key]}
                             onChange={(e) =>
                                 onChange({ ...value, [key]: e.target.value })
                             }
                         />
                         {error && (
-                            <p className="text-sm text-red-600">{error}</p>
+                            <p
+                                id={`${idPrefix}_${key}_error`}
+                                className="text-sm text-red-600"
+                            >
+                                {error}
+                            </p>
                         )}
                     </div>
                 );

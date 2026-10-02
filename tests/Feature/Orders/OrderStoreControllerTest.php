@@ -248,4 +248,19 @@ class OrderStoreControllerTest extends TestCase
             'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
         ])->assertUnprocessable()->assertJsonValidationErrors('guest.name');
     }
+
+    public function test_missing_details_get_a_polite_message(): void
+    {
+        $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
+        $product = EventProduct::factory()->create(['event_id' => $event->id]);
+
+        $this->postJson("/{$event->slug}/orders", [
+            'guest' => ['name' => '', 'whatsapp' => '', 'email' => 'maria@'],
+            'items' => [['event_product_id' => $product->id, 'quantity' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors([
+            'guest.name' => 'Por favor, informe seu nome.',
+            'guest.whatsapp' => 'Por favor, informe seu WhatsApp.',
+            'guest.email' => 'Esse e-mail parece incompleto. Pode conferir?',
+        ]);
+    }
 }

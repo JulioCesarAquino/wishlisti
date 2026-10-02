@@ -497,6 +497,16 @@ export default function EventShow({
                                             min={1}
                                             step="0.01"
                                             inputMode="decimal"
+                                            aria-invalid={
+                                                (
+                                                    form.errors as Record<
+                                                        string,
+                                                        string | undefined
+                                                    >
+                                                ).free_amount
+                                                    ? true
+                                                    : undefined
+                                            }
                                             placeholder="R$ 0,00"
                                             value={freeAmount}
                                             onChange={(e) =>
