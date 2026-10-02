@@ -2,6 +2,7 @@
 
 namespace App\Models\Events;
 
+use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Concerns\HasFeatureGrants;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -44,6 +46,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read EventPaymentSetting $paymentSettings
  * @property-read EventGiftSetting $giftSettings
  * @property-read Collection<int, EventLocation> $locations
+ * @property-read Collection<int, EventSection> $sections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -127,6 +130,94 @@ class Event extends Model
     public function locations(): HasMany
     {
         return $this->hasMany(EventLocation::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * The tabs the host configured (see pageSections()).
+     *
+     * @return HasMany<EventSection, $this>
+     */
+    public function sections(): HasMany
+    {
+        return $this->hasMany(EventSection::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * Every tab of the public page, in the host's order. Tabs without a saved
+     * row (all of them, on events nobody configured) are on, after the saved
+     * ones, in the default order.
+     *
+     * @return SupportCollection<int, EventSection>
+     */
+    public function pageSections(): SupportCollection
+    {
+        $saved = $this->sections->keyBy(fn (EventSection $section) => $section->type->value);
+        $next = (int) $this->sections->max('position') + ($saved->isEmpty() ? 0 : 1);
+
+        return collect(PageSection::cases())
+            ->map(function (PageSection $type) use ($saved, &$next): EventSection {
+                return $saved->get($type->value) ?? new EventSection([
+                    'type' => $type,
+                    'is_active' => true,
+                    'position' => $next++,
+                ]);
+            })
+            ->sortBy('position')
+            ->values();
+    }
+
+    /**
+     * Saves a row for every tab, so the host can configure all of them.
+     */
+    public function ensureSections(): void
+    {
+        $this->pageSections()
+            ->reject(fn (EventSection $section) => $section->exists)
+            ->each(fn (EventSection $section) => $this->sections()->save($section));
+
+        $this->unsetRelation('sections');
+    }
+
+    /**
+     * The tabs in the page's menu: the ones the host left on that also have
+     * something to show.
+     *
+     * @return array<int, PageSection>
+     */
+    public function visibleSections(): array
+    {
+        return $this->pageSections()
+            ->filter(fn (EventSection $section) => $section->is_active && $this->hasContentFor($section->type))
+            ->map(fn (EventSection $section) => $section->type)
+            ->values()
+            ->all();
+    }
+
+    public function showsSection(PageSection $section): bool
+    {
+        return in_array($section, $this->visibleSections(), true);
+    }
+
+    /**
+     * Whether the host left the tab on — regardless of it having anything
+     * to show.
+     */
+    public function isSectionEnabled(PageSection $section): bool
+    {
+        $row = $this->pageSections()->first(fn (EventSection $row) => $row->type === $section);
+
+        return $row === null || $row->is_active;
+    }
+
+    protected function hasContentFor(PageSection $section): bool
+    {
+        return match ($section) {
+            // In the other display modes, gifts live in the home tab.
+            PageSection::Gifts => $this->giftDisplayMode() === EventGiftSetting::DISPLAY_LIST,
+            PageSection::Guestbook => $this->hasFeature(Feature::Guestbook),
+            PageSection::Location => $this->locations->isNotEmpty(),
+            default => true,
+        };
     }
 
     /**

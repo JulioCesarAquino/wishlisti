@@ -20,6 +20,8 @@ export type EventData = {
     description: string | null;
     story: string | null;
     url: string;
+    /** Tabs of the menu, in the host's order (only those turned on). */
+    sections: { key: PageSectionKey; label: string }[];
     locations: EventLocation[];
     cover_image_url: string | null;
     gallery_urls: string[];
@@ -41,6 +43,14 @@ export type EventData = {
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
 };
+
+export type PageSectionKey =
+    | 'inicio'
+    | 'galeria'
+    | 'presentes'
+    | 'confirmar-presenca'
+    | 'recados'
+    | 'localizacao';
 
 export type EventLocation = {
     name: string;

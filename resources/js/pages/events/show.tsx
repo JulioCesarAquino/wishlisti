@@ -43,6 +43,7 @@ import {
     type EventData,
     type Guest,
     type GuestMessage,
+    type PageSectionKey,
     type Product,
 } from '@/pages/events/types';
 
@@ -56,35 +57,7 @@ type Props = {
     initial_location: string | null;
 };
 
-type Section =
-    | 'inicio'
-    | 'galeria'
-    | 'presentes'
-    | 'confirmar-presenca'
-    | 'recados'
-    | 'localizacao';
-
-/**
- * The gift list only gets its own menu item in the "list" display mode
- * (discreet tucks it into the home section, "none" hides it), and the
- * guestbook only exists on premium events.
- */
-function navItems(event: EventData): { key: Section; label: string }[] {
-    return [
-        { key: 'inicio', label: 'Início' },
-        { key: 'galeria', label: 'Galeria' },
-        ...(event.gift_display_mode === 'list'
-            ? [{ key: 'presentes' as const, label: 'Presentes' }]
-            : []),
-        { key: 'confirmar-presenca', label: 'Confirmar presença' },
-        ...(event.has_guestbook
-            ? [{ key: 'recados' as const, label: 'Recados' }]
-            : []),
-        ...(event.locations.length > 0
-            ? [{ key: 'localizacao' as const, label: 'Localização' }]
-            : []),
-    ];
-}
+type Section = PageSectionKey;
 
 function cartStorageKey(slug: string): string {
     return `wishlisti_cart_${slug}`;
@@ -122,7 +95,7 @@ export default function EventShow({
     initial_section,
     initial_location,
 }: Props) {
-    const items = useMemo(() => navItems(event), [event]);
+    const items = event.sections;
     const linkedPlace = useMemo<Place>(
         () =>
             initial_section &&

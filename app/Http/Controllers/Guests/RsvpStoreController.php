@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Guests;
 
+use App\Enums\Events\PageSection;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guests\RsvpStoreRequest;
 use App\Models\Events\Event;
@@ -20,6 +21,8 @@ class RsvpStoreController extends Controller
         CookieJar $cookies,
     ): RedirectResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
+        // The host may have turned the tab off with the page open.
+        abort_unless($event->isSectionEnabled(PageSection::Rsvp), 404);
 
         $guestIdentifier = Guest::identifierFrom($request, $event);
 

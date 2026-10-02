@@ -24,7 +24,7 @@ class EventSubNavigationTest extends TestCase
      */
     private function pages(): array
     {
-        return ['edit', 'location', 'appearance', 'products', 'guests', 'rsvp', 'payment', 'premium'];
+        return ['edit', 'location', 'appearance', 'sections', 'products', 'guests', 'rsvp', 'payment', 'premium'];
     }
 
     public function test_the_payments_page_is_locked_without_the_premium_feature(): void

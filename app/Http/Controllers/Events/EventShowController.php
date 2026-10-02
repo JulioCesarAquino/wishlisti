@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Events;
 
+use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Events\Event;
@@ -25,11 +26,12 @@ class EventShowController extends Controller
     {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations']);
+        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections']);
 
         $onLocationTab = $request->routeIs('events.locations', 'events.location');
 
-        abort_if($onLocationTab && $event->locations->isEmpty(), 404);
+        // Also when the host turned the tab off after sharing the link.
+        abort_if($onLocationTab && ! $event->showsSection(PageSection::Location), 404);
 
         $guest = null;
         $identifier = Guest::identifierFrom($request, $event);
@@ -54,6 +56,10 @@ class EventShowController extends Controller
                 'gallery_urls' => $event->galleryUrls(),
                 'story' => $event->story,
                 'url' => route('events.show', ['event' => $event->slug]),
+                'sections' => array_map(fn (PageSection $section) => [
+                    'key' => $section->key(),
+                    'label' => $section->label(),
+                ], $event->visibleSections()),
                 'locations' => $event->locations->map(fn (EventLocation $eventLocation) => [
                     'name' => $eventLocation->name,
                     'slug' => $eventLocation->slug,

@@ -57,7 +57,9 @@ export function Footer({ event }: { event: EventData }) {
             </p>
 
             <div className="mb-4 flex justify-center gap-3">
-                {event.locations.length > 0 && (
+                {event.sections.some(
+                    (section) => section.key === 'localizacao',
+                ) && (
                     <a
                         href="#localizacao"
                         className="flex size-9 items-center justify-center rounded-full border border-black/10 transition hover:bg-black/5"

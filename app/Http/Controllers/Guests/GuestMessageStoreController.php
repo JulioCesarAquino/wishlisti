@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Guests;
 
+use App\Enums\Events\PageSection;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guests\GuestMessageStoreRequest;
 use App\Models\Events\Event;
@@ -15,6 +16,8 @@ class GuestMessageStoreController extends Controller
     public function __invoke(GuestMessageStoreRequest $request, Event $event, GuestMessageStoreService $service): RedirectResponse
     {
         abort_unless($event->isViewableBy($request->user()), 404);
+        // The host may have turned the tab off with the page open.
+        abort_unless($event->isSectionEnabled(PageSection::Guestbook), 404);
 
         $guestIdentifier = Guest::identifierFrom($request, $event);
 
