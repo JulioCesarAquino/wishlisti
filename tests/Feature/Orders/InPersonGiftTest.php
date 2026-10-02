@@ -150,9 +150,20 @@ class InPersonGiftTest extends TestCase
             ->assertSessionHasErrors('order');
     }
 
-    public function test_an_anonymous_reservation_hides_the_guest_from_the_host(): void
+    public function test_a_gift_handed_over_in_person_cannot_be_anonymous(): void
     {
-        $this->reserve(['anonymous' => true, 'message' => 'Surpresa!']);
+        $this->reserve(['anonymous' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('anonymous');
+
+        $this->assertSame(0, Order::count());
+        $this->assertFalse($this->product->fresh()->isSoldOut());
+    }
+
+    public function test_anonymous_reservations_from_before_the_rule_still_hide_the_guest_from_the_host(): void
+    {
+        $this->reserve(['message' => 'Surpresa!'])->assertOk();
+        Order::first()->update(['is_anonymous' => true]);
 
         $this->actingAs($this->host);
 

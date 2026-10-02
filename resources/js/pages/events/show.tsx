@@ -643,9 +643,9 @@ export default function EventShow({
                                             reservados para você.
                                         </p>
                                         <p className="text-sm">
-                                            {orderResult.is_anonymous
-                                                ? 'Como você preferiu não se identificar, a entrega fica por sua conta: leve no dia do evento ou combine com os anfitriões.'
-                                                : 'Combine a entrega com os anfitriões. Se mudar de ideia, você pode desistir na lista de presentes.'}
+                                            Combine a entrega com os anfitriões.
+                                            Se mudar de ideia, você pode
+                                            desistir na lista de presentes.
                                         </p>
                                     </div>
                                 ) : orderResult ? (
@@ -656,36 +656,47 @@ export default function EventShow({
                                     />
                                 ) : (
                                     <div className="space-y-3">
-                                        <label
-                                            className="flex cursor-pointer items-start gap-2 text-sm"
-                                            style={bodyTextStyle(event)}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                className="mt-0.5 size-4 accent-current"
-                                                checked={form.data.anonymous}
-                                                onChange={(e) =>
-                                                    form.setData(
-                                                        'anonymous',
-                                                        e.target.checked,
-                                                    )
-                                                }
-                                            />
-                                            <span>
-                                                Presentear anonimamente
-                                                <span className="block text-xs opacity-80">
-                                                    Os anfitriões veem o
-                                                    presente e a sua mensagem,
-                                                    mas não quem enviou. Seus
-                                                    dados ficam opcionais e, se
-                                                    preenchidos, só a equipe do
-                                                    Wishlisti tem acesso. Se
-                                                    quiser se identificar para
-                                                    os anfitriões, assine a
-                                                    mensagem.
+                                        {/* Anonymity only for gifts paid online: whoever hands one
+                                            over in person is seen doing it. */}
+                                        {event.accepts_online_gifts && (
+                                            <label
+                                                className="flex cursor-pointer items-start gap-2 text-sm"
+                                                style={bodyTextStyle(event)}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="mt-0.5 size-4 accent-current"
+                                                    checked={
+                                                        form.data.anonymous
+                                                    }
+                                                    onChange={(e) =>
+                                                        form.setData(
+                                                            'anonymous',
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                />
+                                                <span>
+                                                    Presentear anonimamente
+                                                    <span className="block text-xs opacity-80">
+                                                        Os anfitriões veem o
+                                                        presente e a sua
+                                                        mensagem, mas não quem
+                                                        enviou. Seus dados ficam
+                                                        opcionais e, se
+                                                        preenchidos, só a equipe
+                                                        do Wishlisti tem acesso.
+                                                        Se quiser se identificar
+                                                        para os anfitriões,
+                                                        assine a mensagem. Só
+                                                        vale para o pagamento
+                                                        online: quem entrega
+                                                        pessoalmente é visto
+                                                        pelos anfitriões.
+                                                    </span>
                                                 </span>
-                                            </span>
-                                        </label>
+                                            </label>
+                                        )}
 
                                         <ContactFields
                                             idPrefix="guest"
@@ -740,6 +751,11 @@ export default function EventShow({
 
                             {!orderResult && (
                                 <SheetFooter className="gap-2">
+                                    {form.errors.anonymous && (
+                                        <p className="text-sm text-red-600">
+                                            {form.errors.anonymous}
+                                        </p>
+                                    )}
                                     {form.errors.items && (
                                         <p className="text-sm text-red-600">
                                             {form.errors.items}
@@ -758,7 +774,8 @@ export default function EventShow({
                                         </Button>
                                     )}
                                     {event.accepts_in_person_gifts &&
-                                        !freeAmountOpen && (
+                                        !freeAmountOpen &&
+                                        !form.data.anonymous && (
                                             <Button
                                                 onClick={() =>
                                                     submitOrder('in_person')
