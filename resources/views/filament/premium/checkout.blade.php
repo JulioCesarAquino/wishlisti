@@ -67,13 +67,18 @@
                             }
 
                             errorBox.style.display = 'none';
-                            await showStatus(result.payment_id);
 
                             // Approved: reload so the menu, the cards and the
-                            // header show the unlocked features (the status
-                            // screen stays up for a moment first).
+                            // header show the unlocked features.
                             if (result.status === 'paid') {
                                 setTimeout(() => window.location.reload(), 4000);
+                            }
+
+                            // A Pix or boleto left open: the page has already
+                            // swapped this form for the open payment (with its
+                            // QR code), so there's nothing left to show here.
+                            if (document.getElementById('premium-status-brick')) {
+                                await showStatus(result.payment_id);
                             }
                         }),
                 },

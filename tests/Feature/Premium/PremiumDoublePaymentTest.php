@@ -111,10 +111,12 @@ class PremiumDoublePaymentTest extends TestCase
 
         Livewire::test(PurchaseEventPremium::class, ['record' => $this->event->getRouteKey()])
             ->assertSee('Pagamento aguardando confirmação')
+            ->assertSee('premium-open-payment-1', false)
             ->assertSee('Ver o código Pix')
             ->assertSee('Pagar de outro jeito')
             ->assertDontSee('premium-payment-brick', false)
             ->set('payAnotherWay', true)
+            ->assertDontSee('premium-open-payment-1', false)
             ->assertSee('o pagamento em aberto é cancelado')
             ->assertSee('premium-payment-brick', false);
     }
