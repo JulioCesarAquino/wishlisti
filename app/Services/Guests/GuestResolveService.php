@@ -18,7 +18,11 @@ class GuestResolveService
      * contact detail they gave (see findByContact()) instead of fragmenting
      * their gift and RSVP history across duplicate guest rows.
      *
-     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
+     * Without a name (an anonymous gift from someone who didn't fill it in),
+     * a new guest is saved as Guest::ANONYMOUS_GIVER_NAME — an existing one
+     * keeps theirs.
+     *
+     * @param  array{name?: ?string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
      */
     public function execute(Event $event, array $guestData, ?string $guestIdentifier): Guest
     {
@@ -36,7 +40,10 @@ class GuestResolveService
             return $guest;
         }
 
-        return $event->guests()->create($guestData);
+        return $event->guests()->create([
+            ...$guestData,
+            'name' => filled($guestData['name'] ?? null) ? $guestData['name'] : Guest::ANONYMOUS_GIVER_NAME,
+        ]);
     }
 
     /**

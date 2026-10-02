@@ -15,12 +15,12 @@ trait ValidatesGuestContact
      * @param  array<int, string>  $requiredFields
      * @return array<string, mixed>
      */
-    protected function guestContactRules(string $prefix, array $requiredFields): array
+    protected function guestContactRules(string $prefix, array $requiredFields, bool $nameRequired = true): array
     {
         $presence = fn (string $field) => in_array($field, $requiredFields, true) ? 'required' : 'nullable';
 
         return [
-            "{$prefix}.name" => ['required', 'string', 'max:255'],
+            "{$prefix}.name" => [$nameRequired ? 'required' : 'nullable', 'string', 'max:255'],
             "{$prefix}.whatsapp" => [$presence('whatsapp'), 'string', 'max:30'],
             "{$prefix}.email" => [$presence('email'), 'email', 'max:255'],
             "{$prefix}.cpf" => [$presence('cpf'), 'string', new Cpf],

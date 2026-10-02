@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Orders\Tables;
 
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
 use App\Services\Orders\OrderCancelService;
@@ -42,8 +43,8 @@ class OrdersTable
                 TextColumn::make('guest.name')
                     ->label('Convidado')
                     ->formatStateUsing(fn (Order $record, ?string $state) => match (true) {
-                        $record->hidesGiverFrom(auth()->user()) && $record->isInPerson() => 'Anônimo — entrega pelo convidado',
-                        $record->hidesGiverFrom(auth()->user()) => 'Anônimo',
+                        $record->hidesGiverFrom(auth()->user()) && $record->isInPerson() => 'Presente anônimo — entrega pelo convidado',
+                        $record->hidesGiverFrom(auth()->user()), $state === Guest::ANONYMOUS_GIVER_NAME => Guest::ANONYMOUS_GIVER_NAME,
                         $record->is_anonymous => "{$state} (anônimo)",
                         default => $state,
                     })

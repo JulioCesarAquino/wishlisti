@@ -20,7 +20,7 @@ class OrderStoreService
      * (only then is the stock taken). In-person gifts are reservations:
      * the stock is taken right away, so no one else picks the same item.
      *
-     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
+     * @param  array{name?: ?string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
      * @param  array<int, array{event_product_id: int, quantity: int}>  $items
      */
     public function execute(
@@ -106,7 +106,7 @@ class OrderStoreService
      * A contribution of any amount, without picking an item: always paid
      * online, and there's no stock to take.
      *
-     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
+     * @param  array{name?: ?string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
      */
     private function storeFreeAmount(
         Event $event,

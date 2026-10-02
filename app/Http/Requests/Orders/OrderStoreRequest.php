@@ -25,8 +25,12 @@ class OrderStoreRequest extends FormRequest
         /** @var Event $event */
         $event = $this->route('event');
 
+        // An anonymous giver may still say who they are — only the admin
+        // gets to see it — but nothing is mandatory.
+        $anonymous = $this->boolean('anonymous');
+
         return [
-            ...$this->guestContactRules('guest', $event->rsvpRequiredFields()),
+            ...$this->guestContactRules('guest', $anonymous ? [] : $event->rsvpRequiredFields(), nameRequired: ! $anonymous),
             'fulfillment' => ['sometimes', Rule::in([Order::FULFILLMENT_ONLINE, Order::FULFILLMENT_IN_PERSON])],
             'message' => ['nullable', 'string', 'max:1000'],
             'anonymous' => ['sometimes', 'boolean'],

@@ -157,7 +157,7 @@ class InPersonGiftTest extends TestCase
         $this->actingAs($this->host);
 
         Livewire::test(ListOrders::class)
-            ->assertSee('Anônimo — entrega pelo convidado')
+            ->assertSee('Presente anônimo — entrega pelo convidado')
             ->assertSee('Surpresa!')
             ->assertDontSee('Maria');
     }

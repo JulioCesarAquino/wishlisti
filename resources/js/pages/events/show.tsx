@@ -626,6 +626,37 @@ export default function EventShow({
                                     />
                                 ) : (
                                     <div className="space-y-3">
+                                        <label
+                                            className="flex cursor-pointer items-start gap-2 text-sm"
+                                            style={bodyTextStyle(event)}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="mt-0.5 size-4 accent-current"
+                                                checked={form.data.anonymous}
+                                                onChange={(e) =>
+                                                    form.setData(
+                                                        'anonymous',
+                                                        e.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            <span>
+                                                Presentear anonimamente
+                                                <span className="block text-xs opacity-80">
+                                                    Os anfitriões veem o
+                                                    presente e a sua mensagem,
+                                                    mas não quem enviou. Seus
+                                                    dados ficam opcionais e, se
+                                                    preenchidos, só a equipe do
+                                                    Wishlisti tem acesso. Se
+                                                    quiser se identificar para
+                                                    os anfitriões, assine a
+                                                    mensagem.
+                                                </span>
+                                            </span>
+                                        </label>
+
                                         <ContactFields
                                             idPrefix="guest"
                                             errorPrefix="guest"
@@ -634,9 +665,15 @@ export default function EventShow({
                                                 event.rsvp_required_fields,
                                             )}
                                             requiredFields={
-                                                event.rsvp_required_fields
+                                                form.data.anonymous
+                                                    ? []
+                                                    : event.rsvp_required_fields
                                             }
-                                            nameLabel="Seu nome"
+                                            nameLabel={
+                                                form.data.anonymous
+                                                    ? 'Seu nome (opcional)'
+                                                    : 'Seu nome'
+                                            }
                                             errors={
                                                 form.errors as Record<
                                                     string,
@@ -667,33 +704,6 @@ export default function EventShow({
                                                 placeholder="Deixe uma mensagem para os anfitriões"
                                             />
                                         </div>
-
-                                        <label
-                                            className="flex cursor-pointer items-start gap-2 text-sm"
-                                            style={bodyTextStyle(event)}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                className="mt-0.5 size-4 accent-current"
-                                                checked={form.data.anonymous}
-                                                onChange={(e) =>
-                                                    form.setData(
-                                                        'anonymous',
-                                                        e.target.checked,
-                                                    )
-                                                }
-                                            />
-                                            <span>
-                                                Presentear anonimamente
-                                                <span className="block text-xs opacity-80">
-                                                    Os anfitriões veem o
-                                                    presente e a sua mensagem,
-                                                    mas não o seu nome. Se
-                                                    quiser se identificar,
-                                                    assine a mensagem.
-                                                </span>
-                                            </span>
-                                        </label>
                                     </div>
                                 )}
                             </div>
