@@ -3,6 +3,7 @@
 namespace App\Services\Orders;
 
 use App\Models\Orders\Order;
+use App\Support\MercadoPagoPayments;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use MercadoPago\Client\Common\RequestOptions;
@@ -14,6 +15,7 @@ class OrderPaymentCreateService
     public function __construct(
         protected PaymentClient $paymentClient,
         protected OrderPaymentUpdateService $updateService,
+        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -36,15 +38,16 @@ class OrderPaymentCreateService
             ]);
         }
 
-        $requestOptions = new RequestOptions;
-        $requestOptions->setAccessToken($event->paymentSettings->mp_access_token);
+        $requestOptions = $this->updateService->requestOptions($event);
 
-        $request = [
+        $this->closePreviousAttempt($order, $requestOptions);
+
+        $request = MercadoPagoPayments::withPixExpiration([
             ...$formData,
             'transaction_amount' => (float) $order->total_amount,
             'description' => "Presente - {$event->title}",
             'external_reference' => (string) $order->id,
-        ];
+        ]);
 
         // Mercado Pago rejects the whole payment if notification_url isn't a
         // publicly reachable address (e.g. localhost in local dev), so we
@@ -98,5 +101,31 @@ class OrderPaymentCreateService
             'has_token' => array_key_exists('token', $request),
             'has_payer' => array_key_exists('payer', $request),
         ];
+    }
+
+    /**
+     * A second try on the same order (a Pix left unpaid, now by card, say):
+     * the first payment is cancelled, so its code can't be paid as well.
+     * If Mercado Pago won't cancel it, it was most likely paid meanwhile.
+     */
+    private function closePreviousAttempt(Order $order, RequestOptions $requestOptions): void
+    {
+        if (blank($order->payment_id)) {
+            return;
+        }
+
+        if ($this->payments->cancel($order->payment_id, $requestOptions, ['order_id' => $order->id])) {
+            $order->update(['payment_id' => null]);
+
+            return;
+        }
+
+        $this->updateService->execute($order->event, $order->payment_id);
+
+        throw ValidationException::withMessages([
+            'formData' => $order->refresh()->status === Order::STATUS_PAID
+                ? 'Este presente já foi pago. Obrigado!'
+                : 'Ainda há um pagamento em andamento para este presente. Tente de novo em alguns minutos.',
+        ]);
     }
 }

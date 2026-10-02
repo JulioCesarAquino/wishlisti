@@ -198,6 +198,10 @@ Regras comuns:
 
 - **Valor:** vem sempre do servidor (total do pedido ou `PREMIUM_PRICE`), nunca do navegador.
 - **Status:** o webhook só informa o id do pagamento, e o status é **reconsultado** na API do Mercado Pago. Aplicar o mesmo pagamento duas vezes não tem efeito extra.
+- **Pagamento em dobro:** evitado em três camadas (`app/Support/MercadoPagoPayments.php`):
+    - o Pix vale 15 minutos;
+    - um pagamento por vez: pagar de novo o mesmo pedido, pedir de novo o mesmo presente no mesmo navegador ou comprar o Premium com um pagamento em aberto **cancela** o anterior no Mercado Pago. Se ele não puder ser cancelado por já ter sido pago, o novo é recusado;
+    - só o pagamento do próprio pedido muda o status dele (um Pix abandonado que expira não cancela um pedido pago no cartão), e um segundo pagamento aprovado para algo já pago é **estornado** automaticamente. Se o estorno falhar, fica um erro no log pedindo estorno manual.
 - **`notification_url`:** só é enviada quando o endereço é público. Em `localhost`, o Mercado Pago recusaria o pagamento inteiro.
 - **Premium:**
     - pagamento abaixo do preço não libera nada;

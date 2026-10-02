@@ -9,6 +9,7 @@ use App\Models\Events\Event;
 use App\Models\Premium\PremiumPurchase;
 use App\Services\Premium\PremiumPurchaseStoreService;
 use App\Services\Premium\PremiumPurchaseUpdateService;
+use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -39,6 +40,12 @@ class PurchaseEventPremium extends Page
     protected static ?string $navigationLabel = 'Premium';
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
+
+    /**
+     * The host chose to drop the open payment and pay some other way (the
+     * open one is cancelled when the new one is made).
+     */
+    public bool $payAnotherWay = false;
 
     public function mount(int|string $record): void
     {
@@ -80,12 +87,20 @@ class PurchaseEventPremium extends Page
         return app(PremiumPurchaseUpdateService::class)->hasEverything($this->event());
     }
 
+    /**
+     * A payment still open — not a Pix past its expiration, which can no
+     * longer be paid (Mercado Pago cancels it soon after).
+     */
     protected function pendingPurchase(): ?PremiumPurchase
     {
         return PremiumPurchase::query()
             ->where('event_id', $this->event()->id)
             ->where('status', PremiumPurchase::STATUS_PENDING)
             ->whereNotNull('payment_id')
+            ->where(fn ($query) => $query
+                ->where('payment_method', '!=', 'pix')
+                ->orWhereNull('payment_method')
+                ->orWhere('created_at', '>', now()->subMinutes(MercadoPagoPayments::PIX_EXPIRATION_MINUTES)))
             ->latest('id')
             ->first();
     }
@@ -155,14 +170,35 @@ class PurchaseEventPremium extends Page
 
         if ($pending = $this->pendingPurchase()) {
             $components[] = Callout::make('Pagamento aguardando confirmação')
-                ->description('Se você pagou com Pix ou boleto, a liberação acontece assim que o Mercado Pago confirmar. Já pagou? Verifique agora.')
+                ->description($pending->payment_method === 'pix'
+                    ? 'Seu Pix vale por '.MercadoPagoPayments::PIX_EXPIRATION_MINUTES.' minutos. A liberação acontece assim que o Mercado Pago confirmar. Já pagou? Verifique agora. Para não pagar duas vezes, use o mesmo código em vez de gerar outro.'
+                    : 'A liberação acontece assim que o Mercado Pago confirmar. Já pagou? Verifique agora.')
                 ->icon(Heroicon::OutlinedClock)
                 ->info()
-                ->actions([
+                ->actions(array_values(array_filter([
                     Action::make('checkPayment')
                         ->label('Verificar pagamento')
                         ->action(fn () => $this->checkPayment($pending)),
-                ]);
+                    $pending->payment_url ? Action::make('openPayment')
+                        ->label($pending->payment_method === 'pix' ? 'Ver o código Pix' : 'Ver o boleto')
+                        ->color('gray')
+                        ->url($pending->payment_url, shouldOpenInNewTab: true) : null,
+                    $this->payAnotherWay ? null : Action::make('payAnotherWay')
+                        ->label('Pagar de outro jeito')
+                        ->color('gray')
+                        ->action(fn () => $this->payAnotherWay = true),
+                ])));
+
+            // One payment open at a time: the form only comes back if the
+            // host asks for it (and then the open one is cancelled).
+            if (! $this->payAnotherWay) {
+                return $components;
+            }
+
+            $components[] = Callout::make('Ao pagar de outro jeito, o pagamento em aberto é cancelado')
+                ->description('Assim ele não pode mais ser pago, e você não paga duas vezes.')
+                ->icon(Heroicon::OutlinedInformationCircle)
+                ->warning();
         }
 
         $components[] = Section::make('Pagamento')

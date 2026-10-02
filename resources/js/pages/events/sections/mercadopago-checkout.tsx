@@ -72,8 +72,17 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
                                     )
                                         .then(async (response) => {
                                             if (!response.ok) {
+                                                // The server's own reason when
+                                                // it gives one ("Este presente
+                                                // já foi pago", say).
+                                                const body = await response
+                                                    .json()
+                                                    .catch(() => null);
+
                                                 throw new Error(
-                                                    'Não foi possível processar o pagamento.',
+                                                    body?.errors
+                                                        ?.formData?.[0] ??
+                                                        'Não foi possível processar o pagamento.',
                                                 );
                                             }
 
