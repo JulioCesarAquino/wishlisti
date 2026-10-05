@@ -36,7 +36,7 @@ class PremiumLock
 
     public static function purchaseUrl(?Event $event = null): string
     {
-        $event ??= Event::query()->where('user_id', auth()->id())->latest('id')->first();
+        $event ??= Event::query()->managedBy(auth()->id())->latest('id')->first();
 
         return $event
             ? PurchaseEventPremium::getUrl(['record' => $event])

@@ -30,7 +30,7 @@ class OrderResource extends Resource
         $query = parent::getEloquentQuery();
 
         if (! auth()->user()?->isAdmin()) {
-            $query->whereHas('event', fn (Builder $eventQuery) => $eventQuery->where('user_id', auth()->id()));
+            $query->whereHas('event', fn (Builder $eventQuery) => $eventQuery->scopes(['managedBy' => [auth()->id()]]));
         }
 
         return $query;

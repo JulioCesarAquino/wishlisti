@@ -12,10 +12,12 @@ use App\Models\Orders\Order;
 use App\Models\User;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -48,6 +50,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read EventGiftSetting $giftSettings
  * @property-read Collection<int, EventLocation> $locations
  * @property-read Collection<int, EventSection> $sections
+ * @property-read Collection<int, User> $coHosts
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -129,6 +132,16 @@ class Event extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Users who manage the event alongside its owner.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function coHosts(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'event_user')->withTimestamps();
     }
 
     /**
@@ -346,7 +359,40 @@ class Event extends Model
             return true;
         }
 
-        return $user && ($user->isAdmin() || $user->id === $this->user_id);
+        return $this->isManagedBy($user);
+    }
+
+    /**
+     * Who runs the event: the admin, its owner and its co-hosts. Co-hosts
+     * can do everything but add or remove co-hosts and trash the event.
+     */
+    public function isManagedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->isAdmin() || $this->isOwnedBy($user) || $this->coHosts()->whereKey($user->getKey())->exists();
+    }
+
+    public function isOwnedBy(?User $user): bool
+    {
+        return $user !== null && $user->id === $this->user_id;
+    }
+
+    /**
+     * Events the user runs, as owner or co-host (not every event for the
+     * admin: callers keep their own admin check).
+     *
+     * @param  Builder<Event>  $query
+     */
+    public function scopeManagedBy(Builder $query, User|int|string|null $user): void
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+
+        $query->where(fn (Builder $query) => $query
+            ->where('user_id', $userId)
+            ->orWhereHas('coHosts', fn (Builder $coHosts) => $coHosts->whereKey($userId)));
     }
 
     /**
@@ -433,6 +479,6 @@ class Event extends Model
             return false;
         }
 
-        return ! ($user && ($user->isAdmin() || $user->id === $this->user_id));
+        return ! $this->isManagedBy($user);
     }
 }

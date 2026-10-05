@@ -16,7 +16,7 @@ class GuestsOverviewWidget extends StatsOverviewWidget
         $guestsQuery = Guest::query()
             ->when(! $isAdmin, fn ($query) => $query->whereHas(
                 'event',
-                fn ($eventQuery) => $eventQuery->where('user_id', auth()->id()),
+                fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),
             ));
 
         // Companions listed by another guest are already inside that guest's
