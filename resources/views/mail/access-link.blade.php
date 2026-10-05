@@ -1,6 +1,7 @@
 {{--
-    The e-mail with a new host's link to set their password. Plain tables and
-    inline styles: what Gmail, Outlook and phones all render the same.
+    The e-mails with a link to set a password: a new host's invite, and a
+    forgotten password. Plain tables and inline styles: what Gmail, Outlook
+    and phones all render the same.
 --}}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -53,7 +54,7 @@
                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                             <tr>
                                                 <td style="border-radius:10px; background-color:#1c1917;">
-                                                    <a href="{{ $link }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:16px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:10px;">Criar minha senha &rarr;</a>
+                                                    <a href="{{ $link }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:16px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:10px;">{{ $buttonLabel }} &rarr;</a>
                                                 </td>
                                             </tr>
                                         </table>
@@ -61,7 +62,7 @@
                                 </tr>
                                 <tr>
                                     <td style="font-size:13px; line-height:20px; color:#a8a29e; padding-bottom:28px;">
-                                        O link vale por {{ $validity }}. Se ele expirar, é só responder este e-mail que enviamos outro.
+                                        {{ $note }}
                                     </td>
                                 </tr>
                                 <tr>
@@ -77,7 +78,7 @@
                     {{-- Footer --}}
                     <tr>
                         <td align="center" style="padding:24px 16px 0; font-size:12px; line-height:18px; color:#a8a29e;">
-                            Você recebeu este e-mail porque pediu acesso em
+                            {{ $reason }}
                             <a href="{{ $homeUrl }}" style="color:#78716c; text-decoration:underline;">{{ $homeHost }}</a>.<br>
                             Wishlisti &middot; listas de presentes e páginas para o seu evento
                         </td>

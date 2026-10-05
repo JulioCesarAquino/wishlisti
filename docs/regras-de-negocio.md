@@ -50,6 +50,8 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-02. A aprovação envia por e-mail um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O link vale por 3 dias (`AUTH_PASSWORD_RESET_EXPIRE`, em minutos). O painel também mostra o link para copiar: se o e-mail não sair, a aprovação acontece mesmo assim, o erro vai para o log e o admin envia o link à mão (por WhatsApp, por exemplo). Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado, que manda outro e-mail e invalida o link anterior. — `InviteRequestsTable`, `InviteLinkSendService`
 
+**RN-02a. "Esqueceu a senha?" no login do painel envia por e-mail um link para criar uma nova senha**, no mesmo visual do e-mail de convite e com a mesma validade. O e-mail sai na hora, sem fila (não há processo de fila em produção). E-mail não cadastrado não recebe nada. — `PasswordResetNotification`
+
 **RN-03. Estados do pedido de convite:** `pendente` → `aprovado` ou `rejeitado`. Só um pedido pendente pode ser aprovado ou rejeitado, e só um aprovado ganha um novo link.
 
 **RN-04. Todo usuário entra pelo painel em `/admin`.** A página pública não tem login.
