@@ -18,7 +18,7 @@ class OrdersOverviewWidget extends StatsOverviewWidget
         $ordersQuery = Order::query()
             ->when(! $isAdmin, fn ($query) => $query->whereHas(
                 'event',
-                fn ($eventQuery) => $eventQuery->where('user_id', auth()->id()),
+                fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),
             ));
 
         $raisedTotal = (float) (clone $ordersQuery)->where('status', Order::STATUS_PAID)->sum('total_amount');
@@ -31,7 +31,7 @@ class OrdersOverviewWidget extends StatsOverviewWidget
                 ->where('status', Order::STATUS_PAID)
                 ->when(! $isAdmin, fn ($orderQuery) => $orderQuery->whereHas(
                     'event',
-                    fn ($eventQuery) => $eventQuery->where('user_id', auth()->id()),
+                    fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),
                 )))
             ->sum('quantity');
 

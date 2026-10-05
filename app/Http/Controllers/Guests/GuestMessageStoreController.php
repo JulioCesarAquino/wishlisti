@@ -24,6 +24,7 @@ class GuestMessageStoreController extends Controller
         $service->execute(
             event: $event,
             authorName: $request->validated('author_name'),
+            anonymous: $request->boolean('anonymous'),
             message: $request->validated('message'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
         );

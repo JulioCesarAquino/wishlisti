@@ -14,8 +14,9 @@ class GuestImportService
      * RSVP lands on this same guest (it's matched by contact details), so
      * the host can see who on their list hasn't answered yet.
      *
-     * Contacts from another host's address book are ignored, as are people
-     * already on the event's guest list.
+     * Contacts from the address book of someone who doesn't run the event
+     * (its owner or a co-host) are ignored, as are people already on the
+     * event's guest list.
      *
      * @param  iterable<Contact>  $contacts
      * @return int How many guests were added
@@ -26,7 +27,7 @@ class GuestImportService
         $created = 0;
 
         foreach ($contacts as $contact) {
-            if ($contact->user_id !== $event->user_id) {
+            if ($contact->user_id !== $event->user_id && ! $event->coHosts->contains('id', $contact->user_id)) {
                 continue;
             }
 

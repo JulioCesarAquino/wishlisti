@@ -33,6 +33,8 @@ export type EventData = {
     font_color_secondary: string | null;
     font_family: FontFamily | null;
     cover_effect_intensity: number;
+    /** The "Como chegar" button(s) on the home tab. */
+    show_location_shortcut: boolean;
     is_published: boolean;
     visits_count: number;
     accepts_online_gifts: boolean;
@@ -178,14 +180,35 @@ export function googleMapsEmbedUrl(location: EventLocation): string {
 }
 
 /**
- * Where "Abrir no mapa" goes: the host's own link (Google Maps, Waze…) or,
- * without one, a Google Maps search that opens the app on phones.
+ * "Google Maps": the host's own link when it is one (any map link other
+ * than Waze's), or else a search that opens the app on phones.
  */
-export function openMapUrl(location: EventLocation): string {
-    return (
-        location.maps_url ??
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery(location))}`
-    );
+export function googleMapsUrl(location: EventLocation): string {
+    return location.maps_url && !isWazeLink(location.maps_url)
+        ? location.maps_url
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery(location))}`;
+}
+
+/**
+ * "Waze": the host's own Waze link, or else Waze's universal link, which
+ * opens the app (or the website) already navigating to the spot.
+ */
+export function wazeUrl(location: EventLocation): string {
+    if (location.maps_url && isWazeLink(location.maps_url)) {
+        return location.maps_url;
+    }
+
+    return location.latitude !== null && location.longitude !== null
+        ? `https://waze.com/ul?ll=${location.latitude},${location.longitude}&navigate=yes`
+        : `https://waze.com/ul?q=${encodeURIComponent(location.address)}&navigate=yes`;
+}
+
+function isWazeLink(url: string): boolean {
+    try {
+        return /(^|\.)waze\.com$/i.test(new URL(url).hostname);
+    } catch {
+        return false;
+    }
 }
 
 function mapsQuery(location: EventLocation): string {

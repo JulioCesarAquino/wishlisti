@@ -4,21 +4,23 @@ namespace App\Services\Contacts;
 
 use App\Models\Contacts\Contact;
 use App\Models\Events\Event;
+use App\Models\User;
 use App\Support\ContactMatcher;
 
 class ContactImportService
 {
     /**
-     * Copies the event's guests into its host's address book. Someone the
+     * Copies the event's guests into the address book of $host (a co-host
+     * importing into their own), or else of its owner. Someone the
      * host already has (same CPF, WhatsApp or e-mail) isn't duplicated —
      * the contact only gets the details it was missing, since the host may
      * have curated it by hand.
      *
      * @return int How many new contacts were created
      */
-    public function execute(Event $event): int
+    public function execute(Event $event, ?User $host = null): int
     {
-        $host = $event->user;
+        $host ??= $event->user;
         $contacts = $host->contacts()->get();
         $created = 0;
 

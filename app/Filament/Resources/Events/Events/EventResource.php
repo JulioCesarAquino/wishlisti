@@ -11,6 +11,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
 use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Filament\Resources\Events\Events\Pages\EditEventSections;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
+use App\Filament\Resources\Events\Events\Pages\ManageEventCoHosts;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventMessages;
 use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
@@ -49,7 +50,7 @@ class EventResource extends Resource
         $query = parent::getEloquentQuery();
 
         if (! auth()->user()?->isAdmin()) {
-            $query->where('user_id', auth()->id());
+            $query->scopes(['managedBy' => [auth()->id()]]);
         }
 
         return $query;
@@ -83,6 +84,7 @@ class EventResource extends Resource
     {
         return $page->generateNavigationItems([
             EditEvent::class,
+            ManageEventCoHosts::class,
             EditEventLocation::class,
             EditEventAppearance::class,
             EditEventSections::class,
@@ -102,6 +104,7 @@ class EventResource extends Resource
             'index' => ListEvents::route('/'),
             'create' => CreateEvent::route('/create'),
             'edit' => EditEvent::route('/{record}/edit'),
+            'co-hosts' => ManageEventCoHosts::route('/{record}/co-hosts'),
             'location' => EditEventLocation::route('/{record}/location'),
             'appearance' => EditEventAppearance::route('/{record}/appearance'),
             'sections' => EditEventSections::route('/{record}/sections'),

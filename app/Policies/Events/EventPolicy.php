@@ -14,7 +14,7 @@ class EventPolicy
 
     public function view(User $user, Event $event): bool
     {
-        return $user->isAdmin() || $user->id === $event->user_id;
+        return $event->isManagedBy($user);
     }
 
     public function create(User $user): bool
@@ -24,12 +24,23 @@ class EventPolicy
 
     public function update(User $user, Event $event): bool
     {
-        return $user->isAdmin() || $user->id === $event->user_id;
+        return $event->isManagedBy($user);
     }
 
+    /**
+     * Trashing (and restoring) is the owner's call, not a co-host's.
+     */
     public function delete(User $user, Event $event): bool
     {
-        return $user->isAdmin() || $user->id === $event->user_id;
+        return $user->isAdmin() || $event->isOwnedBy($user);
+    }
+
+    /**
+     * Adding and removing co-hosts, too.
+     */
+    public function manageCoHosts(User $user, Event $event): bool
+    {
+        return $user->isAdmin() || $event->isOwnedBy($user);
     }
 
     public function deleteAny(User $user): bool
@@ -39,7 +50,7 @@ class EventPolicy
 
     public function restore(User $user, Event $event): bool
     {
-        return $user->isAdmin() || $user->id === $event->user_id;
+        return $user->isAdmin() || $event->isOwnedBy($user);
     }
 
     public function restoreAny(User $user): bool

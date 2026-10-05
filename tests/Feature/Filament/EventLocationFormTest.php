@@ -148,4 +148,24 @@ class EventLocationFormTest extends TestCase
         $this->assertSame('festa', $first->slug);
         $this->assertSame('festa-2', $second->slug);
     }
+
+    public function test_the_host_can_hide_the_location_button_on_the_home_tab(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->withLocation()->create(['user_id' => $host->id, 'is_published' => true]);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page->where('event.show_location_shortcut', true));
+
+        $this->actingAs($host);
+
+        Livewire::test(EditEventLocation::class, ['record' => $event->getRouteKey()])
+            ->assertFormSet(['appearance.show_location_shortcut' => true])
+            ->fillForm(['appearance.show_location_shortcut' => false])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        auth()->logout();
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page->where('event.show_location_shortcut', false));
+    }
 }

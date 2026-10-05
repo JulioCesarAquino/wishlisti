@@ -134,6 +134,7 @@ Cada evento tem um submenu lateral com uma página por assunto, cada uma com seu
 | Página                  | Conteúdo                                                                                                   |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Detalhes                | anfitrião, tipo, título, slug, data, textos, publicado; arquivar, lixeira e exclusão definitiva (só admin) |
+| Anfitriões              | co-anfitriões (contas já existentes): editam tudo, menos esta lista e a lixeira; só o dono adiciona/remove  |
 | Localização             | uma ou mais (cerimônia, festa…) com nome, link próprio, endereço, link do mapa, coordenadas                |
 | Página pública          | capa, galeria, imagem do link compartilhado, desfoque da capa, fonte, cores e cor dos botões               |
 | Abas da página          | liga/desliga e ordena as abas do menu público (Início não desliga)                                         |

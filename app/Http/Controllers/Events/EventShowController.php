@@ -84,6 +84,7 @@ class EventShowController extends Controller
                 'font_color_secondary' => $event->appearance->font_color_secondary,
                 'font_family' => $event->appearance->font_family,
                 'cover_effect_intensity' => $event->appearance->cover_effect_intensity,
+                'show_location_shortcut' => $event->appearance->show_location_shortcut,
                 'is_published' => $event->is_published,
                 'visits_count' => $event->visits_count,
                 'accepts_online_gifts' => $event->acceptsOnlineGifts(),
@@ -103,7 +104,9 @@ class EventShowController extends Controller
             'messages' => $event->hasFeature(Feature::Guestbook)
                 ? $event->messages()->approved()->latest('approved_at')->get()->map(fn (GuestMessage $message) => [
                     'id' => $message->id,
-                    'author_name' => $message->author_name,
+                    // Never the real name of an anonymous author: it'd
+                    // reach every visitor's browser.
+                    'author_name' => $message->authorNameFor(null),
                     'message' => $message->message,
                 ])
                 : [],

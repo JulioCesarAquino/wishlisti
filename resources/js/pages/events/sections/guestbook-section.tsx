@@ -26,7 +26,11 @@ type Props = {
 export function GuestbookSection({ event, messages, defaultName }: Props) {
     const [sent, setSent] = useState(false);
 
-    const form = useForm({ author_name: defaultName, message: '' });
+    const form = useForm({
+        author_name: defaultName,
+        message: '',
+        anonymous: false,
+    });
 
     const submit = () => {
         form.post(`/${event.slug}/messages`, {
@@ -51,10 +55,38 @@ export function GuestbookSection({ event, messages, defaultName }: Props) {
             </p>
 
             <div className="mb-8 space-y-3 rounded-lg border border-black/10 bg-white/50 p-4">
+                <label
+                    className="flex cursor-pointer items-start gap-2 text-sm"
+                    style={bodyTextStyle(event)}
+                >
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 size-4 accent-current"
+                        checked={form.data.anonymous}
+                        onChange={(e) =>
+                            form.setData('anonymous', e.target.checked)
+                        }
+                    />
+                    <span>
+                        Enviar anonimamente
+                        <span className="block text-xs opacity-80">
+                            O recado aparece no mural assinado como
+                            &quot;Anônimo&quot;. O nome fica opcional e, se
+                            preenchido, só a equipe do Wishlisti vê.
+                        </span>
+                    </span>
+                </label>
                 <div className="grid gap-1.5">
-                    <Label htmlFor="guestbook_name">Seu nome</Label>
+                    <Label htmlFor="guestbook_name">
+                        {form.data.anonymous
+                            ? 'Seu nome (opcional)'
+                            : 'Seu nome'}
+                    </Label>
                     <Input
                         id="guestbook_name"
+                        aria-invalid={
+                            form.errors.author_name ? true : undefined
+                        }
                         value={form.data.author_name}
                         onChange={(e) =>
                             form.setData('author_name', e.target.value)
@@ -70,6 +102,7 @@ export function GuestbookSection({ event, messages, defaultName }: Props) {
                     <Label htmlFor="guestbook_message">Recado</Label>
                     <Textarea
                         id="guestbook_message"
+                        aria-invalid={form.errors.message ? true : undefined}
                         rows={3}
                         value={form.data.message}
                         onChange={(e) =>

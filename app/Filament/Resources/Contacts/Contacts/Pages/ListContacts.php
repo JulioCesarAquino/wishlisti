@@ -44,17 +44,18 @@ class ListContacts extends ListRecords
                     Select::make('event_id')
                         ->label('Evento')
                         ->options(fn () => Event::query()
-                            ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
+                            ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->managedBy(auth()->id()))
                             ->pluck('title', 'id'))
                         ->required(),
                 ])
                 ->action(function (array $data, ContactImportService $service): void {
                     $event = Event::query()
-                        ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
+                        ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->managedBy(auth()->id()))
                         ->whereKey($data['event_id'])
                         ->firstOrFail();
 
-                    $created = $service->execute($event);
+                    // Into the user's own book (the admin fills the owner's).
+                    $created = $service->execute($event, auth()->user()?->isAdmin() ? null : auth()->user());
 
                     Notification::make()
                         ->success()

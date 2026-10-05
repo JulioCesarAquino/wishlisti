@@ -21,12 +21,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $font_color_secondary
  * @property string|null $font_family
  * @property int $cover_effect_intensity
+ * @property bool $show_location_shortcut
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[Fillable([
     'primary_color', 'secondary_color', 'button_color', 'font_color_primary', 'font_color_secondary',
-    'font_family', 'cover_effect_intensity',
+    'font_family', 'cover_effect_intensity', 'show_location_shortcut',
 ])]
 class EventAppearance extends Model
 {
@@ -53,6 +54,7 @@ class EventAppearance extends Model
      */
     protected $attributes = [
         'cover_effect_intensity' => 100,
+        'show_location_shortcut' => true,
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -69,6 +71,7 @@ class EventAppearance extends Model
     {
         return [
             'cover_effect_intensity' => 'integer',
+            'show_location_shortcut' => 'boolean',
         ];
     }
 

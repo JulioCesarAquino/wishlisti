@@ -39,7 +39,7 @@ class PaymentMethodsChartWidget extends ChartWidget
             ->where('status', Order::STATUS_PAID)
             ->when(! $isAdmin, fn ($query) => $query->whereHas(
                 'event',
-                fn ($eventQuery) => $eventQuery->where('user_id', auth()->id()),
+                fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),
             ))
             ->get('payment_type')
             ->groupBy(fn (Order $order) => self::TYPE_LABELS[$order->payment_type] ?? 'Outro')

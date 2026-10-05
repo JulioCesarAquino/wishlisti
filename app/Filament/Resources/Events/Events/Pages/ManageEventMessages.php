@@ -20,6 +20,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -73,14 +74,20 @@ class ManageEventMessages extends ManageRelatedRecords
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('author_name')
+            ->recordTitle(fn (GuestMessage $record): string => $record->authorNameFor(auth()->user()))
             ->modelLabel('recado')
             ->pluralModelLabel('recados')
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('author_name')
                     ->label('De')
-                    ->searchable(),
+                    ->formatStateUsing(fn (GuestMessage $record): string => $record->authorNameFor(auth()->user()))
+                    ->placeholder(GuestMessage::ANONYMOUS_NAME)
+                    // Searching by name must not find anonymous authors
+                    // (it'd give them away), except for the admin.
+                    ->searchable(query: fn (Builder $query, string $search) => $query
+                        ->where('author_name', 'like', "%{$search}%")
+                        ->when(! auth()->user()?->isAdmin(), fn (Builder $query) => $query->where('is_anonymous', false))),
                 TextColumn::make('message')
                     ->label('Recado')
                     ->wrap()

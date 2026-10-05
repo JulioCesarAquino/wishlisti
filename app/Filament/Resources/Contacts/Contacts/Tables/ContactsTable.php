@@ -58,13 +58,13 @@ class ContactsTable
                                 ->label('Evento')
                                 ->helperText('Eles entram na lista de convidados como "Sem resposta" e são reconhecidos quando confirmarem presença.')
                                 ->options(fn () => Event::query()
-                                    ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
+                                    ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->managedBy(auth()->id()))
                                     ->pluck('title', 'id'))
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data, GuestImportService $service): void {
                             $event = Event::query()
-                                ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
+                                ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->managedBy(auth()->id()))
                                 ->whereKey($data['event_id'])
                                 ->firstOrFail();
 
