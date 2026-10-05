@@ -105,7 +105,7 @@ class InviteRequestFlowTest extends TestCase
     {
         Notification::fake();
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]));
+        $this->actingAs(User::factory()->create(['is_admin' => true, 'email' => 'admin@example.com']));
         $inviteRequest = InviteRequest::factory()->create(['name' => 'Maria', 'email' => 'maria@example.com']);
 
         Livewire::test(ListInviteRequests::class)
@@ -117,11 +117,16 @@ class InviteRequestFlowTest extends TestCase
         Notification::assertSentTo($host, HostInviteLinkNotification::class, function (HostInviteLinkNotification $notification) use ($host): bool {
             $mail = $notification->toMail($host);
 
+            $html = (string) $mail->render();
+
             return $notification->firstTime
                 && str_contains($notification->link, '/admin/password-reset/reset')
                 && $mail->subject === 'Seu acesso ao Wishlisti foi aprovado'
-                && $mail->actionUrl === $notification->link
-                && in_array('O link vale por 3 dias. Se ele expirar, responda este e-mail ou fale com a gente que enviamos outro.', $mail->outroLines, true);
+                && str_contains($html, 'Olá, Maria!')
+                && str_contains($html, 'href="'.e($notification->link).'"')
+                && str_contains($html, 'O link vale por 3 dias.')
+                // From a no-reply address: replies reach the admin.
+                && $mail->replyTo[0][0] === 'admin@example.com';
         });
     }
 
