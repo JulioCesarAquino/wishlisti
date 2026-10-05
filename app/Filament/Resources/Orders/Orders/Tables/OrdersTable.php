@@ -22,13 +22,14 @@ class OrdersTable
     /**
      * @var array<string, string>
      */
-    private const STATUS_LABELS = [
+    public const STATUS_LABELS = [
         Order::STATUS_PENDING => 'Pendente',
         Order::STATUS_PAID => 'Pago',
         Order::STATUS_RESERVED => 'Reservado',
         Order::STATUS_RECEIVED => 'Recebido',
         Order::STATUS_FAILED => 'Falhou',
         Order::STATUS_CANCELLED => 'Cancelado',
+        Order::STATUS_EXPIRED => 'Não concluído',
     ];
 
     public static function configure(Table $table): Table

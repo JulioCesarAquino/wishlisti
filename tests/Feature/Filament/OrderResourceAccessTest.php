@@ -85,7 +85,7 @@ class OrderResourceAccessTest extends TestCase
 
         $this->actingAs($host);
 
-        Livewire::test(ListOrders::class)->assertSee('Maria Segredo');
+        Livewire::test(ListOrders::class)->set('activeTab', 'todos')->assertSee('Maria Segredo');
     }
 
     public function test_anonymous_gifts_hide_who_and_when_but_keep_the_message(): void

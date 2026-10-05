@@ -173,7 +173,7 @@ class FinancialRecordsProtectionTest extends TestCase
 
         $this->actingAs(User::factory()->create(['is_admin' => true]));
 
-        Livewire::test(ListOrders::class)->assertSee('Convidado na Lixeira');
+        Livewire::test(ListOrders::class)->set('activeTab', 'todos')->assertSee('Convidado na Lixeira');
     }
 
     public function test_a_gift_already_in_orders_cannot_be_deleted(): void
