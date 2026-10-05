@@ -8,6 +8,7 @@ use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
@@ -74,6 +75,10 @@ class EventLocationForm
                 ->maxLength(100)
                 ->default('Local do evento')
                 ->placeholder('Cerimônia, Festa…'),
+            TimePicker::make('start_time')
+                ->label('Horário (opcional)')
+                ->seconds(false)
+                ->helperText('Quando começa esta parte do evento. Aparece com a localização e, com mais de uma, na programação da tela inicial.'),
             TextInput::make('slug')
                 ->label('Endereço do link')
                 ->maxLength(120)

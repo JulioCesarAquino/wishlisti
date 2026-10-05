@@ -17,6 +17,10 @@ export type EventData = {
     type: string;
     title: string;
     event_date: string | null;
+    /** Start time, already formatted ("16h", "18h30"); null without a date. */
+    event_time: string | null;
+    /** When the event starts (ISO, with offset): what the countdown counts to. */
+    starts_at: string | null;
     description: string | null;
     story: string | null;
     url: string;
@@ -58,6 +62,8 @@ export type PageSectionKey =
 
 export type EventLocation = {
     name: string;
+    /** When this part starts, already formatted ("16h"), if the host set it. */
+    start_time: string | null;
     slug: string;
     address: string;
     maps_url: string | null;
@@ -107,6 +113,20 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
     aniversario: 'Aniversário',
     outro: 'Evento',
 };
+
+/** "30 de outubro de 2026 · 16h": the date, with the time when there is one. */
+export function formatEventDate(event: EventData): string | null {
+    if (!event.event_date) {
+        return null;
+    }
+
+    const date = new Date(`${event.event_date}T00:00:00`).toLocaleDateString(
+        'pt-BR',
+        { day: '2-digit', month: 'long', year: 'numeric' },
+    );
+
+    return event.event_time ? `${date} · ${event.event_time}` : date;
+}
 
 export function formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', {

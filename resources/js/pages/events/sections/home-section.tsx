@@ -8,6 +8,7 @@ import {
     accentButtonStyle,
     bodyTextStyle,
     EVENT_TYPE_LABELS,
+    formatEventDate,
     headingStyle,
     type EventData,
 } from '@/pages/events/types';
@@ -41,15 +42,11 @@ export function HomeSection({ event, onOpenLocation }: Props) {
                 </Badge>
                 {event.event_date && (
                     <p className="mb-2 text-sm" style={bodyTextStyle(event)}>
-                        {new Date(
-                            `${event.event_date}T00:00:00`,
-                        ).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                        })}
+                        {formatEventDate(event)}
                     </p>
                 )}
+
+                <Schedule event={event} />
 
                 <Countdown event={event} />
 
@@ -86,6 +83,30 @@ export function HomeSection({ event, onOpenLocation }: Props) {
                 )}
             </div>
         </div>
+    );
+}
+
+/**
+ * "Cerimônia 16h · Festa 18h30": the program, when more than one location
+ * has a time — a single one is already the time next to the date.
+ */
+function Schedule({ event }: { event: EventData }) {
+    const timed = event.locations.filter((location) => location.start_time);
+
+    if (timed.length < 2) {
+        return null;
+    }
+
+    return (
+        <p className="mb-2 text-sm" style={bodyTextStyle(event)}>
+            {timed.map((location, index) => (
+                <span key={location.slug}>
+                    {index > 0 && ' · '}
+                    {location.name}{' '}
+                    <span className="font-semibold">{location.start_time}</span>
+                </span>
+            ))}
+        </p>
     );
 }
 

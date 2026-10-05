@@ -59,6 +59,10 @@ class EventShowController extends Controller
                 'type' => $event->type,
                 'title' => $event->title,
                 'event_date' => $event->event_date?->toDateString(),
+                // "16h", next to the date; only with a date to go with it.
+                'event_time' => $event->event_date ? Event::formatTime($event->event_time) : null,
+                // With the offset, so the countdown is right wherever the guest is.
+                'starts_at' => $event->startsAt()?->toIso8601String(),
                 'description' => $event->description,
                 'cover_image_url' => $event->coverImageUrl(),
                 'gallery_urls' => $event->galleryUrls(),
@@ -70,6 +74,7 @@ class EventShowController extends Controller
                 ], $event->visibleSections()),
                 'locations' => $event->locations->map(fn (EventLocation $eventLocation) => [
                     'name' => $eventLocation->name,
+                    'start_time' => Event::formatTime($eventLocation->start_time),
                     'slug' => $eventLocation->slug,
                     'address' => $eventLocation->address,
                     'maps_url' => $eventLocation->maps_url,
@@ -170,12 +175,12 @@ class EventShowController extends Controller
         if ($event->event_date) {
             $day = Carbon::parse($event->event_date);
             $day->setLocale('pt_BR');
-            $date = $day->isoFormat('D [de] MMMM [de] YYYY');
+            $date = implode(' · ', array_filter([$day->isoFormat('D [de] MMMM [de] YYYY'), Event::formatTime($event->event_time)]));
         }
         $type = $event->type === 'outro' ? null : (Event::TYPE_LABELS[$event->type] ?? null);
 
         $description = $location
-            ? $location->address
+            ? implode(' · ', array_filter([Event::formatTime($location->start_time), $location->address]))
             : (filled($event->description) ? $event->description : implode(' · ', array_filter([$type, $date])));
 
         return [

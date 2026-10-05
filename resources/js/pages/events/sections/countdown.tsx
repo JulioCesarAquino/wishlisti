@@ -28,11 +28,11 @@ export function Countdown({ event }: { event: EventData }) {
     const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
     useEffect(() => {
-        if (!event.event_date) {
+        if (!event.starts_at) {
             return;
         }
 
-        const target = new Date(`${event.event_date}T00:00:00`);
+        const target = new Date(event.starts_at);
         setTimeLeft(calculateTimeLeft(target));
 
         const interval = setInterval(() => {
@@ -40,7 +40,7 @@ export function Countdown({ event }: { event: EventData }) {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [event.event_date]);
+    }, [event.starts_at]);
 
     if (!timeLeft) {
         return null;

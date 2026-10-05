@@ -35,6 +35,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $type
  * @property string $title
  * @property Carbon|null $event_date
+ * @property string|null $event_time HH:MM:SS, Brasília time
  * @property string|null $cover_image
  * @property string|null $share_image
  * @property array<int, string>|null $gallery
@@ -55,7 +56,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'user_id', 'slug', 'type', 'title', 'event_date', 'cover_image', 'share_image',
+    'user_id', 'slug', 'type', 'title', 'event_date', 'event_time', 'cover_image', 'share_image',
     'gallery', 'description', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
@@ -73,12 +74,29 @@ class Event extends Model
         'outro' => 'Outro',
     ];
 
+    /** Dates and times of events are typed, and shown, in Brasília time. */
+    public const TIMEZONE = 'America/Sao_Paulo';
+
+    /**
+     * "16h", "18h30" — how a time ("16:00:00", "18:30") reads in Portuguese.
+     */
+    public static function formatTime(?string $time): ?string
+    {
+        if (blank($time)) {
+            return null;
+        }
+
+        [$hours, $minutes] = array_map('intval', explode(':', $time));
+
+        return $minutes === 0 ? "{$hours}h" : sprintf('%dh%02d', $hours, $minutes);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('event')
             ->logOnly([
-                'title', 'type', 'event_date', 'description', 'story', 'cover_image', 'share_image', 'gallery',
+                'title', 'type', 'event_date', 'event_time', 'description', 'story', 'cover_image', 'share_image', 'gallery',
                 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()
@@ -114,6 +132,19 @@ class Event extends Model
         }
 
         return $slug;
+    }
+
+    /**
+     * When the event starts, in Brasília time: what the countdown counts down
+     * to. Midnight of the day while the host hasn't set a time.
+     */
+    public function startsAt(): ?Carbon
+    {
+        if (! $this->event_date) {
+            return null;
+        }
+
+        return Carbon::parse($this->event_date->toDateString().' '.($this->event_time ?? '00:00:00'), self::TIMEZONE);
     }
 
     protected function casts(): array

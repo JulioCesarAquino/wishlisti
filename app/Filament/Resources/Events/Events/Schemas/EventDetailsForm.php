@@ -7,6 +7,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
@@ -61,6 +62,10 @@ class EventDetailsForm
                 ->required(),
             DatePicker::make('event_date')
                 ->label('Data do evento'),
+            TimePicker::make('event_time')
+                ->label('Horário de início')
+                ->seconds(false)
+                ->helperText('Aparece junto à data, e a contagem regressiva conta até ele. Cerimônia e festa em horários diferentes? Informe o horário de cada uma em Localização.'),
         ];
     }
 }
