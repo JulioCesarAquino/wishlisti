@@ -124,6 +124,13 @@ jobs:
           export WISHLISTI_TAG=${{ github.sha }}
           dcp() { docker compose -f docker-compose.micro-app.yml "$@"; }
           dcp pull -q
+          # Only this commit's tag was pulled; point the local "latest" at it
+          # too, so a docker compose run by hand (no WISHLISTI_TAG) stays on
+          # this version instead of whatever "latest" was pulled long ago.
+          for image in app nginx; do
+            docker tag "ghcr.io/juliocesaraquino/wishlisti-$image:$WISHLISTI_TAG" \
+              "ghcr.io/juliocesaraquino/wishlisti-$image:latest"
+          done
           dcp up -d --remove-orphans
           dcp exec -T app php artisan migrate --force
           dcp restart nginx
