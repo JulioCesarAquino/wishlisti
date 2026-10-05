@@ -48,7 +48,7 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-01. Ninguém se cadastra sozinho.** O visitante pede um convite na página inicial (nome, e-mail e WhatsApp). A conta só existe quando o admin **aprova** o pedido. — `InviteRequestStoreService`, `InviteRequestApproveService`
 
-**RN-02. A aprovação gera um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O admin copia o link e envia ao anfitrião, porque o sistema não manda e-mail. Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado. — `InviteRequestsTable`
+**RN-02. A aprovação envia por e-mail um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O link vale por 3 dias (`AUTH_PASSWORD_RESET_EXPIRE`, em minutos). O painel também mostra o link para copiar: se o e-mail não sair, a aprovação acontece mesmo assim, o erro vai para o log e o admin envia o link à mão (por WhatsApp, por exemplo). Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado, que manda outro e-mail e invalida o link anterior. — `InviteRequestsTable`, `InviteLinkSendService`
 
 **RN-03. Estados do pedido de convite:** `pendente` → `aprovado` ou `rejeitado`. Só um pedido pendente pode ser aprovado ou rejeitado, e só um aprovado ganha um novo link.
 

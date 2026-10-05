@@ -94,11 +94,11 @@ Depois de mudar o `.env`: `docker compose exec app php artisan config:clear`.
 
 ## Perfis de acesso
 
-| Perfil        | Como chega                                                                                                              | O que faz                                                                                                               |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Admin**     | criado à mão (veja acima)                                                                                               | vê e edita tudo; aprova convites; libera recursos premium; exclui eventos de vez; vê a auditoria e as vendas do Premium |
-| **Anfitrião** | solicita convite na página inicial, o admin aprova em _Solicitações de convite_ e envia o link para ele definir a senha | cria e gerencia os próprios eventos; só vê os próprios dados                                                            |
-| **Convidado** | abre a página pública do evento (`/{slug}`), sem conta                                                                  | confirma presença, presenteia, deixa recados; é reconhecido por um cookie do navegador e pelos dados de contato         |
+| Perfil        | Como chega                                                                                                                          | O que faz                                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Admin**     | criado à mão (veja acima)                                                                                                           | vê e edita tudo; aprova convites; libera recursos premium; exclui eventos de vez; vê a auditoria e as vendas do Premium |
+| **Anfitrião** | solicita convite na página inicial, o admin aprova em _Solicitações de convite_ e ele recebe por e-mail o link para definir a senha | cria e gerencia os próprios eventos; só vê os próprios dados                                                            |
+| **Convidado** | abre a página pública do evento (`/{slug}`), sem conta                                                                              | confirma presença, presenteia, deixa recados; é reconhecido por um cookie do navegador e pelos dados de contato         |
 
 ---
 
