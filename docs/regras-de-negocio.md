@@ -250,7 +250,16 @@ As regras valem também no servidor: os campos travados são sempre gravados a p
 
 ## 9. Premium
 
-**RN-70. O plano é por evento:** pagamento único de `PREMIUM_PRICE` (R$ 39,90), sem mensalidade e sem expiração.
+**RN-70. O plano é por evento e por data:** pagamento único (R$ 39,90 por padrão), sem mensalidade. Ele é comprado para a data do evento e termina depois dela, para que uma compra não sirva, edição após edição, para outra festa:
+
+- só dá para comprar com a **data do evento preenchida e ainda não passada**; a compra guarda essa data;
+- os recursos **do evento** valem até o fim do dia da **data do evento + a carência** (60 dias por padrão), no horário de Brasília. Os recursos **do anfitrião** (agenda de contatos) não terminam;
+- enquanto o Premium vale, o anfitrião só muda a data **dentro da janela** (90 dias por padrão, para mais ou para menos) em torno da data da compra, e não pode apagá-la. O fim do Premium acompanha a mudança. Além da janela, só o admin muda;
+- mudar a data **nunca traz de volta** um Premium que já terminou. A mudança feita pelo **admin** (um adiamento combinado) passa a ser a data da compra e pode trazê-lo de volta;
+- depois do fim, a página continua no ar sem os recursos Premium. Os recados já aprovados continuam no mural, mas sem o formulário para novos. A aba Premium mostra "O Premium deste evento terminou em …" e permite comprar de novo para uma nova data;
+- o preço, a carência e a janela são definidos pelo admin em **Configurações** (padrões em `config/premium.php`). Mudar a carência recalcula o fim do Premium de todos os eventos.
+
+Compras feitas antes desta regra seguem a mesma conta: data do evento (ou, sem data, o dia do pagamento) + 60 dias.
 
 **RN-71. O plano inclui:**
 
@@ -261,7 +270,7 @@ A lista fica em `config/premium.php`.
 
 **RN-72. O Premium é pago na conta Mercado Pago da plataforma** (`.env`), nunca na do anfitrião.
 
-**RN-73. O preço cobrado é o da configuração**, nunca o enviado pelo navegador. Pagamento com valor abaixo do preço **não libera** nada.
+**RN-73. O preço cobrado é o das Configurações**, nunca o enviado pelo navegador. Pagamento com valor abaixo do preço **não libera** nada.
 
 **RN-74. Quando os recursos são liberados:**
 

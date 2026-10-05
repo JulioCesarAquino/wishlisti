@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $event_id
  * @property int $user_id
  * @property string $amount
+ * @property Carbon|null $event_date the event's date the Premium was bought for
  * @property string $status
  * @property string|null $payment_id
  * @property string|null $payment_method
@@ -26,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['event_id', 'user_id', 'amount', 'status', 'payment_id', 'payment_method', 'payment_url', 'paid_at'])]
+#[Fillable(['event_id', 'user_id', 'amount', 'event_date', 'status', 'payment_id', 'payment_method', 'payment_url', 'paid_at'])]
 class PremiumPurchase extends Model
 {
     public const STATUS_PENDING = 'pending';
@@ -41,6 +42,7 @@ class PremiumPurchase extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'event_date' => 'date',
             'paid_at' => 'datetime',
         ];
     }

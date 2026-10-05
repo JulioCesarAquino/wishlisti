@@ -9,7 +9,9 @@ use App\Models\Concerns\HasFeatureGrants;
 use App\Models\Guests\Guest;
 use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
+use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
+use App\Services\Premium\PremiumValidityService;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -117,6 +119,13 @@ class Event extends Model
                 $event->slug = $event->generateUniqueSlug($event->title);
             }
         });
+
+        // The Premium ends some days after the event's date.
+        static::updated(function (Event $event): void {
+            if ($event->wasChanged('event_date')) {
+                app(PremiumValidityService::class)->eventDateChanged($event, byAdmin: (bool) auth()->user()?->isAdmin());
+            }
+        });
     }
 
     protected function generateUniqueSlug(string $title): string
@@ -173,6 +182,14 @@ class Event extends Model
     public function coHosts(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'event_user')->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<PremiumPurchase, $this>
+     */
+    public function premiumPurchases(): HasMany
+    {
+        return $this->hasMany(PremiumPurchase::class);
     }
 
     /**
@@ -270,7 +287,8 @@ class Event extends Model
         return match ($section) {
             // In the other display modes, gifts live in the home tab.
             PageSection::Gifts => $this->giftDisplayMode() === EventGiftSetting::DISPLAY_LIST,
-            PageSection::Guestbook => $this->hasFeature(Feature::Guestbook),
+            // After the Premium, the approved messages stay, as a keepsake.
+            PageSection::Guestbook => $this->hasFeature(Feature::Guestbook) || $this->messages()->approved()->exists(),
             PageSection::Location => $this->locations->isNotEmpty(),
             default => true,
         };

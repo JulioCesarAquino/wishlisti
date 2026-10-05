@@ -82,7 +82,7 @@ Além das padrão do Laravel:
 | Variável                                              | Para quê                                                                                                                          |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `MERCADOPAGO_ACCESS_TOKEN` / `MERCADOPAGO_PUBLIC_KEY` | Conta Mercado Pago **da plataforma**, que recebe o pagamento do Premium. Sem elas, a aba Premium mostra "Pagamento indisponível". |
-| `PREMIUM_PRICE`                                       | Preço do Premium por evento (padrão `39.90`).                                                                                     |
+| `PREMIUM_PRICE`                                       | Preço inicial do Premium por evento (padrão `39.90`). Depois, o admin muda em **Configurações**, no painel.                       |
 | `FREE_GIFT_LIMIT`                                     | Máximo de presentes na lista do plano gratuito (padrão `15`).                                                                     |
 | `FORWARD_DB_PORT` / `APP_PORT`                        | Portas expostas pelo Docker (padrão 3307 e 8080).                                                                                 |
 

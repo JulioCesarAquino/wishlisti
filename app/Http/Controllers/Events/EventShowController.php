@@ -106,7 +106,8 @@ class EventShowController extends Controller
             // Where the page opens when the URL carries no #section.
             'initial_section' => $onLocationTab ? 'localizacao' : null,
             'initial_location' => $location?->slug,
-            'messages' => $event->hasFeature(Feature::Guestbook)
+            // Also after the Premium has ended: what was approved stays.
+            'messages' => $event->showsSection(PageSection::Guestbook)
                 ? $event->messages()->approved()->latest('approved_at')->get()->map(fn (GuestMessage $message) => [
                     'id' => $message->id,
                     // Never the real name of an anonymous author: it'd

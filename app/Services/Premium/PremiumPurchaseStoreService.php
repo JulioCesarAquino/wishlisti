@@ -7,6 +7,7 @@ use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
 use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
+use App\Support\PlatformSettings;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use MercadoPago\Exceptions\MPApiException;
@@ -21,7 +22,7 @@ class PremiumPurchaseStoreService
     /**
      * Charges the premium plan for the event on the platform's Mercado Pago
      * account, from the Payment Brick's `formData`. The amount always comes
-     * from config, never from the browser.
+     * from the settings, never from the browser.
      *
      * @param  array<string, mixed>  $formData
      */
@@ -31,6 +32,10 @@ class PremiumPurchaseStoreService
             throw ValidationException::withMessages([
                 'formData' => 'O pagamento do Premium está indisponível no momento. Fale com o administrador.',
             ]);
+        }
+
+        if ($reason = self::cannotBuyReason($event)) {
+            throw ValidationException::withMessages(['formData' => $reason]);
         }
 
         $this->closeOpenPurchases($event);
@@ -44,7 +49,7 @@ class PremiumPurchaseStoreService
         $purchase = PremiumPurchase::create([
             'event_id' => $event->id,
             'user_id' => $host->id,
-            'amount' => config('premium.price'),
+            'amount' => PlatformSettings::premiumPrice(),
             'status' => PremiumPurchase::STATUS_PENDING,
         ]);
 
@@ -117,5 +122,22 @@ class PremiumPurchaseStoreService
                 ]);
             }
         }
+    }
+
+    /**
+     * The Premium is bought for the event's date, so it needs one — and not
+     * one already gone (there'd be little left to enjoy).
+     */
+    public static function cannotBuyReason(Event $event): ?string
+    {
+        if (! $event->event_date) {
+            return 'Informe a data do evento antes de comprar o Premium: ele vale para essa data.';
+        }
+
+        if ($event->event_date->toDateString() < now(Event::TIMEZONE)->toDateString()) {
+            return 'A data deste evento já passou. Para comprar o Premium, atualize a data do evento.';
+        }
+
+        return null;
     }
 }

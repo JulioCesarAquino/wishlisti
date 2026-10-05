@@ -9,8 +9,10 @@ use App\Models\Events\Event;
 use App\Models\Premium\PremiumPurchase;
 use App\Services\Premium\PremiumPurchaseStoreService;
 use App\Services\Premium\PremiumPurchaseUpdateService;
+use App\Services\Premium\PremiumValidityService;
 use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
+use App\Support\PlatformSettings;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -71,7 +73,7 @@ class PurchaseEventPremium extends Page
 
     public static function formattedPrice(): string
     {
-        return 'R$ '.number_format((float) config('premium.price'), 2, ',', '.');
+        return 'R$ '.number_format(PlatformSettings::premiumPrice(), 2, ',', '.');
     }
 
     protected function event(): Event
@@ -110,15 +112,7 @@ class PurchaseEventPremium extends Page
         $event = $this->event();
 
         return $schema->components([
-            $this->hasEverything()
-                ? Callout::make('Este evento é Premium')
-                    ->description('Todos os recursos abaixo estão liberados. Obrigado por apoiar o Wishlisti!')
-                    ->icon(Heroicon::OutlinedCheckBadge)
-                    ->success()
-                : Callout::make('Wishlisti Premium por '.self::formattedPrice())
-                    ->description('Pagamento único para este evento, sem mensalidade. Os recursos são liberados assim que o pagamento é aprovado.')
-                    ->icon(Heroicon::OutlinedSparkles)
-                    ->warning(),
+            $this->statusCallout($event),
             Grid::make(1)
                 ->schema(array_map(fn (Feature $feature) => $this->featureCard($feature, $event), [
                     ...config('premium.event_features'),
@@ -126,6 +120,35 @@ class PurchaseEventPremium extends Page
                 ])),
             ...$this->checkoutComponents(),
         ]);
+    }
+
+    /**
+     * Whether the event is Premium — and until when, since it ends some days
+     * after the event — or what buying it gets.
+     */
+    private function statusCallout(Event $event): Callout
+    {
+        $endsAt = app(PremiumValidityService::class)->endsAt($event)?->timezone(Event::TIMEZONE);
+        $graceDays = PlatformSettings::premiumGraceDays();
+
+        if ($this->hasEverything()) {
+            return Callout::make('Este evento é Premium')
+                ->description(($endsAt ? "Os recursos abaixo estão liberados até {$endsAt->format('d/m/Y')}, {$graceDays} dias depois do evento. " : 'Todos os recursos abaixo estão liberados. ').'Obrigado por apoiar o Wishlisti!')
+                ->icon(Heroicon::OutlinedCheckBadge)
+                ->success();
+        }
+
+        if ($endsAt?->isPast()) {
+            return Callout::make("O Premium deste evento terminou em {$endsAt->format('d/m/Y')}")
+                ->description('A página continua no ar, sem os recursos Premium. Vai fazer outra festa? Crie um novo evento para ela.')
+                ->icon(Heroicon::OutlinedClock)
+                ->color('gray');
+        }
+
+        return Callout::make('Wishlisti Premium por '.self::formattedPrice())
+            ->description("Pagamento único para este evento, sem mensalidade. Os recursos são liberados assim que o pagamento é aprovado e valem até {$graceDays} dias depois da data do evento.")
+            ->icon(Heroicon::OutlinedSparkles)
+            ->warning();
     }
 
     private function featureCard(Feature $feature, Event $event): Section
@@ -155,6 +178,20 @@ class PurchaseEventPremium extends Page
     {
         if ($this->hasEverything()) {
             return [];
+        }
+
+        if ($reason = PremiumPurchaseStoreService::cannotBuyReason($this->event())) {
+            return [
+                Callout::make('Antes de comprar')
+                    ->description($reason)
+                    ->icon(Heroicon::OutlinedCalendar)
+                    ->warning()
+                    ->actions([
+                        Action::make('editDate')
+                            ->label('Editar o evento')
+                            ->url(EventResource::getUrl('edit', ['record' => $this->event()])),
+                    ]),
+            ];
         }
 
         if (! MercadoPagoPlatform::isConfigured()) {
@@ -230,7 +267,7 @@ class PurchaseEventPremium extends Page
             ->schema([
                 View::make('filament.premium.checkout')->viewData([
                     'publicKey' => MercadoPagoPlatform::publicKey(),
-                    'amount' => (float) config('premium.price'),
+                    'amount' => PlatformSettings::premiumPrice(),
                     'payerEmail' => auth()->user()?->email,
                 ]),
             ]);

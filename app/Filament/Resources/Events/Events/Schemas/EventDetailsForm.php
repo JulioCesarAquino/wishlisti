@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Events\Events\Schemas;
 
 use App\Models\Events\Event;
+use App\Services\Premium\PremiumValidityService;
+use Carbon\CarbonInterface;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -61,11 +63,31 @@ class EventDetailsForm
                 ->label('Título')
                 ->required(),
             DatePicker::make('event_date')
-                ->label('Data do evento'),
+                ->label('Data do evento')
+                // The Premium is bought for this date: while it lasts, the
+                // host can only move it so far (the admin, anywhere).
+                ->required(fn (?Event $record): bool => self::premiumDates($record) !== null)
+                ->minDate(fn (?Event $record) => self::premiumDates($record)[0] ?? null)
+                ->maxDate(fn (?Event $record) => self::premiumDates($record)[1] ?? null)
+                ->helperText(fn (?Event $record): ?string => ($dates = self::premiumDates($record))
+                    ? "O Premium foi comprado para esta data. Você pode ajustá-la entre {$dates[0]->format('d/m/Y')} e {$dates[1]->format('d/m/Y')}; para mudar além disso, fale com o Wishlisti."
+                    : null),
             TimePicker::make('event_time')
                 ->label('Horário de início')
                 ->seconds(false)
                 ->helperText('Aparece junto à data, e a contagem regressiva conta até ele. Cerimônia e festa em horários diferentes? Informe o horário de cada uma em Localização.'),
         ];
+    }
+
+    /**
+     * @return array{0: CarbonInterface, 1: CarbonInterface}|null
+     */
+    private static function premiumDates(?Event $record): ?array
+    {
+        if (! $record?->exists || auth()->user()?->isAdmin()) {
+            return null;
+        }
+
+        return app(PremiumValidityService::class)->allowedDates($record);
     }
 }
