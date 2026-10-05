@@ -28,7 +28,7 @@ class HostInviteLinkNotification extends AccessLinkNotification
                 ? 'Seu pedido de acesso ao Wishlisti foi aprovado. Agora é só criar a sua senha para entrar e montar a página do seu evento.'
                 : 'Aqui está um novo link para você criar a sua senha e entrar no Wishlisti.',
             'buttonLabel' => 'Criar minha senha',
-            'note' => 'O link vale por '.self::validity().'. Se ele expirar, é só responder este e-mail que enviamos outro.',
+            'note' => 'O link vale por '.self::validity().'. Se ele expirar, peça um novo em "Esqueceu a senha?", na tela de login, com este mesmo e-mail.',
             'reason' => 'Você recebeu este e-mail porque pediu acesso em',
         ];
     }

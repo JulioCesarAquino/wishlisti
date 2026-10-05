@@ -124,7 +124,8 @@ class InviteRequestFlowTest extends TestCase
                 && $mail->subject === 'Seu acesso ao Wishlisti foi aprovado'
                 && str_contains($html, 'Olá, Maria!')
                 && str_contains($html, 'href="'.e($notification->link).'"')
-                && str_contains($html, 'O link vale por 3 dias.')
+                && str_contains($html, 'O link vale por 2 horas.')
+                && str_contains($html, 'Esqueceu a senha?')
                 // From a no-reply address: replies reach the admin.
                 && $mail->replyTo[0][0] === 'admin@example.com';
         });
@@ -163,12 +164,22 @@ class InviteRequestFlowTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'maria@example.com']);
     }
 
-    public function test_the_emailed_link_still_works_the_next_day(): void
+    public function test_the_link_lasts_two_hours(): void
     {
         $host = User::factory()->create();
         $token = Password::broker()->createToken($host);
 
-        $this->travel(2)->days();
+        $this->travel(121)->minutes();
+
+        Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $token])
+            ->fillForm(['password' => 'nova-senha-123', 'passwordConfirmation' => 'nova-senha-123'])
+            ->call('resetPassword');
+
+        $this->assertFalse(Hash::check('nova-senha-123', $host->fresh()->password));
+
+        // A new one, asked for again, works.
+        $token = Password::broker()->createToken($host);
+        $this->travel(110)->minutes();
 
         Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $token])
             ->fillForm(['password' => 'nova-senha-123', 'passwordConfirmation' => 'nova-senha-123'])

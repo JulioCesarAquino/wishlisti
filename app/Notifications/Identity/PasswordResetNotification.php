@@ -26,7 +26,7 @@ class PasswordResetNotification extends AccessLinkNotification
             'badge' => 'Redefinir senha',
             'intro' => 'Recebemos um pedido para redefinir a senha da sua conta no Wishlisti. Clique no botão abaixo para criar uma nova.',
             'buttonLabel' => 'Criar nova senha',
-            'note' => 'O link vale por '.self::validity().'. Não pediu para trocar a senha? É só ignorar este e-mail: a sua senha continua a mesma.',
+            'note' => 'O link vale por '.self::validity().'. Se ele expirar, é só pedir outro. Não pediu para trocar a senha? Ignore este e-mail: a sua senha continua a mesma.',
             'reason' => 'Você recebeu este e-mail porque pediram para redefinir a senha da sua conta em',
         ];
     }
