@@ -187,6 +187,25 @@ class OrderDoublePaymentTest extends TestCase
         $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
     }
 
+    public function test_paying_again_works_when_the_open_payment_is_unknown_to_the_current_account(): void
+    {
+        // Made with other credentials, before the host changed them.
+        $order = $this->order(['payment_id' => '1']);
+
+        $fake = $this->fake(
+            new MPResponse(404, ['message' => 'Payment not found', 'error' => 'not_found', 'status' => 404]), // the cancel
+            $this->payment(2, 'approved', $order, 'master'),                                                // the new payment
+        );
+
+        $this->postJson("/{$this->event->slug}/orders/{$order->id}/mercadopago-payment", [
+            'formData' => ['payment_method_id' => 'master', 'token' => 'tok'],
+        ])->assertOk();
+
+        $this->assertCount(2, $fake->requests);
+        $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
+        $this->assertSame('2', $order->fresh()->payment_id);
+    }
+
     private function orderAgain(): TestResponse
     {
         return $this->withCredentials()

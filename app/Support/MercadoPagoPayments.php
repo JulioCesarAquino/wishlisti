@@ -84,6 +84,10 @@ class MercadoPagoPayments
      * stops working. False when Mercado Pago refuses — typically because it
      * was paid in the meantime.
      *
+     * True as well when this account doesn't know the payment (404): it was
+     * made with other credentials, before the host changed them, so there's
+     * nothing here to cancel — and refusing would lock the order for good.
+     *
      * @param  array<string, mixed>  $context  for the log
      */
     public function cancel(string $paymentId, RequestOptions $options, array $context = []): bool
@@ -93,6 +97,15 @@ class MercadoPagoPayments
 
             return true;
         } catch (MPApiException $exception) {
+            if ($exception->getApiResponse()->getStatusCode() === 404) {
+                Log::warning('Mercado Pago: pagamento em aberto não existe nesta conta; seguindo sem ele', [
+                    ...$context,
+                    'payment_id' => $paymentId,
+                ]);
+
+                return true;
+            }
+
             Log::warning('Mercado Pago: não foi possível cancelar o pagamento em aberto', [
                 ...$context,
                 'payment_id' => $paymentId,
