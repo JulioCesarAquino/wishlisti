@@ -126,6 +126,22 @@ class PremiumValidityTest extends TestCase
         $this->assertSame('2026-10-30', $this->event->fresh()->event_date->toDateString());
     }
 
+    public function test_the_window_stays_around_the_date_bought_for_so_the_date_cant_be_pushed_again_and_again(): void
+    {
+        $this->buyPremium();
+
+        // To the edge of the window (30/10 + 90 days)…
+        $this->editDate('2027-01-28')->assertHasNoFormErrors();
+
+        // …and, later on, another 90 days from there: refused, the window
+        // is still the one around 30/10.
+        $this->travelTo(now()->setDate(2027, 1, 20)->setTime(12, 0));
+        $this->editDate('2027-04-28')->assertHasFormErrors(['event_date']);
+
+        $this->assertSame('2026-10-30', PremiumPurchase::first()->event_date->toDateString());
+        $this->assertSame('2027-01-28', $this->event->fresh()->event_date->toDateString());
+    }
+
     public function test_moving_the_date_never_brings_back_an_ended_premium(): void
     {
         $this->buyPremium();
