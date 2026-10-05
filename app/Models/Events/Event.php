@@ -42,6 +42,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $share_image
  * @property array<int, string>|null $gallery
  * @property string|null $description
+ * @property string|null $story_title the story section's title, when the host wrote one
  * @property string|null $story
  * @property bool $is_published
  * @property Carbon|null $archived_at
@@ -59,7 +60,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'event_time', 'cover_image', 'share_image',
-    'gallery', 'description', 'story', 'is_published', 'archived_at',
+    'gallery', 'description', 'story_title', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
 {
@@ -70,10 +71,32 @@ class Event extends Model
 
     public const TYPE_LABELS = [
         'casamento' => 'Casamento',
+        'noivado' => 'Noivado',
         'cha_bebe' => 'Chá de bebê',
+        'cha_revelacao' => 'Chá revelação',
         'cha_panela' => 'Chá de panela',
         'aniversario' => 'Aniversário',
+        'batizado' => 'Batizado',
+        'formatura' => 'Formatura',
+        'churrasco' => 'Churrasco',
+        'futebol' => 'Futebol',
+        'confraternizacao' => 'Confraternização',
         'outro' => 'Outro',
+    ];
+
+    /**
+     * The title of the story section, by type, while the host doesn't write
+     * one: "Nossa história" only fits a couple.
+     */
+    public const STORY_TITLES = [
+        'casamento' => 'Nossa história',
+        'noivado' => 'Nossa história',
+        'cha_bebe' => 'Esperando por você',
+        'cha_revelacao' => 'Esperando por você',
+        'cha_panela' => 'Nossa história',
+        'aniversario' => 'Sobre o aniversário',
+        'batizado' => 'Sobre o batizado',
+        'formatura' => 'Nossa trajetória',
     ];
 
     /** Dates and times of events are typed, and shown, in Brasília time. */
@@ -93,12 +116,29 @@ class Event extends Model
         return $minutes === 0 ? "{$hours}h" : sprintf('%dh%02d', $hours, $minutes);
     }
 
+    /** "Casamento", "Churrasco"… — "Evento" when it's another kind. */
+    public function typeLabel(): string
+    {
+        return $this->type === 'outro' ? 'Evento' : (self::TYPE_LABELS[$this->type] ?? 'Evento');
+    }
+
+    /** The story section's title: the host's, or the one for the type. */
+    public function storyTitle(): string
+    {
+        return filled($this->story_title) ? $this->story_title : self::defaultStoryTitle($this->type);
+    }
+
+    public static function defaultStoryTitle(?string $type): string
+    {
+        return self::STORY_TITLES[$type] ?? 'Sobre o evento';
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('event')
             ->logOnly([
-                'title', 'type', 'event_date', 'event_time', 'description', 'story', 'cover_image', 'share_image', 'gallery',
+                'title', 'type', 'event_date', 'event_time', 'description', 'story_title', 'story', 'cover_image', 'share_image', 'gallery',
                 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()

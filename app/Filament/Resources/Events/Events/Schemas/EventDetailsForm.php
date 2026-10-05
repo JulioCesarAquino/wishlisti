@@ -12,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class EventDetailsForm
@@ -27,9 +28,15 @@ class EventDetailsForm
                 Textarea::make('description')
                     ->label('Texto do evento')
                     ->columnSpanFull(),
+                TextInput::make('story_title')
+                    ->label('Título da seção de história')
+                    ->maxLength(80)
+                    ->placeholder(fn (Get $get): string => Event::defaultStoryTitle($get('type')))
+                    ->helperText('Em branco, usa o título do tipo de evento (o que aparece no campo). Ex.: "Sobre a Maju".')
+                    ->columnSpanFull(),
                 Textarea::make('story')
-                    ->label('Nossa história')
-                    ->helperText('Texto livre para contar a história do casal/evento. Aparece na seção "Nossa história" da página pública.')
+                    ->label('História')
+                    ->helperText('Texto livre: a história do casal, do aniversariante, da turma… Aparece na tela inicial da página pública, com o título acima.')
                     ->rows(5)
                     ->columnSpanFull(),
                 Toggle::make('is_published')
@@ -58,6 +65,8 @@ class EventDetailsForm
             Select::make('type')
                 ->label('Tipo de evento')
                 ->options(Event::TYPE_LABELS)
+                ->searchable()
+                ->live()
                 ->required(),
             TextInput::make('title')
                 ->label('Título')

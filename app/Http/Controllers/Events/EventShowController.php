@@ -66,6 +66,8 @@ class EventShowController extends Controller
                 'description' => $event->description,
                 'cover_image_url' => $event->coverImageUrl(),
                 'gallery_urls' => $event->galleryUrls(),
+                'type_label' => $event->typeLabel(),
+                'story_title' => $event->storyTitle(),
                 'story' => $event->story,
                 'url' => route('events.show', ['event' => $event->slug]),
                 'sections' => array_map(fn (PageSection $section) => [
@@ -185,7 +187,7 @@ class EventShowController extends Controller
             $day->setLocale('pt_BR');
             $date = implode(' · ', array_filter([$day->isoFormat('D [de] MMMM [de] YYYY'), Event::formatTime($event->event_time)]));
         }
-        $type = $event->type === 'outro' ? null : (Event::TYPE_LABELS[$event->type] ?? null);
+        $type = $event->type === 'outro' ? null : $event->typeLabel();
 
         $description = $location
             ? implode(' · ', array_filter([Event::formatTime($location->start_time), $location->address]))

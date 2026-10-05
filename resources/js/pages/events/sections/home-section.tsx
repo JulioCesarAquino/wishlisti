@@ -7,7 +7,6 @@ import { Countdown } from '@/pages/events/sections/countdown';
 import {
     accentButtonStyle,
     bodyTextStyle,
-    EVENT_TYPE_LABELS,
     formatEventDate,
     headingStyle,
     type EventData,
@@ -38,7 +37,7 @@ export function HomeSection({ event, onOpenLocation }: Props) {
                     {event.title}
                 </h1>
                 <Badge variant="secondary" className="mb-3">
-                    {EVENT_TYPE_LABELS[event.type] ?? event.type}
+                    {event.type_label}
                 </Badge>
                 {event.event_date && (
                     <p className="mb-2 text-sm" style={bodyTextStyle(event)}>
@@ -71,7 +70,7 @@ export function HomeSection({ event, onOpenLocation }: Props) {
                             className="mb-4 text-2xl font-semibold"
                             style={headingStyle(event)}
                         >
-                            Nossa história
+                            {event.story_title}
                         </h2>
                         <p
                             className="leading-relaxed whitespace-pre-line"
