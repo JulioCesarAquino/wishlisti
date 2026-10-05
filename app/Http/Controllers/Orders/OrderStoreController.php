@@ -47,6 +47,10 @@ class OrderStoreController extends Controller
                 'total_amount' => (float) $order->total_amount,
                 'fulfillment' => $order->fulfillment,
                 'is_anonymous' => $order->is_anonymous,
+                // A resumed order: its payment already started (the Pix to
+                // pay) or done — the page shows it instead of a new form.
+                'status' => $order->status,
+                'payment_id' => $order->payment_id,
             ],
         ]);
     }

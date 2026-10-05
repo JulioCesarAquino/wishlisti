@@ -216,34 +216,84 @@ class OrderDoublePaymentTest extends TestCase
             ]);
     }
 
-    public function test_ordering_the_same_gift_again_cancels_the_open_payment_of_the_previous_order(): void
+    public function test_opening_the_checkout_again_resumes_the_same_order(): void
+    {
+        // The guest opened the checkout, then reloaded the page and did it again.
+        $previous = $this->order();
+        $fake = $this->fake();
+
+        $this->orderAgain()->assertOk()->assertJsonPath('order.id', $previous->id)->assertJsonPath('order.payment_id', null);
+
+        $this->assertCount(0, $fake->requests);
+        $this->assertSame(1, Order::count());
+        $this->assertSame(Order::STATUS_PENDING, $previous->fresh()->status);
+    }
+
+    public function test_a_pix_left_open_comes_back_instead_of_a_new_order(): void
     {
         $previous = $this->order(['payment_id' => '1']);
-        $fake = $this->fake($this->payment(1, 'cancelled', $previous));
+        $fake = $this->fake($this->payment(1, 'pending', $previous)); // asked how it's doing
 
-        $this->orderAgain()->assertOk();
+        $this->orderAgain()
+            ->assertOk()
+            ->assertJsonPath('order.id', $previous->id)
+            ->assertJsonPath('order.payment_id', '1')
+            ->assertJsonPath('order.status', Order::STATUS_PENDING);
 
-        $this->assertStringEndsWith('/v1/payments/1', $fake->requests[0]->getUri());
+        // Only looked up, never cancelled: it's the same Pix to pay.
+        $this->assertCount(1, $fake->requests);
+        $this->assertSame('GET', $fake->requests[0]->getMethod());
+        $this->assertSame(1, Order::count());
+    }
+
+    public function test_an_expired_pix_starts_a_new_order(): void
+    {
+        $previous = $this->order(['payment_id' => '1']);
+        $this->fake($this->payment(1, 'cancelled', $previous));
+
+        $this->orderAgain()->assertOk()->assertJsonPath('order.payment_id', null);
+
         $this->assertSame(Order::STATUS_CANCELLED, $previous->fresh()->status);
         $this->assertSame(2, Order::count());
     }
 
-    public function test_ordering_the_same_gift_again_is_refused_when_the_previous_was_paid(): void
+    public function test_a_pix_paid_meanwhile_comes_back_paid(): void
     {
         $previous = $this->order(['payment_id' => '1']);
-        $this->fake(new MPResponse(400, ['message' => 'Payment already approved']), $this->payment(1, 'approved', $previous));
+        $this->fake($this->payment(1, 'approved', $previous));
 
         $this->orderAgain()
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['items' => 'Seu pagamento anterior deste presente já foi confirmado. Obrigado!']);
+            ->assertOk()
+            ->assertJsonPath('order.id', $previous->id)
+            ->assertJsonPath('order.status', Order::STATUS_PAID);
 
-        $this->assertSame(Order::STATUS_PAID, $previous->fresh()->status);
         $this->assertSame(1, Order::count());
     }
 
-    public function test_a_different_gift_leaves_the_other_open_order_alone(): void
+    public function test_the_same_gift_paid_just_now_is_not_charged_again(): void
     {
-        $previous = $this->order(['payment_id' => '1']);
+        // Paid the Pix in the bank's app; the gift is still in the cart.
+        $paid = $this->order(['payment_id' => '1', 'status' => Order::STATUS_PAID, 'paid_at' => now()->subMinutes(10)]);
+        $fake = $this->fake();
+
+        $this->orderAgain()
+            ->assertOk()
+            ->assertJsonPath('order.id', $paid->id)
+            ->assertJsonPath('order.status', Order::STATUS_PAID);
+
+        $this->assertCount(0, $fake->requests);
+        $this->assertSame(1, Order::count());
+
+        // Long after, giving the same gift again is a new gift.
+        $paid->update(['paid_at' => now()->subDay()]);
+        $this->orderAgain()->assertOk()->assertJsonPath('order.status', Order::STATUS_PENDING);
+        $this->assertSame(2, Order::count());
+    }
+
+    public function test_another_gift_closes_the_order_with_no_payment_and_leaves_the_one_with_a_pix(): void
+    {
+        $noPayment = $this->order();
+        $withPix = $this->order(['payment_id' => '1']);
         $other = EventProduct::factory()->create(['event_id' => $this->event->id, 'price' => 80.00]);
         $fake = $this->fake();
 
@@ -255,7 +305,8 @@ class OrderDoublePaymentTest extends TestCase
             ])->assertOk();
 
         $this->assertCount(0, $fake->requests);
-        $this->assertSame(Order::STATUS_PENDING, $previous->fresh()->status);
+        $this->assertSame(Order::STATUS_EXPIRED, $noPayment->fresh()->status);
+        $this->assertSame(Order::STATUS_PENDING, $withPix->fresh()->status);
     }
 
     public function test_pix_still_works_if_mercado_pago_refuses_the_expiration(): void

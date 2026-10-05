@@ -9,17 +9,40 @@ import { bodyTextStyle, type EventData } from '@/pages/events/types';
 
 type Props = {
     event: EventData;
-    order: { id: number; total_amount: number };
+    order: {
+        id: number;
+        total_amount: number;
+        status?: string;
+        /** Resumed with its payment already started: shown, not redone. */
+        payment_id?: string | null;
+    };
     guestEmail: string;
+    /** The payment went through: the cart can be emptied. */
+    onPaid?: () => void;
 };
 
 type PaymentSubmitPayload = {
     formData: Record<string, unknown>;
 };
 
-export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
-    const [paymentId, setPaymentId] = useState<string | null>(null);
+export function MercadoPagoCheckout({
+    event,
+    order,
+    guestEmail,
+    onPaid,
+}: Props) {
+    const [paymentId, setPaymentId] = useState<string | null>(
+        order.payment_id ?? null,
+    );
+    const [paid, setPaid] = useState(order.status === 'paid');
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (paid) {
+            onPaid?.();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paid]);
     const controllerRef = useRef<MercadoPagoBrickController | null>(null);
 
     const paymentContainerId = `payment-brick-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -29,6 +52,10 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
         if (!event.mp_public_key || paymentId) {
             return;
         }
+
+        // Back from a payment's status ("pagar de outro jeito").
+        controllerRef.current?.unmount();
+        controllerRef.current = null;
 
         let cancelled = false;
 
@@ -89,10 +116,15 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
 
                                             return response.json() as Promise<{
                                                 id: string;
+                                                status: string;
                                             }>;
                                         })
                                         .then((payment) => {
+                                            setError(null);
                                             setPaymentId(payment.id);
+                                            setPaid(
+                                                payment.status === 'approved',
+                                            );
                                             resolve();
                                         })
                                         .catch((submitError: Error) => {
@@ -192,6 +224,25 @@ export function MercadoPagoCheckout({ event, order, guestEmail }: Props) {
             )}
             {!paymentId && <div id={paymentContainerId} />}
             {paymentId && <div id={statusContainerId} />}
+            {paymentId &&
+                !paid && (
+                    // A Pix (or boleto) still to pay — the same one after a
+                    // reload. Paying another way cancels it, so it can't be paid
+                    // as well (see the payment service).
+                    <p
+                        className="text-center text-xs opacity-80"
+                        style={bodyTextStyle(event)}
+                    >
+                        Prefere outra forma de pagamento?{' '}
+                        <button
+                            type="button"
+                            className="underline"
+                            onClick={() => setPaymentId(null)}
+                        >
+                            Pagar de outro jeito
+                        </button>
+                    </p>
+                )}
         </div>
     );
 }

@@ -240,6 +240,9 @@ export default function EventShow({
         total_amount: number;
         fulfillment: Fulfillment;
         is_anonymous: boolean;
+        status: string;
+        /** A resumed order's payment already started (the Pix to pay). */
+        payment_id: string | null;
     } | null>(null);
     const [confirmedLines, setConfirmedLines] = useState<
         { product: Product; quantity: number }[]
@@ -295,13 +298,15 @@ export default function EventShow({
             setConfirmedLines(freeAmountOpen ? [] : cartLines);
             setOrderResult(body.order);
 
-            if (!freeAmountOpen) {
-                persistCart({});
-            }
-
             // A reservation takes the stock right away: refresh the list and
-            // the guest's reservations.
+            // the guest's reservations. A payment keeps the cart until it's
+            // approved, so a reload — or a guest who closes the checkout —
+            // can pick the same order up again (the server resumes it).
             if (fulfillment === 'in_person') {
+                if (!freeAmountOpen) {
+                    persistCart({});
+                }
+
                 router.reload({ only: ['products', 'guest'] });
             }
         } catch {
@@ -663,6 +668,15 @@ export default function EventShow({
                                         event={event}
                                         order={orderResult}
                                         guestEmail={form.data.guest.email}
+                                        onPaid={() => {
+                                            if (!freeAmountOpen) {
+                                                persistCart({});
+                                            }
+
+                                            router.reload({
+                                                only: ['products'],
+                                            });
+                                        }}
                                     />
                                 ) : (
                                     <div className="space-y-3">
