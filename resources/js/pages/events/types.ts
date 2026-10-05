@@ -22,6 +22,10 @@ export type EventData = {
     /** When the event starts (ISO, with offset): what the countdown counts to. */
     starts_at: string | null;
     description: string | null;
+    /** "Casamento", "Churrasco"… ("Evento" for another kind). */
+    type_label: string;
+    /** The story section's title: by type, or the host's own. */
+    story_title: string;
     story: string | null;
     url: string;
     /** Tabs of the menu, in the host's order (only those turned on). */
@@ -116,14 +120,6 @@ export type Guest = GuestContact & {
     rsvp_children_count: number | null;
     companions: GuestContact[];
     reservations: Reservation[];
-};
-
-export const EVENT_TYPE_LABELS: Record<string, string> = {
-    casamento: 'Casamento',
-    cha_bebe: 'Chá de bebê',
-    cha_panela: 'Chá de panela',
-    aniversario: 'Aniversário',
-    outro: 'Evento',
 };
 
 /** "30 de outubro de 2026 · 16h": the date, with the time when there is one. */

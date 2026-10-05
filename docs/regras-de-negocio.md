@@ -72,6 +72,8 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-10. Para criar um evento bastam:** tipo, título e endereço. A data é opcional. O resto é preenchido depois, no submenu do evento.
 
+**RN-10a. Tipos de evento:** casamento, noivado, chá de bebê, chá revelação, chá de panela, aniversário, batizado, formatura, churrasco, futebol, confraternização e outro (que aparece como "Evento" na página). A seção de história da tela inicial tem o título do tipo — "Nossa história" (casamento, noivado, chá de panela), "Esperando por você" (chás de bebê e revelação), "Sobre o aniversário", "Sobre o batizado", "Nossa trajetória" (formatura) e "Sobre o evento" nos demais —, ou o que o anfitrião escrever em "Título da seção de história". — `Event::TYPE_LABELS`, `storyTitle()`
+
 **RN-11. Slug:** gerado a partir do título quando o anfitrião não informa um. É único no sistema **inclusive entre eventos na lixeira**. Se já existir, recebe o sufixo `-2`, `-3`, …
 
 **RN-12. Endereço é obrigatório.** Latitude e longitude são opcionais, mas uma exige a outra. O botão "Usar minha localização atual" faz o seguinte:

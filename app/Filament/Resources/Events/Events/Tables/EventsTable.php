@@ -32,6 +32,7 @@ class EventsTable
                     ->visible(fn () => auth()->user()?->isAdmin()),
                 TextColumn::make('type')
                     ->label('Tipo')
+                    ->formatStateUsing(fn (?string $state): string => Event::TYPE_LABELS[$state] ?? (string) $state)
                     ->badge(),
                 TextColumn::make('event_date')
                     ->label('Data')
