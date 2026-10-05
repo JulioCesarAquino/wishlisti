@@ -158,7 +158,7 @@ class EventLocationForm
                 ->maxLength(2048)
                 ->columnSpanFull()
                 ->placeholder('https://maps.app.goo.gl/…')
-                ->helperText('Link do Google Maps, Waze… para o botão "Abrir no mapa". Em branco, o botão busca pelo endereço.'),
+                ->helperText('Link do Google Maps ou do Waze, se quiser apontar um lugar exato. A página mostra os botões "Google Maps" e "Waze": o seu link vai no botão do app dele, e o outro busca pelas coordenadas ou pelo endereço.'),
             TextInput::make('latitude')
                 ->label('Latitude')
                 ->numeric()

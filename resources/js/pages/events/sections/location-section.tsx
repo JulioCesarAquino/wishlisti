@@ -5,7 +5,8 @@ import {
     bodyTextStyle,
     googleMapsEmbedUrl,
     headingStyle,
-    openMapUrl,
+    googleMapsUrl,
+    wazeUrl,
     type EventData,
     type EventLocation,
 } from '@/pages/events/types';
@@ -134,12 +135,22 @@ function LocationDetails({
             <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild variant="outline">
                     <a
-                        href={openMapUrl(location)}
+                        href={googleMapsUrl(location)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <MapPin />
+                        Google Maps
+                    </a>
+                </Button>
+                <Button asChild variant="outline">
+                    <a
+                        href={wazeUrl(location)}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
                         <Navigation />
-                        Abrir no mapa
+                        Waze
                     </a>
                 </Button>
                 <Button variant="outline" onClick={copyLink}>
