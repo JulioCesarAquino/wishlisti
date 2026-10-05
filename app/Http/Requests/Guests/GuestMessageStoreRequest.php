@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Guests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class GuestMessageStoreRequest extends FormRequest
 {
@@ -17,7 +18,9 @@ class GuestMessageStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'author_name' => ['required', 'string', 'max:100'],
+            // Anonymous: the name is optional (only the admin ever sees it).
+            'author_name' => [Rule::requiredIf(! $this->boolean('anonymous')), 'nullable', 'string', 'max:100'],
+            'anonymous' => ['sometimes', 'boolean'],
             'message' => ['required', 'string', 'max:1000'],
         ];
     }
@@ -30,6 +33,17 @@ class GuestMessageStoreRequest extends FormRequest
         return [
             'author_name' => 'nome',
             'message' => 'recado',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'author_name.required' => 'Por favor, informe seu nome, ou marque "Enviar anonimamente".',
+            'message.required' => 'Escreva o seu recado.',
         ];
     }
 }

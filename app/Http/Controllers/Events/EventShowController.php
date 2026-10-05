@@ -104,7 +104,9 @@ class EventShowController extends Controller
             'messages' => $event->hasFeature(Feature::Guestbook)
                 ? $event->messages()->approved()->latest('approved_at')->get()->map(fn (GuestMessage $message) => [
                     'id' => $message->id,
-                    'author_name' => $message->author_name,
+                    // Never the real name of an anonymous author: it'd
+                    // reach every visitor's browser.
+                    'author_name' => $message->authorNameFor(null),
                     'message' => $message->message,
                 ])
                 : [],

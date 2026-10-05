@@ -14,7 +14,7 @@ class GuestMessageStoreService
      * from the page — until the host approves it, so nothing shows up
      * publicly without their say.
      */
-    public function execute(Event $event, string $authorName, string $message, ?string $guestIdentifier): GuestMessage
+    public function execute(Event $event, ?string $authorName, string $message, ?string $guestIdentifier, bool $anonymous = false): GuestMessage
     {
         if (! $event->hasFeature(Feature::Guestbook)) {
             throw ValidationException::withMessages([
@@ -28,8 +28,9 @@ class GuestMessageStoreService
 
         return $event->messages()->create([
             'guest_id' => $guest?->id,
-            'author_name' => $authorName,
+            'author_name' => filled($authorName) ? $authorName : null,
             'message' => $message,
+            'is_anonymous' => $anonymous,
         ]);
     }
 }
