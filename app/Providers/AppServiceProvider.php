@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Notifications\Identity\PasswordResetNotification;
 use Carbon\CarbonImmutable;
+use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // The panel's "forgot my password" e-mail: ours, in the Wishlisti
+        // look and sent right away (Filament's is queued, and there's no
+        // queue worker — it would never go out).
+        $this->app->bind(FilamentResetPassword::class, fn ($app, array $parameters) => new PasswordResetNotification($parameters['token']));
     }
 
     /**

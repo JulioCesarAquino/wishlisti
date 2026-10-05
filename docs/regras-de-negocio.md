@@ -48,7 +48,9 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-01. Ninguém se cadastra sozinho.** O visitante pede um convite na página inicial (nome, e-mail e WhatsApp). A conta só existe quando o admin **aprova** o pedido. — `InviteRequestStoreService`, `InviteRequestApproveService`
 
-**RN-02. A aprovação gera um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O admin copia o link e envia ao anfitrião, porque o sistema não manda e-mail. Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado. — `InviteRequestsTable`
+**RN-02. A aprovação envia por e-mail um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O link vale por 2 horas (`AUTH_PASSWORD_RESET_EXPIRE`, em minutos); se expirar, o anfitrião pede outro em **"Esqueceu a senha?"**, porque a conta já existe desde a aprovação. O painel também mostra o link para copiar: se o e-mail não sair, a aprovação acontece mesmo assim, o erro vai para o log e o admin envia o link à mão (por WhatsApp, por exemplo). Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado, que manda outro e-mail e invalida o link anterior. — `InviteRequestsTable`, `InviteLinkSendService`
+
+**RN-02a. "Esqueceu a senha?" no login do painel envia por e-mail um link para criar uma nova senha**, no mesmo visual do e-mail de convite e com a mesma validade. O e-mail sai na hora, sem fila (não há processo de fila em produção). E-mail não cadastrado não recebe nada. — `PasswordResetNotification`
 
 **RN-03. Estados do pedido de convite:** `pendente` → `aprovado` ou `rejeitado`. Só um pedido pendente pode ser aprovado ou rejeitado, e só um aprovado ganha um novo link.
 
@@ -250,7 +252,16 @@ As regras valem também no servidor: os campos travados são sempre gravados a p
 
 ## 9. Premium
 
-**RN-70. O plano é por evento:** pagamento único de `PREMIUM_PRICE` (R$ 39,90), sem mensalidade e sem expiração.
+**RN-70. O plano é por evento e por data:** pagamento único (R$ 39,90 por padrão), sem mensalidade. Ele é comprado para a data do evento e termina depois dela, para que uma compra não sirva, edição após edição, para outra festa:
+
+- só dá para comprar com a **data do evento preenchida e ainda não passada**; a compra guarda essa data;
+- os recursos **do evento** valem até o fim do dia da **data do evento + a carência** (60 dias por padrão), no horário de Brasília. Os recursos **do anfitrião** (agenda de contatos) não terminam;
+- enquanto o Premium vale, o anfitrião só muda a data **dentro da janela** (90 dias por padrão, para mais ou para menos) em torno da data da compra, e não pode apagá-la. O fim do Premium acompanha a mudança. Além da janela, só o admin muda;
+- mudar a data **nunca traz de volta** um Premium que já terminou. A mudança feita pelo **admin** (um adiamento combinado) passa a ser a data da compra e pode trazê-lo de volta;
+- depois do fim, a página continua no ar sem os recursos Premium. Os recados já aprovados continuam no mural, mas sem o formulário para novos. A aba Premium mostra "O Premium deste evento terminou em …" e permite comprar de novo para uma nova data;
+- o preço, a carência e a janela são definidos pelo admin em **Configurações** (padrões em `config/premium.php`). Mudar a carência recalcula o fim do Premium de todos os eventos.
+
+Compras feitas antes desta regra seguem a mesma conta: data do evento (ou, sem data, o dia do pagamento) + 60 dias.
 
 **RN-71. O plano inclui:**
 
@@ -261,7 +272,7 @@ A lista fica em `config/premium.php`.
 
 **RN-72. O Premium é pago na conta Mercado Pago da plataforma** (`.env`), nunca na do anfitrião.
 
-**RN-73. O preço cobrado é o da configuração**, nunca o enviado pelo navegador. Pagamento com valor abaixo do preço **não libera** nada.
+**RN-73. O preço cobrado é o das Configurações**, nunca o enviado pelo navegador. Pagamento com valor abaixo do preço **não libera** nada.
 
 **RN-74. Quando os recursos são liberados:**
 

@@ -37,6 +37,7 @@ class OrderPaymentUpdateService
                 'event_id' => $event->id,
                 'payment_id' => $paymentId,
                 'status_code' => $exception->getApiResponse()->getStatusCode(),
+                'content' => $exception->getApiResponse()->getContent(),
             ]);
 
             return;

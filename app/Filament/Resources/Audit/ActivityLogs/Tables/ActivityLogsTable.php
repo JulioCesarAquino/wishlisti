@@ -34,6 +34,7 @@ class ActivityLogsTable
         'title' => 'Título',
         'type' => 'Tipo de evento',
         'event_date' => 'Data do evento',
+        'event_time' => 'Horário do evento',
         'description' => 'Texto do evento',
         'story' => 'Nossa história',
         'cover_image' => 'Imagem de capa',

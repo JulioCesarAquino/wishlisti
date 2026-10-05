@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property int $event_id
  * @property string $name
+ * @property string|null $start_time HH:MM:SS, Brasília time
  * @property string $slug
  * @property string $address
  * @property string|null $maps_url
@@ -27,7 +28,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'slug', 'address', 'maps_url', 'latitude', 'longitude', 'position'])]
+#[Fillable(['name', 'start_time', 'slug', 'address', 'maps_url', 'latitude', 'longitude', 'position'])]
 class EventLocation extends Model
 {
     /** @use HasFactory<EventLocationFactory> */

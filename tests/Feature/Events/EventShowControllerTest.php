@@ -55,6 +55,40 @@ class EventShowControllerTest extends TestCase
             ->where('initial_location', null));
     }
 
+    public function test_it_exposes_the_start_time_and_what_the_countdown_counts_to(): void
+    {
+        $event = Event::factory()->create(['is_published' => true, 'event_date' => '2026-10-30', 'event_time' => '16:00']);
+        $event->locations()->create(['name' => 'Cerimônia', 'start_time' => '16:00', 'address' => 'Igreja', 'position' => 0]);
+        $event->locations()->create(['name' => 'Festa', 'start_time' => '18:30', 'address' => 'Salão', 'position' => 1]);
+        $event->locations()->create(['name' => 'Hotel', 'address' => 'Centro', 'position' => 2]);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.event_time', '16h')
+            // Brasília time, whatever the server's timezone.
+            ->where('event.starts_at', '2026-10-30T16:00:00-03:00')
+            ->where('event.locations.0.start_time', '16h')
+            ->where('event.locations.1.start_time', '18h30')
+            ->where('event.locations.2.start_time', null));
+    }
+
+    public function test_without_a_time_the_countdown_counts_to_the_start_of_the_day(): void
+    {
+        $event = Event::factory()->create(['is_published' => true, 'event_date' => '2026-10-30', 'event_time' => null]);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.event_time', null)
+            ->where('event.starts_at', '2026-10-30T00:00:00-03:00'));
+    }
+
+    public function test_a_time_without_a_date_is_not_shown(): void
+    {
+        $event = Event::factory()->create(['is_published' => true, 'event_date' => null, 'event_time' => '16:00']);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.event_time', null)
+            ->where('event.starts_at', null));
+    }
+
     public function test_a_location_link_opens_the_page_on_that_location(): void
     {
         $event = Event::factory()->withLocation(['name' => 'Festa'])->create(['is_published' => true]);

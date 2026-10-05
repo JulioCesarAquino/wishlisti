@@ -56,6 +56,29 @@ class EventShareCardTest extends TestCase
             ->assertSee('<meta property="og:description" content="Casamento · 15 de novembro de 2026">', false);
     }
 
+    public function test_the_card_tells_the_start_time_too(): void
+    {
+        $event = Event::factory()->create([
+            'is_published' => true,
+            'type' => 'casamento',
+            'description' => null,
+            'event_date' => '2026-11-15',
+            'event_time' => '16:30',
+        ]);
+
+        $this->get("/{$event->slug}")
+            ->assertSee('<meta property="og:description" content="Casamento · 15 de novembro de 2026 · 16h30">', false);
+    }
+
+    public function test_a_location_card_tells_when_that_part_starts(): void
+    {
+        $event = Event::factory()->create(['is_published' => true]);
+        $event->locations()->create(['name' => 'Festa', 'start_time' => '18:00', 'address' => 'Salão Azul', 'position' => 0]);
+
+        $this->get("/{$event->slug}/localizacao/festa")
+            ->assertSee('<meta property="og:description" content="18h · Salão Azul">', false);
+    }
+
     public function test_the_cover_becomes_a_light_1200_by_630_picture(): void
     {
         $event = Event::factory()->create([

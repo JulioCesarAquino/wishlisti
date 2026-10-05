@@ -9,6 +9,7 @@ use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
 use App\Support\MercadoPagoPayments;
 use App\Support\MercadoPagoPlatform;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,7 @@ class PremiumPurchaseUpdateService
     public function __construct(
         protected PaymentClient $paymentClient,
         protected MercadoPagoPayments $payments,
+        protected PremiumValidityService $validity,
     ) {}
 
     /**
@@ -141,11 +143,18 @@ class PremiumPurchaseUpdateService
             && collect($hostFeatures)->every(fn (Feature $feature) => $event->user->hasFeature($feature));
     }
 
+    /**
+     * The event features last until the grace period after the event's
+     * date — the date the purchase is for; the host's don't end.
+     */
     private function grant(PremiumPurchase $purchase): void
     {
         $event = $purchase->event;
+        $date = $event->event_date ?? now(Event::TIMEZONE)->startOfDay();
 
-        $this->grantTo($event, config('premium.event_features'), $purchase);
+        $purchase->forceFill(['event_date' => $date])->save();
+
+        $this->grantTo($event, config('premium.event_features'), $purchase, $this->validity->expiresAt($date));
         $this->grantTo($event->user, config('premium.host_features'), $purchase);
     }
 
@@ -155,7 +164,7 @@ class PremiumPurchaseUpdateService
      * @param  Event|User  $model
      * @param  array<int, Feature>  $features
      */
-    private function grantTo(Model $model, array $features, PremiumPurchase $purchase): void
+    private function grantTo(Model $model, array $features, PremiumPurchase $purchase, ?CarbonInterface $expiresAt = null): void
     {
         foreach ($features as $feature) {
             if ($model->hasFeature($feature)) {
@@ -169,6 +178,7 @@ class PremiumPurchaseUpdateService
                 'feature' => $feature,
                 'source' => FeatureGrant::SOURCE_PURCHASE,
                 'premium_purchase_id' => $purchase->id,
+                'expires_at' => $expiresAt,
             ]);
         }
 

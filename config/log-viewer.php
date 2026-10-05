@@ -83,7 +83,8 @@ return [
     |
     */
 
-    'timezone' => null,
+    // The app runs in UTC (dates in the database); the screen shows Brasília time.
+    'timezone' => env('LOG_VIEWER_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------

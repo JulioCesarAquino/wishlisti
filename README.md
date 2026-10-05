@@ -82,7 +82,7 @@ Além das padrão do Laravel:
 | Variável                                              | Para quê                                                                                                                          |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `MERCADOPAGO_ACCESS_TOKEN` / `MERCADOPAGO_PUBLIC_KEY` | Conta Mercado Pago **da plataforma**, que recebe o pagamento do Premium. Sem elas, a aba Premium mostra "Pagamento indisponível". |
-| `PREMIUM_PRICE`                                       | Preço do Premium por evento (padrão `39.90`).                                                                                     |
+| `PREMIUM_PRICE`                                       | Preço inicial do Premium por evento (padrão `39.90`). Depois, o admin muda em **Configurações**, no painel.                       |
 | `FREE_GIFT_LIMIT`                                     | Máximo de presentes na lista do plano gratuito (padrão `15`).                                                                     |
 | `FORWARD_DB_PORT` / `APP_PORT`                        | Portas expostas pelo Docker (padrão 3307 e 8080).                                                                                 |
 
@@ -94,11 +94,11 @@ Depois de mudar o `.env`: `docker compose exec app php artisan config:clear`.
 
 ## Perfis de acesso
 
-| Perfil        | Como chega                                                                                                              | O que faz                                                                                                               |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Admin**     | criado à mão (veja acima)                                                                                               | vê e edita tudo; aprova convites; libera recursos premium; exclui eventos de vez; vê a auditoria e as vendas do Premium |
-| **Anfitrião** | solicita convite na página inicial, o admin aprova em _Solicitações de convite_ e envia o link para ele definir a senha | cria e gerencia os próprios eventos; só vê os próprios dados                                                            |
-| **Convidado** | abre a página pública do evento (`/{slug}`), sem conta                                                                  | confirma presença, presenteia, deixa recados; é reconhecido por um cookie do navegador e pelos dados de contato         |
+| Perfil        | Como chega                                                                                                                          | O que faz                                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Admin**     | criado à mão (veja acima)                                                                                                           | vê e edita tudo; aprova convites; libera recursos premium; exclui eventos de vez; vê a auditoria e as vendas do Premium |
+| **Anfitrião** | solicita convite na página inicial, o admin aprova em _Solicitações de convite_ e ele recebe por e-mail o link para definir a senha | cria e gerencia os próprios eventos; só vê os próprios dados                                                            |
+| **Convidado** | abre a página pública do evento (`/{slug}`), sem conta                                                                              | confirma presença, presenteia, deixa recados; é reconhecido por um cookie do navegador e pelos dados de contato         |
 
 ---
 

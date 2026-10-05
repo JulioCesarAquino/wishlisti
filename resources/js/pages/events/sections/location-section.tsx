@@ -78,6 +78,7 @@ export function LocationSection({ event, focused, onFocus }: Props) {
                             style={headingStyle(event)}
                         >
                             {location.name}
+                            {location.start_time && ` · ${location.start_time}`}
                         </p>
                         <p
                             className="mt-1 text-sm leading-relaxed whitespace-pre-line"
@@ -115,6 +116,7 @@ function LocationDetails({
                 style={headingStyle(event)}
             >
                 {location.name}
+                {location.start_time && ` · ${location.start_time}`}
             </h2>
             <p
                 className="mb-4 leading-relaxed whitespace-pre-line"

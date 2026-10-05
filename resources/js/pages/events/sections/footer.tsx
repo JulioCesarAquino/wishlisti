@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import {
     bodyTextStyle,
+    formatEventDate,
     headingStyle,
     type EventData,
 } from '@/pages/events/types';
@@ -45,13 +46,7 @@ export function Footer({ event }: { event: EventData }) {
                 {event.event_date && (
                     <>
                         {' • '}
-                        {new Date(
-                            `${event.event_date}T00:00:00`,
-                        ).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                        })}
+                        {formatEventDate(event)}
                     </>
                 )}
             </p>
