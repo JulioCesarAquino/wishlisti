@@ -86,7 +86,9 @@ dcp up -d
 dcp exec app php artisan migrate --force
 ```
 
-**Voltar para uma versão anterior:** o jeito mais simples é reverter o PR no GitHub (_Revert_), que gera um PR novo e passa pelo deploy normal. Na pressa, à mão: coloque `WISHLISTI_TAG=<hash do commit>` no `.env` e rode `dcp pull && dcp up -d` (o próximo deploy automático volta para a versão mais nova).
+O deploy automático baixa as imagens pelo hash do commit e marca essas mesmas imagens como `latest` no servidor. Por isso, um `dcp up -d` rodado à mão (para recarregar o `.env`, por exemplo) sobe a versão que está no ar, e não uma `latest` antiga.
+
+**Voltar para uma versão anterior:** o jeito mais simples é reverter o PR no GitHub (_Revert_), que gera um PR novo e passa pelo deploy normal. Na pressa, à mão: coloque `WISHLISTI_TAG=<hash do commit>` no `.env` e rode `dcp pull && dcp up -d`. O próximo deploy automático volta para a versão mais nova. Depois dele, tire o `WISHLISTI_TAG` do `.env`; enquanto a linha estiver lá, os comandos rodados à mão continuam subindo a versão antiga.
 
 Na primeira publicação, o GitHub pode criar os pacotes como **privados**, mesmo com o repositório público. Se o `dcp pull` der _denied_, abra o pacote em _github.com/JulioCesarAquino?tab=packages_, vá em _Package settings → Change visibility_ e deixe **Public**. Só precisa fazer isso uma vez para cada pacote.
 
