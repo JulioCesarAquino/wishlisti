@@ -1,24 +1,31 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { GuestContact, RsvpContactField } from '@/pages/events/types';
+import type {
+    GuestContact,
+    RsvpField,
+    RsvpFieldMode,
+} from '@/pages/events/types';
 
 /**
- * Name plus contact fields, shared by the RSVP form and the gift cart so a
- * guest is identified the same way (with the fields the host made
- * mandatory) everywhere on the page.
+ * Name plus the fields the host asks for, shared by the RSVP form and the
+ * gift cart so a guest is identified the same way everywhere on the page.
  */
 export type ContactForm = {
     name: string;
     whatsapp: string;
     email: string;
     cpf: string;
+    age: string;
 };
 
-const FIELD_LABELS: Record<RsvpContactField, string> = {
+const FIELD_LABELS: Record<RsvpField, string> = {
     whatsapp: 'WhatsApp',
     email: 'E-mail',
     cpf: 'CPF',
+    age: 'Idade',
 };
+
+const FIELD_ORDER: RsvpField[] = ['whatsapp', 'email', 'cpf', 'age'];
 
 export function toContactForm(
     contact: GuestContact | null | undefined,
@@ -28,6 +35,10 @@ export function toContactForm(
         whatsapp: contact?.whatsapp ?? '',
         email: contact?.email ?? '',
         cpf: contact?.cpf ?? '',
+        age:
+            contact?.age === null || contact?.age === undefined
+                ? ''
+                : String(contact.age),
     };
 }
 
@@ -35,9 +46,11 @@ type ContactFieldsProps = {
     idPrefix: string;
     errorPrefix: string;
     value: ContactForm;
-    fields: RsvpContactField[];
-    requiredFields: RsvpContactField[];
+    fields: RsvpField[];
+    requiredFields: RsvpField[];
     nameLabel: string;
+    /** Under the age: "Crianças com menos de 5 anos não pagam.", say. */
+    ageHint?: string;
     errors: Record<string, string | undefined>;
     onChange: (value: ContactForm) => void;
 };
@@ -49,6 +62,7 @@ export function ContactFields({
     fields,
     requiredFields,
     nameLabel,
+    ageHint,
     errors,
     onChange,
 }: ContactFieldsProps) {
@@ -59,7 +73,12 @@ export function ContactFields({
             label: requiredFields.includes(field)
                 ? FIELD_LABELS[field]
                 : `${FIELD_LABELS[field]} (opcional)`,
-            type: field === 'email' ? 'email' : 'text',
+            type:
+                field === 'email'
+                    ? 'email'
+                    : field === 'age'
+                      ? 'number'
+                      : 'text',
         })),
     ];
 
@@ -67,6 +86,7 @@ export function ContactFields({
         <>
             {inputs.map(({ key, label, type }) => {
                 const error = errors[`${errorPrefix}.${key}`];
+                const hint = key === 'age' ? ageHint : undefined;
 
                 return (
                     <div key={key} className="grid gap-1.5">
@@ -74,7 +94,14 @@ export function ContactFields({
                         <Input
                             id={`${idPrefix}_${key}`}
                             type={type}
-                            inputMode={key === 'cpf' ? 'numeric' : undefined}
+                            inputMode={
+                                key === 'cpf' || key === 'age'
+                                    ? 'numeric'
+                                    : undefined
+                            }
+                            min={key === 'age' ? 0 : undefined}
+                            max={key === 'age' ? 120 : undefined}
+                            placeholder={key === 'age' ? 'Em anos' : undefined}
                             aria-invalid={error ? true : undefined}
                             aria-describedby={
                                 error ? `${idPrefix}_${key}_error` : undefined
@@ -84,6 +111,9 @@ export function ContactFields({
                                 onChange({ ...value, [key]: e.target.value })
                             }
                         />
+                        {hint && !error && (
+                            <p className="text-xs opacity-70">{hint}</p>
+                        )}
                         {error && (
                             <p
                                 id={`${idPrefix}_${key}_error`}
@@ -100,15 +130,20 @@ export function ContactFields({
 }
 
 /**
- * The guest's own fields: WhatsApp and e-mail are always offered, the CPF
- * only when the host made it mandatory.
+ * The fields the host asks for, in order — the age only on the RSVP (the
+ * gift cart only needs to know who's giving).
  */
-export function guestContactFields(
-    requiredFields: RsvpContactField[],
-): RsvpContactField[] {
-    return [
-        'whatsapp',
-        'email',
-        ...(requiredFields.includes('cpf') ? (['cpf'] as const) : []),
-    ];
+export function visibleFields(
+    modes: Record<RsvpField, RsvpFieldMode>,
+    withAge = true,
+): RsvpField[] {
+    return FIELD_ORDER.filter(
+        (field) => modes[field] !== 'hidden' && (withAge || field !== 'age'),
+    );
+}
+
+export function requiredFieldsOf(
+    modes: Record<RsvpField, RsvpFieldMode>,
+): RsvpField[] {
+    return FIELD_ORDER.filter((field) => modes[field] === 'required');
 }

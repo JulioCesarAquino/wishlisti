@@ -30,7 +30,7 @@ class OrderStoreRequest extends FormRequest
         $anonymous = $this->boolean('anonymous');
 
         return [
-            ...$this->guestContactRules('guest', $anonymous ? [] : $event->rsvpRequiredFields(), nameRequired: ! $anonymous),
+            ...$this->guestContactRules('guest', $anonymous ? $this->optionalFields($event->rsvpContactFields()) : $event->rsvpContactFields(), nameRequired: ! $anonymous),
             'fulfillment' => ['sometimes', Rule::in([Order::FULFILLMENT_ONLINE, Order::FULFILLMENT_IN_PERSON])],
             'message' => ['nullable', 'string', 'max:1000'],
             // Whoever hands the gift over is seen doing it: anonymity only

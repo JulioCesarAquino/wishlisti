@@ -13,8 +13,8 @@ class RsvpStoreService
     ) {}
 
     /**
-     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $guestData
-     * @param  array<int, array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string}>  $companions
+     * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string, age?: ?int}  $guestData
+     * @param  array<int, array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string, age?: ?int}>  $companions
      */
     public function execute(
         Event $event,
@@ -23,8 +23,9 @@ class RsvpStoreService
         ?int $guestsCount,
         array $companions,
         ?string $guestIdentifier,
+        ?int $childrenCount = null,
     ): Guest {
-        return DB::transaction(function () use ($event, $guestData, $attending, $guestsCount, $companions, $guestIdentifier) {
+        return DB::transaction(function () use ($event, $guestData, $attending, $guestsCount, $companions, $guestIdentifier, $childrenCount) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
 
             $this->detachFromHost($guest);
@@ -40,6 +41,7 @@ class RsvpStoreService
             $guest->forceFill([
                 'rsvp_status' => $attending ? Guest::RSVP_CONFIRMED : Guest::RSVP_DECLINED,
                 'rsvp_guests_count' => $attending ? $guestsCount : null,
+                'rsvp_children_count' => $attending && $event->asksRsvpChildrenCount() ? $childrenCount : null,
                 'rsvp_responded_at' => now(),
             ])->save();
 

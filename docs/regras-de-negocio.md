@@ -124,12 +124,14 @@ Se reconhecer, atualiza o cadastro existente. Se não, cria um novo. — `GuestR
 
 **RN-31. Com o Premium "Lista nominal de convidados":**
 
-- o anfitrião escolhe quais dados são obrigatórios entre telefone, e-mail e CPF, **com pelo menos um**;
+- o anfitrião escolhe, campo a campo, o que o formulário pede: telefone/WhatsApp, e-mail, CPF e **idade** (em anos), cada um como **"Não pedir"**, **"Opcional"** ou **"Obrigatório"**. O nome é sempre obrigatório. Pode ficar sem nenhum contato (só nome e idade, por exemplo); o painel avisa que aí não há como falar com os convidados e que a mesma pessoa pode confirmar duas vezes de outro aparelho. Um campo "Não pedir" é descartado mesmo que chegue preenchido;
 - o anfitrião pode ligar **"Pedir os dados de cada acompanhante"**.
 
-Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações estejam salvas. — `Event::rsvpRequiredFields()`, `collectsRsvpCompanions()`
+Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações estejam salvas. Os campos de contato também identificam quem dá um presente no carrinho (a idade, não). — `Event::rsvpFields()`, `rsvpRequiredFields()`, `collectsRsvpCompanions()`
 
-**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1, com os mesmos campos obrigatórios. Cada acompanhante vira um convidado ligado a quem o listou.
+**RN-31a. "Crianças com menos de X anos não pagam"** (qualquer plano). Com a idade de cada pessoa disponível (acompanhantes listados e idade pedida), a conta é pela idade. Senão, o formulário pergunta **"Quantas dessas pessoas têm menos de X anos?"** (só para grupos de 2 ou mais; obrigatório, de 0 até o total). O painel do evento mostra "N pessoas confirmadas · P pagantes · C crianças com menos de X anos", a coluna Idade com o selo "Não paga" e um filtro de crianças; o painel geral de convidados soma as crianças que não pagam. — `Event::childAgeLimit()`, `asksRsvpChildrenCount()`, `rsvpHeadcount()`
+
+**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1, com os mesmos campos do titular. Cada acompanhante vira um convidado ligado a quem o listou.
 
 **RN-33. A contagem de pessoas é calculada a partir de quem foi vinculado de fato.** O número digitado não vale se algum acompanhante já estiver contado em outro lugar (RN-35).
 

@@ -5,6 +5,7 @@ namespace Tests\Feature\Orders;
 use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
+use App\Models\Events\EventRsvpSetting;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -190,7 +191,7 @@ class OrderStoreControllerTest extends TestCase
         $event = Event::factory()
             ->withFeatures(Feature::Payments, Feature::GuestList)
             ->withMercadoPago()
-            ->withRsvpSettings(['required_fields' => ['email', 'cpf']])
+            ->withRsvpSettings(['fields' => EventRsvpSetting::fieldsRequiring(['email', 'cpf'])])
             ->create(['is_published' => true]);
         $product = EventProduct::factory()->create(['event_id' => $event->id]);
 

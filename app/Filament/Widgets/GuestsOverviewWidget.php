@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
@@ -30,6 +31,14 @@ class GuestsOverviewWidget extends StatsOverviewWidget
             ->sum('rsvp_guests_count');
         $declinedGuests = (clone $guestsQuery)->where('rsvp_status', Guest::RSVP_DECLINED)->count();
 
+        // Events where children under an age don't pay: each with its own limit.
+        $childrenFree = Event::query()
+            ->when(! $isAdmin, fn ($query) => $query->managedBy(auth()->id()))
+            ->whereHas('rsvpSettings', fn ($query) => $query->whereNotNull('child_age_limit'))
+            ->with('rsvpSettings')
+            ->get()
+            ->map(fn (Event $event) => $event->rsvpHeadcount()['children'] ?? 0);
+
         return [
             Stat::make('Confirmaram presença', (string) $confirmedGuests)
                 ->icon(Heroicon::OutlinedCheckCircle)
@@ -37,6 +46,12 @@ class GuestsOverviewWidget extends StatsOverviewWidget
             Stat::make('Total de pessoas confirmadas', (string) $totalPeopleConfirmed)
                 ->icon(Heroicon::OutlinedUserGroup)
                 ->color('info'),
+            ...($childrenFree->isEmpty() ? [] : [
+                Stat::make('Crianças que não pagam', (string) $childrenFree->sum())
+                    ->description('Já incluídas no total de pessoas')
+                    ->icon(Heroicon::OutlinedFaceSmile)
+                    ->color('warning'),
+            ]),
             Stat::make('Não vão', (string) $declinedGuests)
                 ->icon(Heroicon::OutlinedXCircle)
                 ->color('danger'),

@@ -27,16 +27,21 @@ class RsvpStoreRequest extends FormRequest
         $event = $this->route('event');
 
         $rules = [
-            ...$this->guestContactRules('guest', $event->rsvpRequiredFields()),
+            ...$this->guestContactRules('guest', $event->rsvpFields()),
             'attending' => ['required', 'boolean'],
             'guests_count' => ['required_if:attending,true', 'nullable', 'integer', 'min:1', 'max:20'],
+            // "How many of them are under X?" — of the whole party, the guest
+            // included.
+            'children_count' => $event->asksRsvpChildrenCount() && $this->boolean('attending')
+                ? ['required', 'integer', 'min:0', 'lte:guests_count']
+                : ['exclude'],
         ];
 
         if ($event->collectsRsvpCompanions() && $this->boolean('attending')) {
             $companionsCount = max(0, (int) $this->input('guests_count', 1) - 1);
 
             $rules['companions'] = [$companionsCount > 0 ? 'required' : 'nullable', 'array', "size:{$companionsCount}"];
-            $rules += $this->guestContactRules('companions.*', $event->rsvpRequiredFields());
+            $rules += $this->guestContactRules('companions.*', $event->rsvpFields());
         }
 
         return $rules;
@@ -50,6 +55,8 @@ class RsvpStoreRequest extends FormRequest
         return [
             ...$this->guestContactMessages('guest'),
             ...$this->guestContactMessages('companions.*', 'do acompanhante'),
+            'children_count.required' => 'Por favor, informe quantas crianças vão (0 se nenhuma).',
+            'children_count.lte' => 'O número de crianças não pode passar o total de pessoas.',
         ];
     }
 
@@ -63,6 +70,8 @@ class RsvpStoreRequest extends FormRequest
             'guest.whatsapp' => 'WhatsApp',
             'guest.email' => 'e-mail',
             'guest.cpf' => 'CPF',
+            'guest.age' => 'idade',
+            'children_count' => 'quantidade de crianças',
             'attending' => 'confirmação',
             'guests_count' => 'quantidade de pessoas',
             'companions' => 'acompanhantes',
@@ -70,6 +79,7 @@ class RsvpStoreRequest extends FormRequest
             'companions.*.whatsapp' => 'WhatsApp do acompanhante',
             'companions.*.email' => 'e-mail do acompanhante',
             'companions.*.cpf' => 'CPF do acompanhante',
+            'companions.*.age' => 'idade do acompanhante',
         ];
     }
 }

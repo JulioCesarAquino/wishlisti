@@ -363,18 +363,91 @@ class Event extends Model
     }
 
     /**
-     * Contact fields (besides the always-required name) the RSVP form
-     * demands from the guest and from each companion. Customising them is a
-     * premium feature; without it the form keeps its original shape, where
-     * WhatsApp is the one mandatory contact.
+     * What the RSVP form asks of the guest and of each companion, besides
+     * the always-required name: each field hidden, optional or required.
+     * Customising it is a premium feature; without it the form keeps its
+     * original shape (WhatsApp required, e-mail optional).
+     *
+     * @return array<string, string>
+     */
+    public function rsvpFields(): array
+    {
+        $chosen = $this->hasFeature(Feature::GuestList) ? ($this->rsvpSettings->fields ?? []) : [];
+        $fields = EventRsvpSetting::DEFAULT_FIELDS;
+
+        foreach (EventRsvpSetting::FIELDS as $field) {
+            if (in_array($chosen[$field] ?? null, [EventRsvpSetting::FIELD_HIDDEN, EventRsvpSetting::FIELD_OPTIONAL, EventRsvpSetting::FIELD_REQUIRED], true)) {
+                $fields[$field] = $chosen[$field];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * The contact fields alone (no age) — how a guest is identified on the
+     * gift cart too.
+     *
+     * @return array<string, string>
+     */
+    public function rsvpContactFields(): array
+    {
+        return array_intersect_key($this->rsvpFields(), array_flip(Guest::CONTACT_FIELDS));
+    }
+
+    /**
+     * The contact fields the form requires.
      *
      * @return array<int, string>
      */
     public function rsvpRequiredFields(): array
     {
-        $fields = array_values(array_intersect(Guest::CONTACT_FIELDS, $this->rsvpSettings->required_fields ?? []));
+        return array_keys(array_filter($this->rsvpContactFields(), fn (string $mode) => $mode === EventRsvpSetting::FIELD_REQUIRED));
+    }
 
-        return $this->hasFeature(Feature::GuestList) && $fields !== [] ? $fields : ['whatsapp'];
+    /**
+     * "Children under X don't pay" — any event, free or premium.
+     */
+    public function childAgeLimit(): ?int
+    {
+        return $this->rsvpSettings->child_age_limit ?: null;
+    }
+
+    /**
+     * Whether the form asks how many of the guest's party are children:
+     * whenever there's an age limit and each person's age can't tell —
+     * companions not listed one by one, or no age asked.
+     */
+    public function asksRsvpChildrenCount(): bool
+    {
+        return $this->childAgeLimit() !== null
+            && ! ($this->collectsRsvpCompanions() && $this->rsvpFields()['age'] !== EventRsvpSetting::FIELD_HIDDEN);
+    }
+
+    /**
+     * Who's coming, for the host (and the buffet): people confirmed and, with
+     * an age limit, how many of them are children under it — from each
+     * person's age, or from the count a guest gave for their party.
+     *
+     * @return array{people: int, children: int|null, paying: int|null}
+     */
+    public function rsvpHeadcount(): array
+    {
+        $confirmed = $this->guests()->where('rsvp_status', Guest::RSVP_CONFIRMED)->get();
+        $people = (int) $confirmed->sum('rsvp_guests_count');
+        $limit = $this->childAgeLimit();
+
+        if ($limit === null) {
+            return ['people' => $people, 'children' => null, 'paying' => null];
+        }
+
+        $isChild = fn (Guest $guest): bool => $guest->age !== null && $guest->age < $limit;
+
+        $children = $confirmed->sum(fn (Guest $guest): int => $guest->companion_of_guest_id === null && $guest->rsvp_children_count !== null
+            ? $guest->rsvp_children_count
+            : (int) $isChild($guest));
+
+        return ['people' => $people, 'children' => (int) $children, 'paying' => max(0, $people - (int) $children)];
     }
 
     /**

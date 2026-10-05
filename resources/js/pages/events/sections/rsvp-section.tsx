@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     ContactFields,
-    guestContactFields,
+    requiredFieldsOf,
     toContactForm,
+    visibleFields,
     type ContactForm,
 } from '@/pages/events/sections/contact-fields';
 import {
@@ -40,10 +41,13 @@ export function RsvpSection({ event, guest }: Props) {
     const [justResponded, setJustResponded] = useState(false);
     const [editing, setEditing] = useState(false);
 
-    const requiredFields = event.rsvp_required_fields;
+    const fields = visibleFields(event.rsvp_fields);
+    const requiredFields = requiredFieldsOf(event.rsvp_fields);
     const collectsCompanions = event.rsvp_collect_companions;
-
-    const guestFields = guestContactFields(requiredFields);
+    const childAgeLimit = event.rsvp_child_age_limit;
+    const ageHint = childAgeLimit
+        ? `Crianças com menos de ${childAgeLimit} anos não pagam.`
+        : undefined;
 
     const initialCount = guest?.rsvp_guests_count ?? 1;
 
@@ -51,6 +55,7 @@ export function RsvpSection({ event, guest }: Props) {
         guest: toContactForm(guest),
         attending: null as boolean | null,
         guests_count: initialCount,
+        children_count: guest?.rsvp_children_count ?? 0,
         companions: collectsCompanions
             ? resizeCompanions(
                   (guest?.companions ?? []).map(toContactForm),
@@ -65,6 +70,8 @@ export function RsvpSection({ event, guest }: Props) {
         form.setData((data) => ({
             ...data,
             guests_count: count,
+            children_count:
+                count > 1 ? Math.min(data.children_count, count) : 0,
             companions: collectsCompanions
                 ? resizeCompanions(data.companions, count)
                 : [],
@@ -142,9 +149,10 @@ export function RsvpSection({ event, guest }: Props) {
                     idPrefix="rsvp"
                     errorPrefix="guest"
                     value={form.data.guest}
-                    fields={guestFields}
+                    fields={fields}
                     requiredFields={requiredFields}
                     nameLabel="Seu nome"
+                    ageHint={ageHint}
                     errors={errors}
                     onChange={(value) => form.setData('guest', value)}
                 />
@@ -217,6 +225,43 @@ export function RsvpSection({ event, guest }: Props) {
                     </div>
                 )}
 
+                {/* Only for a party: someone coming alone sends 0. */}
+                {form.data.attending === true &&
+                    event.rsvp_asks_children_count &&
+                    form.data.guests_count > 1 && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="rsvp_children">
+                                {`Quantas dessas pessoas têm menos de ${childAgeLimit} anos?`}
+                            </Label>
+                            <Input
+                                id="rsvp_children"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={form.data.guests_count}
+                                value={form.data.children_count}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'children_count',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
+                            {errors.children_count ? (
+                                <p className="text-sm text-red-600">
+                                    {errors.children_count}
+                                </p>
+                            ) : (
+                                <p
+                                    className="text-xs opacity-70"
+                                    style={bodyTextStyle(event)}
+                                >
+                                    {ageHint} Se ninguém, deixe 0.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                 {form.data.attending === true &&
                     form.data.companions.map((companion, index) => (
                         <fieldset
@@ -233,7 +278,7 @@ export function RsvpSection({ event, guest }: Props) {
                                 idPrefix={`rsvp_companion_${index}`}
                                 errorPrefix={`companions.${index}`}
                                 value={companion}
-                                fields={requiredFields}
+                                fields={fields}
                                 requiredFields={requiredFields}
                                 nameLabel="Nome"
                                 errors={errors}

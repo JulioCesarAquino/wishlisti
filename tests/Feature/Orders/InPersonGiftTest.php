@@ -7,6 +7,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventPayment;
 use App\Filament\Resources\Orders\Orders\Pages\ListOrders;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
+use App\Models\Events\EventRsvpSetting;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Models\User;
@@ -76,7 +77,7 @@ class InPersonGiftTest extends TestCase
     public function test_the_guest_is_identified_with_the_fields_the_host_requires(): void
     {
         $this->event->grantFeature(Feature::GuestList);
-        $this->event->rsvpSettings()->create(['required_fields' => ['cpf']]);
+        $this->event->rsvpSettings()->create(['fields' => EventRsvpSetting::fieldsRequiring(['cpf'])]);
 
         $this->reserve(['guest' => ['name' => 'Maria']])
             ->assertUnprocessable()

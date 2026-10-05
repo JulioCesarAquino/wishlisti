@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Events\Events\Pages;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
 use App\Filament\Support\SafeDeleteBulkAction;
+use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Services\Guests\GuestAnonymizeService;
@@ -19,6 +20,7 @@ use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -46,6 +48,26 @@ class ManageEventGuests extends ManageRelatedRecords
         return $schema->components([]);
     }
 
+    /**
+     * Who's coming, at a glance — split into who pays and the children who
+     * don't, when the event has an age limit.
+     */
+    public function getSubheading(): ?string
+    {
+        /** @var Event $event */
+        $event = $this->getOwnerRecord();
+        $headcount = $event->rsvpHeadcount();
+        $people = $headcount['people'] === 1 ? '1 pessoa confirmada' : "{$headcount['people']} pessoas confirmadas";
+
+        if ($headcount['children'] === null) {
+            return $people;
+        }
+
+        $children = $headcount['children'] === 1 ? '1 criança' : "{$headcount['children']} crianças";
+
+        return "{$people} · {$headcount['paying']} pagantes · {$children} com menos de {$event->childAgeLimit()} anos";
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -66,6 +88,15 @@ class ManageEventGuests extends ManageRelatedRecords
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(),
+                TextColumn::make('age')
+                    ->label('Idade')
+                    ->placeholder('—')
+                    ->numeric()
+                    ->sortable()
+                    ->badge(fn (Guest $record): bool => $this->isChild($record))
+                    ->color(fn (Guest $record): ?string => $this->isChild($record) ? 'warning' : null)
+                    ->description(fn (Guest $record): ?string => $this->isChild($record) ? 'Não paga' : null)
+                    ->toggleable(),
                 TextColumn::make('whatsapp')
                     ->label('WhatsApp')
                     ->searchable(),
@@ -101,6 +132,13 @@ class ManageEventGuests extends ManageRelatedRecords
                     ->label('Pessoas')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('rsvp_children_count')
+                    ->label('Crianças')
+                    ->tooltip(fn (): ?string => ($limit = $this->childAgeLimit()) ? "Quantas pessoas do grupo têm menos de {$limit} anos" : null)
+                    ->placeholder('—')
+                    ->numeric()
+                    ->visible(fn (): bool => $this->childAgeLimit() !== null)
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Chegou em')
                     ->dateTime('d/m/Y H:i')
@@ -109,6 +147,12 @@ class ManageEventGuests extends ManageRelatedRecords
             ])
             ->filters([
                 TrashedFilter::make()->label('Lixeira'),
+                Filter::make('children')
+                    ->label(fn (): string => 'Crianças com menos de '.$this->childAgeLimit().' anos')
+                    ->visible(fn (): bool => $this->childAgeLimit() !== null)
+                    ->query(fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                        ->where('age', '<', $this->childAgeLimit())
+                        ->orWhere('rsvp_children_count', '>', 0))),
                 SelectFilter::make('rsvp_status')
                     ->label('Presença')
                     ->options([
@@ -161,5 +205,20 @@ class ManageEventGuests extends ManageRelatedRecords
                     RestoreBulkAction::make(),
                 ]),
             ]);
+    }
+
+    private function childAgeLimit(): ?int
+    {
+        /** @var Event $event */
+        $event = $this->getOwnerRecord();
+
+        return $event->childAgeLimit();
+    }
+
+    private function isChild(Guest $guest): bool
+    {
+        $limit = $this->childAgeLimit();
+
+        return $limit !== null && $guest->age !== null && $guest->age < $limit;
     }
 }

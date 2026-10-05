@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getCsrfToken } from '@/lib/csrf';
 import {
     ContactFields,
-    guestContactFields,
+    visibleFields,
     toContactForm,
 } from '@/pages/events/sections/contact-fields';
 import { Footer } from '@/pages/events/sections/footer';
@@ -726,8 +726,9 @@ export default function EventShow({
                                             idPrefix="guest"
                                             errorPrefix="guest"
                                             value={form.data.guest}
-                                            fields={guestContactFields(
-                                                event.rsvp_required_fields,
+                                            fields={visibleFields(
+                                                event.rsvp_fields,
+                                                false,
                                             )}
                                             requiredFields={
                                                 form.data.anonymous
