@@ -100,6 +100,10 @@ class EventShowController extends Controller
                 'has_guestbook' => $event->hasFeature(Feature::Guestbook),
                 'mp_public_key' => $event->acceptsOnlineGifts() ? $event->paymentSettings->mp_public_key : null,
                 'rsvp_required_fields' => $event->rsvpRequiredFields(),
+                // Each field hidden, optional or required (the age too).
+                'rsvp_fields' => $event->rsvpFields(),
+                'rsvp_child_age_limit' => $event->childAgeLimit(),
+                'rsvp_asks_children_count' => $event->asksRsvpChildrenCount(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
@@ -134,8 +138,10 @@ class EventShowController extends Controller
                 'whatsapp' => $guest->whatsapp,
                 'email' => $guest->email,
                 'cpf' => $guest->cpf,
+                'age' => $guest->age,
                 'rsvp_status' => $guest->rsvp_status,
                 'rsvp_guests_count' => $guest->rsvp_guests_count,
+                'rsvp_children_count' => $guest->rsvp_children_count,
                 // Gifts they reserved to hand over in person, so they can give
                 // up on one from the page.
                 'reservations' => $guest->orders()
@@ -152,12 +158,13 @@ class EventShowController extends Controller
                     ]),
                 'companions' => $guest->companions()
                     ->orderBy('id')
-                    ->get(['name', 'whatsapp', 'email', 'cpf'])
+                    ->get(['name', 'whatsapp', 'email', 'cpf', 'age'])
                     ->map(fn (Guest $companion) => [
                         'name' => $companion->name,
                         'whatsapp' => $companion->whatsapp,
                         'email' => $companion->email,
                         'cpf' => $companion->cpf,
+                        'age' => $companion->age,
                     ]),
             ] : null,
         ])->withViewData('share', $this->shareCard($request, $event, $location, $sharePreview));

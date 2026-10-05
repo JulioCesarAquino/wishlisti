@@ -6,6 +6,7 @@ use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
 use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Models\Events\Event;
+use App\Models\Events\EventRsvpSetting;
 use App\Models\Premium\FeatureGrant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,7 +17,7 @@ class EventRsvpFormSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_hosts_cannot_see_the_settings_until_the_admin_enables_the_premium_feature(): void
+    public function test_without_the_feature_hosts_only_set_the_childrens_age_limit(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->create(['user_id' => $host->id]);
@@ -25,16 +26,18 @@ class EventRsvpFormSettingsTest extends TestCase
 
         $this->get(EditEventRsvp::getUrl(['record' => $event]))
             ->assertOk()
-            ->assertSee('Recurso premium: Lista nominal de convidados')
-            ->assertDontSee('Salvar alterações');
+            ->assertSee('Recurso premium: Lista nominal de convidados');
 
         Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
-            ->assertFormFieldDoesNotExist('rsvpSettings.required_fields')
+            ->assertFormFieldDoesNotExist('rsvpSettings.fields.age')
+            ->fillForm(['rsvpSettings.child_age_limit' => 5])
             ->call('save')
-            ->assertForbidden();
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(5, $event->fresh()->childAgeLimit());
     }
 
-    public function test_hosts_can_configure_the_form_once_the_feature_is_enabled(): void
+    public function test_hosts_choose_each_field_once_the_feature_is_enabled(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
         $event = Event::factory()->withFeatures(Feature::GuestList)->create([
@@ -44,8 +47,15 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->actingAs($host);
 
         Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
+            ->assertFormSet([
+                'rsvpSettings.fields.whatsapp' => EventRsvpSetting::FIELD_REQUIRED,
+                'rsvpSettings.fields.age' => EventRsvpSetting::FIELD_HIDDEN,
+            ])
             ->fillForm([
-                'rsvpSettings.required_fields' => ['email', 'cpf'],
+                'rsvpSettings.fields.whatsapp' => EventRsvpSetting::FIELD_OPTIONAL,
+                'rsvpSettings.fields.email' => EventRsvpSetting::FIELD_REQUIRED,
+                'rsvpSettings.fields.cpf' => EventRsvpSetting::FIELD_REQUIRED,
+                'rsvpSettings.fields.age' => EventRsvpSetting::FIELD_OPTIONAL,
                 'rsvpSettings.collect_companions' => true,
             ])
             ->call('save')
@@ -54,23 +64,31 @@ class EventRsvpFormSettingsTest extends TestCase
         $event = $event->fresh();
 
         $this->assertSame(['email', 'cpf'], $event->rsvpRequiredFields());
+        $this->assertSame(EventRsvpSetting::FIELD_OPTIONAL, $event->rsvpFields()['age']);
         $this->assertTrue($event->collectsRsvpCompanions());
-        $this->assertTrue($event->hasFeature(Feature::GuestList));
     }
 
-    public function test_at_least_one_contact_field_must_be_required(): void
+    public function test_a_form_can_ask_only_for_the_name_and_the_age(): void
     {
         $host = User::factory()->create(['is_admin' => false]);
-        $event = Event::factory()->withFeatures(Feature::GuestList)->create([
-            'user_id' => $host->id,
-        ]);
+        $event = Event::factory()->withFeatures(Feature::GuestList)->create(['user_id' => $host->id]);
 
         $this->actingAs($host);
 
         Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
-            ->fillForm(['rsvpSettings.required_fields' => []])
+            // Only once no contact is required.
+            ->assertDontSee('você não terá como falar com os convidados')
+            ->fillForm([
+                'rsvpSettings.fields.whatsapp' => EventRsvpSetting::FIELD_HIDDEN,
+                'rsvpSettings.fields.email' => EventRsvpSetting::FIELD_HIDDEN,
+                'rsvpSettings.fields.cpf' => EventRsvpSetting::FIELD_HIDDEN,
+                'rsvpSettings.fields.age' => EventRsvpSetting::FIELD_REQUIRED,
+            ])
+            ->assertSee('você não terá como falar com os convidados')
             ->call('save')
-            ->assertHasFormErrors(['rsvpSettings.required_fields']);
+            ->assertHasNoFormErrors();
+
+        $this->assertSame([], $event->fresh()->rsvpRequiredFields());
     }
 
     public function test_admins_can_enable_and_disable_premium_features(): void

@@ -48,6 +48,14 @@ class Order extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    /**
+     * An online gift the guest gave up on: no payment came within
+     * ABANDONED_AFTER_MINUTES of it being ordered.
+     */
+    public const STATUS_EXPIRED = 'expired';
+
+    public const ABANDONED_AFTER_MINUTES = 120;
+
     /** An in-person gift the guest has set aside for themselves. */
     public const STATUS_RESERVED = 'reserved';
 

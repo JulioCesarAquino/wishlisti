@@ -2,29 +2,53 @@
 
 namespace App\Http\Requests\Guests\Concerns;
 
+use App\Models\Events\EventRsvpSetting;
 use App\Rules\Guests\Cpf;
 
 /**
- * Name plus the contact fields the event makes mandatory (see
- * Event::rsvpRequiredFields()) — the same for the RSVP and for gifts, so
- * a guest is identified the same way everywhere.
+ * Name plus the fields the event asks for (see Event::rsvpFields()) — the
+ * same for the RSVP and for gifts, so a guest is identified the same way
+ * everywhere. A field the event doesn't ask for is dropped, even if sent.
  */
 trait ValidatesGuestContact
 {
     /**
-     * @param  array<int, string>  $requiredFields
+     * @param  array<string, string>  $fields  field => EventRsvpSetting::FIELD_*
      * @return array<string, mixed>
      */
-    protected function guestContactRules(string $prefix, array $requiredFields, bool $nameRequired = true): array
+    protected function guestContactRules(string $prefix, array $fields, bool $nameRequired = true): array
     {
-        $presence = fn (string $field) => in_array($field, $requiredFields, true) ? 'required' : 'nullable';
-
-        return [
+        $rules = [
             "{$prefix}.name" => [$nameRequired ? 'required' : 'nullable', 'string', 'max:255'],
-            "{$prefix}.whatsapp" => [$presence('whatsapp'), 'string', 'max:30'],
-            "{$prefix}.email" => [$presence('email'), 'email', 'max:255'],
-            "{$prefix}.cpf" => [$presence('cpf'), 'string', new Cpf],
         ];
+
+        $formats = [
+            'whatsapp' => ['string', 'max:30'],
+            'email' => ['email', 'max:255'],
+            'cpf' => ['string', new Cpf],
+            'age' => ['integer', 'min:0', 'max:120'],
+        ];
+
+        foreach ($fields as $field => $mode) {
+            $rules["{$prefix}.{$field}"] = match ($mode) {
+                EventRsvpSetting::FIELD_REQUIRED => ['required', ...$formats[$field]],
+                EventRsvpSetting::FIELD_OPTIONAL => ['nullable', ...$formats[$field]],
+                default => ['exclude'],
+            };
+        }
+
+        return $rules;
+    }
+
+    /**
+     * The same fields, none of them required (an anonymous gift).
+     *
+     * @param  array<string, string>  $fields
+     * @return array<string, string>
+     */
+    protected function optionalFields(array $fields): array
+    {
+        return array_map(fn (string $mode) => $mode === EventRsvpSetting::FIELD_REQUIRED ? EventRsvpSetting::FIELD_OPTIONAL : $mode, $fields);
     }
 
     /**
@@ -45,6 +69,10 @@ trait ValidatesGuestContact
             "{$prefix}.email.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'e-mail').'.',
             "{$prefix}.email.email" => 'Esse e-mail parece incompleto. Pode conferir?',
             "{$prefix}.cpf.required" => 'Por favor, informe '.$field($own ? 'seu' : 'o', 'CPF').'.',
+            "{$prefix}.age.required" => 'Por favor, informe '.$field($own ? 'sua' : 'a', 'idade').'.',
+            "{$prefix}.age.integer" => 'A idade deve ser um número inteiro, em anos.',
+            "{$prefix}.age.min" => 'A idade deve ser um número inteiro, em anos.',
+            "{$prefix}.age.max" => 'Essa idade parece errada. Pode conferir?',
             "{$prefix}.*.max" => 'Esse texto ficou longo demais. Pode encurtar?',
         ];
     }

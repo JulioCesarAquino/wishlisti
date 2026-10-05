@@ -6,7 +6,6 @@ use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Orders\Order;
 use App\Services\Guests\GuestResolveService;
-use App\Support\MercadoPagoPayments;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +15,6 @@ class OrderStoreService
     public function __construct(
         protected GuestResolveService $guestResolveService,
         protected OrderPaymentUpdateService $paymentUpdateService,
-        protected MercadoPagoPayments $payments,
     ) {}
 
     /**
@@ -57,12 +55,18 @@ class OrderStoreService
             ]);
         }
 
-        if (! $inPerson) {
-            $this->closeRetriedOrders($event, $guestIdentifier, fn (Order $order) => ! $order->is_free_amount
-                && $this->itemsKey($order->items->map(fn ($item) => ['event_product_id' => $item->event_product_id, 'quantity' => $item->quantity])->all()) === $this->itemsKey($items));
+        $resumed = $inPerson ? null : $this->resumeOpenOrder($event, $guestIdentifier, fn (Order $order) => ! $order->is_free_amount
+            && $this->itemsKey($order->items->map(fn ($item) => ['event_product_id' => $item->event_product_id, 'quantity' => $item->quantity])->all()) === $this->itemsKey($items));
+
+        // Its payment already started (a Pix to pay) or just went through:
+        // shown as it is, never charged again.
+        if ($resumed && ($resumed->status === Order::STATUS_PAID || filled($resumed->payment_id))) {
+            $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
+
+            return $resumed->load('guest');
         }
 
-        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier, $anonymous, $inPerson, $fulfillment) {
+        return DB::transaction(function () use ($event, $guestData, $items, $message, $guestIdentifier, $anonymous, $inPerson, $fulfillment, $resumed) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
 
             $orderItems = [];
@@ -93,6 +97,16 @@ class OrderStoreService
                     'quantity' => $item['quantity'],
                     'unit_price' => $product->price,
                 ];
+            }
+
+            // The same checkout opened again (the page reloaded, say): still
+            // one order, at today's prices.
+            if ($resumed) {
+                $resumed->update(['total_amount' => $totalAmount, 'message' => $message, 'is_anonymous' => $anonymous]);
+                $resumed->items()->delete();
+                $resumed->items()->createMany($orderItems);
+
+                return $resumed->setRelation('guest', $guest);
             }
 
             $order = Order::create([
@@ -131,11 +145,19 @@ class OrderStoreService
             ]);
         }
 
-        $this->closeRetriedOrders($event, $guestIdentifier, fn (Order $order) => $order->is_free_amount
+        $resumed = $this->resumeOpenOrder($event, $guestIdentifier, fn (Order $order) => $order->is_free_amount
             && (float) $order->total_amount === round($amount, 2));
 
-        return DB::transaction(function () use ($event, $guestData, $amount, $message, $guestIdentifier, $anonymous) {
+        return DB::transaction(function () use ($event, $guestData, $amount, $message, $guestIdentifier, $anonymous, $resumed) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
+
+            if ($resumed) {
+                if ($resumed->status === Order::STATUS_PENDING && blank($resumed->payment_id)) {
+                    $resumed->update(['message' => $message, 'is_anonymous' => $anonymous]);
+                }
+
+                return $resumed->setRelation('guest', $guest);
+            }
 
             $order = Order::create([
                 'event_id' => $event->id,
@@ -153,54 +175,73 @@ class OrderStoreService
     }
 
     /**
-     * The same gift ordered again from the same browser while the previous
-     * order still waits for its payment is a retry (the Pix was closed
-     * unpaid, say): the previous payment is cancelled, so both can't be
-     * paid. If it was paid in the meantime, the new order is refused.
+     * One open order per guest: a checkout opened again — after a reload, or
+     * after closing it — picks up the same order instead of leaving another
+     * pending one behind.
      *
-     * Other pending orders are left alone: a guest may well be giving two
-     * different gifts.
+     * - The same gift, still waiting: that order is resumed — with its open
+     *   payment (the same Pix to pay), if one was started. Mercado Pago is
+     *   asked first how that payment is doing: an expired Pix starts over,
+     *   one paid meanwhile comes back paid. So does the same gift paid just
+     *   now (within the abandon time).
+     * - Another gift: the guest changed their mind, so an order of theirs
+     *   with no payment started is closed. One with a payment started is
+     *   left alone (it may still be paid), for the abandon check to close.
      *
      * @param  Closure(Order): bool  $isSameGift
      */
-    private function closeRetriedOrders(Event $event, ?string $guestIdentifier, Closure $isSameGift): void
+    private function resumeOpenOrder(Event $event, ?string $guestIdentifier, Closure $isSameGift): ?Order
     {
         $guest = $guestIdentifier ? $event->guests()->where('identifier', $guestIdentifier)->first() : null;
 
         if (! $guest) {
-            return;
+            return null;
         }
 
-        $retried = $guest->orders()
+        // Paid just now counts too: a guest who paid the Pix in their bank's
+        // app still has the gift in the cart, and must not pay it twice.
+        $open = $guest->orders()
             ->where('fulfillment', Order::FULFILLMENT_ONLINE)
-            ->where('status', Order::STATUS_PENDING)
-            ->whereNotNull('payment_id')
+            ->where(fn ($query) => $query
+                ->where('status', Order::STATUS_PENDING)
+                ->orWhere(fn ($query) => $query
+                    ->where('status', Order::STATUS_PAID)
+                    ->where('paid_at', '>=', now()->subMinutes(Order::ABANDONED_AFTER_MINUTES))))
             ->with('items')
-            ->get()
-            ->filter($isSameGift);
+            ->latest('id')
+            ->get();
 
-        $requestOptions = $this->paymentUpdateService->requestOptions($event);
+        $resumed = null;
 
-        foreach ($retried as $order) {
+        foreach ($open as $order) {
             /** @var Order $order */
-            if ($this->payments->cancel((string) $order->payment_id, $requestOptions, ['order_id' => $order->id])) {
-                $order->update(['status' => Order::STATUS_CANCELLED]);
+            if ($order->status === Order::STATUS_PAID) {
+                $resumed ??= $isSameGift($order) ? $order : null;
 
                 continue;
             }
 
-            $this->paymentUpdateService->execute($event, (string) $order->payment_id);
+            if (! $isSameGift($order) || $resumed) {
+                if (blank($order->payment_id)) {
+                    $order->update(['status' => Order::STATUS_EXPIRED]);
+                }
 
-            $status = $order->refresh()->status;
-
-            if (in_array($status, [Order::STATUS_PAID, Order::STATUS_PENDING], true)) {
-                throw ValidationException::withMessages([
-                    'items' => $status === Order::STATUS_PAID
-                        ? 'Seu pagamento anterior deste presente já foi confirmado. Obrigado!'
-                        : 'Ainda há um pagamento em andamento para este presente. Tente de novo em alguns minutos.',
-                ]);
+                continue;
             }
+
+            if (filled($order->payment_id)) {
+                $this->paymentUpdateService->execute($event, (string) $order->payment_id);
+                $order->refresh();
+
+                if (! in_array($order->status, [Order::STATUS_PENDING, Order::STATUS_PAID], true)) {
+                    continue;
+                }
+            }
+
+            $resumed = $order;
         }
+
+        return $resumed;
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Filament\Resources\Events\Events\Pages\ManageEventProducts;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
 use App\Models\Events\EventGiftSetting;
+use App\Models\Guests\Guest;
 use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Models\User;
@@ -106,6 +107,30 @@ class HeartfeltGiftsTest extends TestCase
         $this->assertTrue($order->is_anonymous);
         $this->assertSame(Order::STATUS_PENDING, $order->status);
         $this->assertSame(0, $order->items()->count());
+    }
+
+    public function test_the_same_contribution_opened_again_is_still_one_order(): void
+    {
+        $this->makePremium();
+        $contribute = fn (float $amount, ?string $identifier = null) => ($identifier
+            ? $this->withCredentials()->withCookie(Guest::cookieName($this->event), $identifier)
+            : $this)->postJson("/{$this->event->slug}/orders", [
+                'guest' => ['name' => 'Maria', 'whatsapp' => '11999999999'],
+                'free_amount' => $amount,
+                'message' => 'Com carinho',
+            ]);
+
+        $first = $contribute(50)->assertOk()->json('order.id');
+        $identifier = Order::find($first)->guest->identifier;
+
+        // The page reloaded, the same contribution opened again.
+        $this->assertSame($first, $contribute(50, $identifier)->assertOk()->json('order.id'));
+        $this->assertSame(1, Order::count());
+
+        // Another amount: the guest changed their mind.
+        $other = $contribute(80, $identifier)->assertOk()->json('order.id');
+        $this->assertNotSame($first, $other);
+        $this->assertSame(Order::STATUS_EXPIRED, Order::find($first)->status);
     }
 
     public function test_contributions_need_the_host_to_accept_them(): void

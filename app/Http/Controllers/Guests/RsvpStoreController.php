@@ -32,6 +32,7 @@ class RsvpStoreController extends Controller
             attending: (bool) $request->validated('attending'),
             guestsCount: $request->validated('guests_count'),
             companions: $request->validated('companions') ?? [],
+            childrenCount: $request->validated('children_count'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
         );
 

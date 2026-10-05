@@ -50,6 +50,12 @@ export type EventData = {
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
+    /** Each field of the RSVP form (besides the name): hidden, optional or required. */
+    rsvp_fields: Record<RsvpField, RsvpFieldMode>;
+    /** Children under this age don't pay; null when everyone does. */
+    rsvp_child_age_limit: number | null;
+    /** The form asks how many of the party are under that age. */
+    rsvp_asks_children_count: boolean;
 };
 
 export type PageSectionKey =
@@ -75,11 +81,16 @@ export type EventLocation = {
 
 export type RsvpContactField = 'whatsapp' | 'email' | 'cpf';
 
+export type RsvpField = RsvpContactField | 'age';
+
+export type RsvpFieldMode = 'hidden' | 'optional' | 'required';
+
 export type GuestContact = {
     name: string;
     whatsapp: string | null;
     email: string | null;
     cpf: string | null;
+    age?: number | null;
 };
 
 export type Fulfillment = 'online' | 'in_person';
@@ -102,6 +113,7 @@ export type Reservation = {
 export type Guest = GuestContact & {
     rsvp_status: 'confirmed' | 'declined' | null;
     rsvp_guests_count: number | null;
+    rsvp_children_count: number | null;
     companions: GuestContact[];
     reservations: Reservation[];
 };

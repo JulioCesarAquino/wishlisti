@@ -28,14 +28,16 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $whatsapp
  * @property string|null $email
  * @property string|null $cpf
+ * @property int|null $age in years, as told on the RSVP
  * @property string|null $rsvp_status
  * @property int|null $rsvp_guests_count
+ * @property int|null $rsvp_children_count of those, how many under the event's child age limit (headcount-only answers)
  * @property Carbon|null $rsvp_responded_at
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['event_id', 'companion_of_guest_id', 'name', 'whatsapp', 'email', 'cpf', 'rsvp_status', 'rsvp_guests_count', 'rsvp_responded_at'])]
+#[Fillable(['event_id', 'companion_of_guest_id', 'name', 'whatsapp', 'email', 'cpf', 'age', 'rsvp_status', 'rsvp_guests_count', 'rsvp_children_count', 'rsvp_responded_at'])]
 class Guest extends Model
 {
     /** @use HasFactory<GuestFactory> */
@@ -166,6 +168,8 @@ class Guest extends Model
     {
         return [
             'rsvp_guests_count' => 'integer',
+            'age' => 'integer',
+            'rsvp_children_count' => 'integer',
             'rsvp_responded_at' => 'datetime',
         ];
     }

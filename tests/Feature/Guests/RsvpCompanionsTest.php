@@ -4,6 +4,7 @@ namespace Tests\Feature\Guests;
 
 use App\Enums\Premium\Feature;
 use App\Models\Events\Event;
+use App\Models\Events\EventRsvpSetting;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +20,7 @@ class RsvpCompanionsTest extends TestCase
             ->withFeatures(Feature::GuestList)
             ->withRsvpSettings([
                 'collect_companions' => $collectCompanions,
-                'required_fields' => $requiredFields,
+                'fields' => EventRsvpSetting::fieldsRequiring($requiredFields),
             ])
             ->create(['is_published' => true]);
     }
@@ -27,7 +28,7 @@ class RsvpCompanionsTest extends TestCase
     public function test_free_events_ignore_the_custom_settings(): void
     {
         $event = Event::factory()
-            ->withRsvpSettings(['collect_companions' => true, 'required_fields' => ['cpf']])
+            ->withRsvpSettings(['collect_companions' => true, 'fields' => EventRsvpSetting::fieldsRequiring(['cpf'])])
             ->create(['is_published' => true]);
 
         $this->assertSame(['whatsapp'], $event->rsvpRequiredFields());

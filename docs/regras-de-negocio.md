@@ -124,12 +124,14 @@ Se reconhecer, atualiza o cadastro existente. Se não, cria um novo. — `GuestR
 
 **RN-31. Com o Premium "Lista nominal de convidados":**
 
-- o anfitrião escolhe quais dados são obrigatórios entre telefone, e-mail e CPF, **com pelo menos um**;
+- o anfitrião escolhe, campo a campo, o que o formulário pede: telefone/WhatsApp, e-mail, CPF e **idade** (em anos), cada um como **"Não pedir"**, **"Opcional"** ou **"Obrigatório"**. O nome é sempre obrigatório. Pode ficar sem nenhum contato (só nome e idade, por exemplo); o painel avisa que aí não há como falar com os convidados e que a mesma pessoa pode confirmar duas vezes de outro aparelho. Um campo "Não pedir" é descartado mesmo que chegue preenchido;
 - o anfitrião pode ligar **"Pedir os dados de cada acompanhante"**.
 
-Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações estejam salvas. — `Event::rsvpRequiredFields()`, `collectsRsvpCompanions()`
+Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações estejam salvas. Os campos de contato também identificam quem dá um presente no carrinho (a idade, não). — `Event::rsvpFields()`, `rsvpRequiredFields()`, `collectsRsvpCompanions()`
 
-**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1, com os mesmos campos obrigatórios. Cada acompanhante vira um convidado ligado a quem o listou.
+**RN-31a. "Crianças com menos de X anos não pagam"** (qualquer plano). Com a idade de cada pessoa disponível (acompanhantes listados e idade pedida), a conta é pela idade. Senão, o formulário pergunta **"Quantas dessas pessoas têm menos de X anos?"** (só para grupos de 2 ou mais; obrigatório, de 0 até o total). O painel do evento mostra "N pessoas confirmadas · P pagantes · C crianças com menos de X anos", a coluna Idade com o selo "Não paga" e um filtro de crianças; o painel geral de convidados soma as crianças que não pagam. — `Event::childAgeLimit()`, `asksRsvpChildrenCount()`, `rsvpHeadcount()`
+
+**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1, com os mesmos campos do titular. Cada acompanhante vira um convidado ligado a quem o listou.
 
 **RN-33. A contagem de pessoas é calculada a partir de quem foi vinculado de fato.** O número digitado não vale se algum acompanhante já estiver contado em outro lugar (RN-35).
 
@@ -182,11 +184,11 @@ As regras valem também no servidor: os campos travados são sempre gravados a p
 
 ## 6. Formas de presentear
 
-| Forma                         | Plano                               | Estoque                                     | Status possíveis                       |
-| ----------------------------- | ----------------------------------- | ------------------------------------------- | -------------------------------------- |
-| **Pagamento online** de itens | Premium (`payments`)                | tomado só quando o pagamento é **aprovado** | pendente → pago, recusado ou cancelado |
-| **Entrega pessoal** (reserva) | todos                               | tomado **na hora** da reserva               | reservado → recebido ou cancelado      |
-| **Valor livre**               | Premium (`payments`) + opção ligada | não se aplica                               | igual ao online                        |
+| Forma                         | Plano                               | Estoque                                     | Status possíveis                                      |
+| ----------------------------- | ----------------------------------- | ------------------------------------------- | ----------------------------------------------------- |
+| **Pagamento online** de itens | Premium (`payments`)                | tomado só quando o pagamento é **aprovado** | pendente → pago, recusado, cancelado ou não concluído |
+| **Entrega pessoal** (reserva) | todos                               | tomado **na hora** da reserva               | reservado → recebido ou cancelado                     |
+| **Valor livre**               | Premium (`payments`) + opção ligada | não se aplica                               | igual ao online                                       |
 
 **RN-50. No gratuito, a única forma é a entrega pessoal.** O botão do item é "Vou presentear", e o carrinho termina em "Reservar presentes".
 
@@ -195,6 +197,12 @@ As regras valem também no servidor: os campos travados são sempre gravados a p
 **RN-52. O evento só "recebe presentes online" com três condições:** o recurso `payments`, o Access Token **e** a Public Key do Mercado Pago do anfitrião cadastrados. Faltando qualquer um, a página se comporta como gratuita para pagamentos. — `Event::acceptsOnlineGifts()`
 
 **RN-53. Identificação no carrinho:** os mesmos dados obrigatórios da confirmação de presença (RN-31). Se o convidado já se identificou, o carrinho vem preenchido.
+
+**RN-53c. Um pedido por intenção.** O pedido online nasce no "Pagar agora", não ao abrir o carrinho, e o carrinho só é esvaziado quando o pagamento é aprovado. Se o mesmo convidado (mesmo navegador) abre de novo o pagamento do mesmo presente — depois de recarregar a página ou fechar o carrinho —, o sistema **retoma o mesmo pedido**: sem pagamento iniciado, com os preços de agora; com Pix ou boleto em aberto, mostra **o mesmo** código, com a opção "Pagar de outro jeito" (que cancela o anterior). Pix expirado começa um pedido novo. O mesmo presente pago há menos de 2 horas volta como pago, para não ser cobrado duas vezes. Trocar de presente fecha o pedido anterior sem pagamento iniciado ("Não concluído"). — `OrderStoreService::resumeOpenOrder`
+
+**RN-53a. Checkout abandonado vira "Não concluído".** O pedido online nasce quando o convidado abre o pagamento. Se em **2 horas** nenhum pagamento foi iniciado, ele passa a "Não concluído" (`orders:expire-abandoned`, a cada 10 minutos). Se um pagamento foi iniciado (Pix, boleto), o sistema pergunta ao Mercado Pago como ele terminou, caso o aviso não tenha chegado: Pix não pago vira "Cancelado", e boleto ainda em aberto é perguntado de novo depois. Não há estoque envolvido. Se o convidado deixou a tela aberta e paga depois, o pedido é reaberto e o pagamento vale. — `OrderExpireAbandonedService`
+
+**RN-53b. A lista de pedidos abre nos presentes.** As abas são **Presentes** (pagos, reservados e recebidos), **Aguardando pagamento** (com contador), **Não concluídos** (não concluídos, cancelados e recusados) e **Todos**.
 
 **RN-54. Reserva:** o item fica separado para aquele convidado, e ninguém mais escolhe a mesma unidade.
 
@@ -425,7 +433,6 @@ Comportamentos que hoje **não** são como deveriam, ou que ainda não têm regr
 
 - **Posição do presente anônimo:** na lista de pedidos, ordenada por data, a posição de um pedido anônimo dá uma pista aproximada de quando ele foi feito (RN-61).
 - **Mesmo navegador:** um acompanhante que confirma presença pelo navegador de quem o listou é reconhecido pelo cookie como essa pessoa (RN-22).
-- **Checkouts abandonados:** pedidos online não pagos ficam "Pendente" indefinidamente. Não expiram sozinhos, só somem na limpeza da lixeira do convidado.
 - **Convite com e-mail repetido:** o pedido de convite não verifica duplicidade. Aprovar um pedido cujo e-mail já tem conta gera erro.
 - **Retirada de recurso comprado:** o admin consegue retirar em "Liberar recursos" um recurso que o anfitrião pagou (RN-77).
 - **Limpeza da auditoria:** está configurada para 365 dias (`config/activitylog.php`), mas o comando de limpeza não está agendado. Na prática, a auditoria nunca é limpa.
