@@ -33,6 +33,8 @@ export type EventData = {
     font_color_secondary: string | null;
     font_family: FontFamily | null;
     cover_effect_intensity: number;
+    /** The "Como chegar" button(s) on the home tab. */
+    show_location_shortcut: boolean;
     is_published: boolean;
     visits_count: number;
     accepts_online_gifts: boolean;

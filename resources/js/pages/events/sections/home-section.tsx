@@ -102,7 +102,7 @@ function LocationShortcut({ event, onOpenLocation }: Props) {
         (section) => section.key === 'localizacao',
     );
 
-    if (!hasTab || locations.length === 0) {
+    if (!event.show_location_shortcut || !hasTab || locations.length === 0) {
         return null;
     }
 

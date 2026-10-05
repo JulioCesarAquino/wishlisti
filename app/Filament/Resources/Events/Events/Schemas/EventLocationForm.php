@@ -8,7 +8,9 @@ use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Js;
@@ -20,7 +22,18 @@ class EventLocationForm
     {
         return $schema
             ->columns(2)
-            ->components(self::components());
+            ->components([
+                ...self::components(),
+                Section::make('Na tela inicial')
+                    ->relationship('appearance')
+                    ->columnSpanFull()
+                    ->components([
+                        Toggle::make('show_location_shortcut')
+                            ->label('Mostrar o botão "Como chegar" na tela inicial')
+                            ->helperText('Fica logo abaixo da data. Com mais de uma localização, aparece um botão para cada uma.')
+                            ->default(true),
+                    ]),
+            ]);
     }
 
     /**

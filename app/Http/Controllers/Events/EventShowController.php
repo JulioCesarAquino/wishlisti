@@ -84,6 +84,7 @@ class EventShowController extends Controller
                 'font_color_secondary' => $event->appearance->font_color_secondary,
                 'font_family' => $event->appearance->font_family,
                 'cover_effect_intensity' => $event->appearance->cover_effect_intensity,
+                'show_location_shortcut' => $event->appearance->show_location_shortcut,
                 'is_published' => $event->is_published,
                 'visits_count' => $event->visits_count,
                 'accepts_online_gifts' => $event->acceptsOnlineGifts(),
