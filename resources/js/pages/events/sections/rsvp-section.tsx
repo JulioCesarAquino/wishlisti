@@ -43,6 +43,10 @@ export function RsvpSection({ event, guest }: Props) {
 
     const fields = visibleFields(event.rsvp_fields);
     const requiredFields = requiredFieldsOf(event.rsvp_fields);
+    const companionFields = visibleFields(event.rsvp_companion_fields);
+    const companionRequiredFields = requiredFieldsOf(
+        event.rsvp_companion_fields,
+    );
     const collectsCompanions = event.rsvp_collect_companions;
     const childAgeLimit = event.rsvp_child_age_limit;
     const ageHint = childAgeLimit
@@ -247,16 +251,9 @@ export function RsvpSection({ event, guest }: Props) {
                                     )
                                 }
                             />
-                            {errors.children_count ? (
+                            {errors.children_count && (
                                 <p className="text-sm text-red-600">
                                     {errors.children_count}
-                                </p>
-                            ) : (
-                                <p
-                                    className="text-xs opacity-70"
-                                    style={bodyTextStyle(event)}
-                                >
-                                    {ageHint} Se ninguém, deixe 0.
                                 </p>
                             )}
                         </div>
@@ -278,8 +275,8 @@ export function RsvpSection({ event, guest }: Props) {
                                 idPrefix={`rsvp_companion_${index}`}
                                 errorPrefix={`companions.${index}`}
                                 value={companion}
-                                fields={fields}
-                                requiredFields={requiredFields}
+                                fields={companionFields}
+                                requiredFields={companionRequiredFields}
                                 nameLabel="Nome"
                                 errors={errors}
                                 onChange={(value) =>

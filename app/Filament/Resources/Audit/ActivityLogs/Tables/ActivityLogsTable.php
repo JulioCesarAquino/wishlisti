@@ -49,6 +49,7 @@ class ActivityLogsTable
         'cover_effect_intensity' => 'Intensidade do efeito de desfoque',
         'collect_companions' => 'Pedir dados dos acompanhantes',
         'fields' => 'Dados pedidos na confirmação',
+        'companion_fields' => 'Dados pedidos de cada acompanhante',
         'child_age_limit' => 'Crianças que não pagam (menos de … anos)',
         'age' => 'Idade',
         'feature' => 'Recurso premium',

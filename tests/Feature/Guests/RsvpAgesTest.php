@@ -29,6 +29,7 @@ class RsvpAgesTest extends TestCase
             ->withRsvpSettings([
                 'collect_companions' => $companions,
                 'fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
+                'companion_fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
                 'child_age_limit' => $childAgeLimit,
             ])
             ->create(['is_published' => true]);
@@ -73,6 +74,47 @@ class RsvpAgesTest extends TestCase
         Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
             ->assertSee('3 pessoas confirmadas · 2 pagantes · 1 criança com menos de 5 anos')
             ->assertSee('Não paga');
+    }
+
+    public function test_companions_have_fields_of_their_own(): void
+    {
+        // The guest gives a WhatsApp; the children they bring, a name and an age.
+        $event = Event::factory()
+            ->withFeatures(Feature::GuestList)
+            ->withRsvpSettings([
+                'collect_companions' => true,
+                'fields' => [...EventRsvpSetting::DEFAULT_FIELDS, 'whatsapp' => EventRsvpSetting::FIELD_REQUIRED],
+                'companion_fields' => [
+                    'whatsapp' => EventRsvpSetting::FIELD_HIDDEN,
+                    'email' => EventRsvpSetting::FIELD_HIDDEN,
+                    'cpf' => EventRsvpSetting::FIELD_HIDDEN,
+                    'age' => EventRsvpSetting::FIELD_REQUIRED,
+                ],
+                'child_age_limit' => 5,
+            ])
+            ->create(['is_published' => true]);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.rsvp_fields.whatsapp', EventRsvpSetting::FIELD_REQUIRED)
+            ->where('event.rsvp_companion_fields.whatsapp', EventRsvpSetting::FIELD_HIDDEN)
+            ->where('event.rsvp_companion_fields.age', EventRsvpSetting::FIELD_REQUIRED)
+            ->where('event.rsvp_asks_children_count', false));
+
+        $this->post("/{$event->slug}/rsvp", [
+            'guest' => ['name' => 'Ana', 'whatsapp' => '11999999999'],
+            'attending' => true,
+            'guests_count' => 3,
+            'companions' => [['name' => 'Lia', 'age' => 3], ['name' => 'Théo']],
+        ])->assertSessionHasErrors(['companions.1.age']);
+
+        $this->post("/{$event->slug}/rsvp", [
+            'guest' => ['name' => 'Ana', 'whatsapp' => '11999999999'],
+            'attending' => true,
+            'guests_count' => 3,
+            'companions' => [['name' => 'Lia', 'age' => 3], ['name' => 'Théo', 'age' => 7]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_a_required_age_must_be_given_for_everyone(): void

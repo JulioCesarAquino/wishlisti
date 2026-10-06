@@ -131,9 +131,9 @@ Se reconhecer, atualiza o cadastro existente. Se não, cria um novo. — `GuestR
 
 Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações estejam salvas. Os campos de contato também identificam quem dá um presente no carrinho (a idade, não). — `Event::rsvpFields()`, `rsvpRequiredFields()`, `collectsRsvpCompanions()`
 
-**RN-31a. "Crianças com menos de X anos não pagam"** (qualquer plano). Com a idade de cada pessoa disponível (acompanhantes listados e idade pedida), a conta é pela idade. Senão, o formulário pergunta **"Quantas dessas pessoas têm menos de X anos?"** (só para grupos de 2 ou mais; obrigatório, de 0 até o total). O painel do evento mostra "N pessoas confirmadas · P pagantes · C crianças com menos de X anos", a coluna Idade com o selo "Não paga" e um filtro de crianças; o painel geral de convidados soma as crianças que não pagam. — `Event::childAgeLimit()`, `asksRsvpChildrenCount()`, `rsvpHeadcount()`
+**RN-31a. "Crianças com menos de X anos não pagam"** (qualquer plano). Com a idade de cada pessoa disponível (acompanhantes listados e idade pedida a eles), a conta é pela idade. Senão, o formulário pergunta **"Quantas dessas pessoas têm menos de X anos?"** (só para grupos de 2 ou mais; obrigatório, de 0 até o total). O painel do evento mostra "N pessoas confirmadas · P pagantes · C crianças com menos de X anos", a coluna Idade com o selo "Não paga" e um filtro de crianças; o painel geral de convidados soma as crianças que não pagam. — `Event::childAgeLimit()`, `asksRsvpChildrenCount()`, `rsvpHeadcount()`
 
-**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1, com os mesmos campos do titular. Cada acompanhante vira um convidado ligado a quem o listou.
+**RN-32. Acompanhantes:** com a opção ligada, quem vai com N pessoas preenche os dados das outras N−1. Os acompanhantes têm **campos próprios** ("Não pedir / Opcional / Obrigatório" para telefone, e-mail, CPF e idade), por exemplo só nome e idade para as crianças; por padrão, nome e telefone opcional. — `Event::rsvpCompanionFields()` Cada acompanhante vira um convidado ligado a quem o listou.
 
 **RN-33. A contagem de pessoas é calculada a partir de quem foi vinculado de fato.** O número digitado não vale se algum acompanhante já estiver contado em outro lugar (RN-35).
 
