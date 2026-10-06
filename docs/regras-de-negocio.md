@@ -64,7 +64,7 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-08. O admin não pode excluir a si mesmo.** — `UserPolicy::delete`
 
-**RN-09. Senha forte só em produção:** mínimo de 12 caracteres, maiúsculas e minúsculas, números, símbolos e verificação contra senhas vazadas. Em ambiente local não há exigência. — `AppServiceProvider`
+**RN-09. Senha:** mínimo de 8 caracteres, com pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial — em qualquer ambiente. Em produção, também é recusada uma senha que já apareceu em vazamentos de dados (haveibeenpwned). — `AppServiceProvider`
 
 ---
 

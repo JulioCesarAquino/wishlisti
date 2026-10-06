@@ -57,14 +57,14 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+        // At least 8 characters, with an upper and a lower case letter, a
+        // number and a symbol — everywhere, so the tests see it too. Leaked
+        // passwords (haveibeenpwned) are refused only in production, where
+        // asking that service is fine.
+        Password::defaults(function (): Password {
+            $rule = Password::min(8)->mixedCase()->numbers()->symbols();
+
+            return app()->isProduction() ? $rule->uncompromised() : $rule;
+        });
     }
 }

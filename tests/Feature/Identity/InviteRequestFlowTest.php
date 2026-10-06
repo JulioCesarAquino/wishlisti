@@ -75,13 +75,13 @@ class InviteRequestFlowTest extends TestCase
 
         Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $token])
             ->fillForm([
-                'password' => 'nova-senha-123',
-                'passwordConfirmation' => 'nova-senha-123',
+                'password' => 'Nova@senha1',
+                'passwordConfirmation' => 'Nova@senha1',
             ])
             ->call('resetPassword')
             ->assertHasNoFormErrors();
 
-        $this->assertTrue(Hash::check('nova-senha-123', $host->fresh()->password));
+        $this->assertTrue(Hash::check('Nova@senha1', $host->fresh()->password));
     }
 
     public function test_admin_can_regenerate_the_link_of_an_approved_request(): void
@@ -172,21 +172,21 @@ class InviteRequestFlowTest extends TestCase
         $this->travel(121)->minutes();
 
         Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $token])
-            ->fillForm(['password' => 'nova-senha-123', 'passwordConfirmation' => 'nova-senha-123'])
+            ->fillForm(['password' => 'Nova@senha1', 'passwordConfirmation' => 'Nova@senha1'])
             ->call('resetPassword');
 
-        $this->assertFalse(Hash::check('nova-senha-123', $host->fresh()->password));
+        $this->assertFalse(Hash::check('Nova@senha1', $host->fresh()->password));
 
         // A new one, asked for again, works.
         $token = Password::broker()->createToken($host);
         $this->travel(110)->minutes();
 
         Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $token])
-            ->fillForm(['password' => 'nova-senha-123', 'passwordConfirmation' => 'nova-senha-123'])
+            ->fillForm(['password' => 'Nova@senha1', 'passwordConfirmation' => 'Nova@senha1'])
             ->call('resetPassword')
             ->assertHasNoFormErrors();
 
-        $this->assertTrue(Hash::check('nova-senha-123', $host->fresh()->password));
+        $this->assertTrue(Hash::check('Nova@senha1', $host->fresh()->password));
     }
 
     public function test_admin_can_reject_a_request(): void
