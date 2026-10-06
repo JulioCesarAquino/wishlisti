@@ -473,12 +473,6 @@ class Event extends Model
         return $this->rsvpSettings->child_age_limit ?: null;
     }
 
-    /** Whether those children don't pay (the form tells the guests). */
-    public function childrenDontPay(): bool
-    {
-        return $this->childAgeLimit() !== null && $this->rsvpSettings->children_dont_pay;
-    }
-
     /**
      * Whether the form asks how many of the guest's party are children:
      * whenever there's an age limit and each person's age can't tell —
@@ -491,12 +485,11 @@ class Event extends Model
     }
 
     /**
-     * Who's coming, for the host (and the buffet): people confirmed and, with
-     * a children's age, how many of them are children — from each person's
-     * age, or from the count a guest gave for their party. "paying" is the
-     * rest (meaningful when children don't pay).
+     * Who's coming, for the host: people confirmed and, with a children's
+     * age, how many of them are children — from each person's age, or from
+     * the count a guest gave for their party.
      *
-     * @return array{people: int, children: int|null, paying: int|null}
+     * @return array{people: int, children: int|null}
      */
     public function rsvpHeadcount(): array
     {
@@ -505,7 +498,7 @@ class Event extends Model
         $limit = $this->childAgeLimit();
 
         if ($limit === null) {
-            return ['people' => $people, 'children' => null, 'paying' => null];
+            return ['people' => $people, 'children' => null];
         }
 
         $isChild = fn (Guest $guest): bool => $guest->age !== null && $guest->age < $limit;
@@ -514,7 +507,7 @@ class Event extends Model
             ? $guest->rsvp_children_count
             : (int) $isChild($guest));
 
-        return ['people' => $people, 'children' => (int) $children, 'paying' => max(0, $people - (int) $children)];
+        return ['people' => $people, 'children' => (int) $children];
     }
 
     /**

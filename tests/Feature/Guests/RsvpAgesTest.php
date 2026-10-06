@@ -31,7 +31,6 @@ class RsvpAgesTest extends TestCase
                 'fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
                 'companion_fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
                 'child_age_limit' => $childAgeLimit,
-                'children_dont_pay' => true,
             ])
             ->create(['is_published' => true]);
     }
@@ -67,14 +66,14 @@ class RsvpAgesTest extends TestCase
         $this->assertNull($ana->whatsapp);
         $this->assertSame(3, Guest::where('name', 'Lia')->firstOrFail()->age);
 
-        $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 3, 'children' => 1], $event->fresh()->rsvpHeadcount());
 
         // What the host sees on the guest list.
         $this->actingAs($event->user);
 
         Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertSee('3 pessoas confirmadas · 2 pagantes · 1 criança com menos de 5 anos')
-            ->assertSee('Criança · não paga');
+            ->assertSee('3 pessoas confirmadas · 1 criança com menos de 5 anos')
+            ->assertSee('Criança');
     }
 
     public function test_companions_have_fields_of_their_own(): void
@@ -115,30 +114,7 @@ class RsvpAgesTest extends TestCase
             'companions' => [['name' => 'Lia', 'age' => 3], ['name' => 'Théo', 'age' => 7]],
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
-    }
-
-    public function test_the_age_can_just_tell_children_apart_without_them_not_paying(): void
-    {
-        $event = Event::factory()->withRsvpSettings(['child_age_limit' => 12, 'children_dont_pay' => false])->create(['is_published' => true]);
-
-        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
-            ->where('event.rsvp_child_age_limit', 12)
-            ->where('event.rsvp_children_dont_pay', false));
-
-        $this->post("/{$event->slug}/rsvp", [
-            'guest' => ['name' => 'Ana', 'whatsapp' => '11999999999'],
-            'attending' => true,
-            'guests_count' => 4,
-            'children_count' => 2,
-        ])->assertSessionHasNoErrors();
-
-        $this->actingAs($event->user);
-
-        // No "pagantes": nobody said children don't pay.
-        Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertSee('4 pessoas confirmadas · 2 crianças com menos de 12 anos')
-            ->assertDontSee('pagantes');
+        $this->assertSame(['people' => 3, 'children' => 1], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_a_required_age_must_be_given_for_everyone(): void
@@ -184,7 +160,7 @@ class RsvpAgesTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(2, Guest::firstOrFail()->rsvp_children_count);
-        $this->assertSame(['people' => 4, 'children' => 2, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 4, 'children' => 2], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_companions_without_their_age_fall_back_to_asking_how_many_are_children(): void
@@ -206,7 +182,7 @@ class RsvpAgesTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertNull(Guest::firstOrFail()->rsvp_children_count);
-        $this->assertSame(['people' => 2, 'children' => null, 'paying' => null], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 2, 'children' => null], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_free_events_keep_the_original_form_whatever_was_chosen(): void

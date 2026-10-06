@@ -49,8 +49,6 @@ type ContactFieldsProps = {
     fields: RsvpField[];
     requiredFields: RsvpField[];
     nameLabel: string;
-    /** Under the age: "Crianças com menos de 5 anos não pagam.", say. */
-    ageHint?: string;
     errors: Record<string, string | undefined>;
     onChange: (value: ContactForm) => void;
 };
@@ -62,7 +60,6 @@ export function ContactFields({
     fields,
     requiredFields,
     nameLabel,
-    ageHint,
     errors,
     onChange,
 }: ContactFieldsProps) {
@@ -86,7 +83,6 @@ export function ContactFields({
         <>
             {inputs.map(({ key, label, type }) => {
                 const error = errors[`${errorPrefix}.${key}`];
-                const hint = key === 'age' ? ageHint : undefined;
 
                 return (
                     <div key={key} className="grid gap-1.5">
@@ -111,9 +107,6 @@ export function ContactFields({
                                 onChange({ ...value, [key]: e.target.value })
                             }
                         />
-                        {hint && !error && (
-                            <p className="text-xs opacity-70">{hint}</p>
-                        )}
                         {error && (
                             <p
                                 id={`${idPrefix}_${key}_error`}

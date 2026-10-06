@@ -27,7 +27,7 @@ class EventRsvpForm
     public static function children(): Section
     {
         return Section::make('Crianças')
-            ->description('Para saber quantas crianças vão — e, se elas não pagam, quantas pessoas pagam.')
+            ->description('Para saber quantas crianças vão: o painel separa as crianças no total de pessoas.')
             ->icon('heroicon-o-face-smile')
             ->components([
                 TextInput::make('child_age_limit')
@@ -36,15 +36,9 @@ class EventRsvpForm
                     ->integer()
                     ->minValue(1)
                     ->maxValue(18)
-                    ->live(onBlur: true)
                     ->placeholder('Em branco: não separar crianças')
                     ->helperText('Com os dados de cada acompanhante e a idade pedidos a eles, o sistema conta pela idade de cada pessoa. Senão, o formulário pergunta "quantas dessas pessoas têm menos de X anos?".')
                     ->maxWidth('md'),
-                Toggle::make('children_dont_pay')
-                    ->label('Crianças nessa idade não pagam')
-                    ->helperText('O formulário avisa os convidados, e o painel mostra quantas pessoas pagam.')
-                    ->visible(fn (Get $get): bool => filled($get('child_age_limit')))
-                    ->default(false),
             ]);
     }
 

@@ -51,7 +51,6 @@ class ActivityLogsTable
         'fields' => 'Dados pedidos na confirmação',
         'companion_fields' => 'Dados pedidos de cada acompanhante',
         'child_age_limit' => 'Idade das crianças (menos de … anos)',
-        'children_dont_pay' => 'Crianças não pagam',
         'age' => 'Idade',
         'feature' => 'Recurso premium',
         'source' => 'Origem',

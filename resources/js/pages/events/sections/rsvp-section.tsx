@@ -49,11 +49,6 @@ export function RsvpSection({ event, guest }: Props) {
     );
     const collectsCompanions = event.rsvp_collect_companions;
     const childAgeLimit = event.rsvp_child_age_limit;
-    // Only when the host said so: the age may just tell children apart.
-    const ageHint =
-        childAgeLimit && event.rsvp_children_dont_pay
-            ? `Crianças com menos de ${childAgeLimit} anos não pagam.`
-            : undefined;
 
     const initialCount = guest?.rsvp_guests_count ?? 1;
 
@@ -158,7 +153,6 @@ export function RsvpSection({ event, guest }: Props) {
                     fields={fields}
                     requiredFields={requiredFields}
                     nameLabel="Seu nome"
-                    ageHint={ageHint}
                     errors={errors}
                     onChange={(value) => form.setData('guest', value)}
                 />
