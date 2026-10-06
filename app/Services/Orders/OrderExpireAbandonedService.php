@@ -105,8 +105,9 @@ class OrderExpireAbandonedService
             return true;
         }
 
+        // Refused: most likely paid meanwhile — asked again.
         $this->paymentUpdateService->execute($event, (string) $order->payment_id);
 
-        return $order->refresh()->status !== Order::STATUS_PENDING;
+        return Order::whereKey($order->id)->value('status') !== Order::STATUS_PENDING;
     }
 }
