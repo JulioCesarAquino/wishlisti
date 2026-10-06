@@ -466,11 +466,17 @@ class Event extends Model
     }
 
     /**
-     * "Children under X don't pay" — any event, free or premium.
+     * Under this age a guest counts as a child — any event, free or premium.
      */
     public function childAgeLimit(): ?int
     {
         return $this->rsvpSettings->child_age_limit ?: null;
+    }
+
+    /** Whether those children don't pay (the form tells the guests). */
+    public function childrenDontPay(): bool
+    {
+        return $this->childAgeLimit() !== null && $this->rsvpSettings->children_dont_pay;
     }
 
     /**
@@ -486,8 +492,9 @@ class Event extends Model
 
     /**
      * Who's coming, for the host (and the buffet): people confirmed and, with
-     * an age limit, how many of them are children under it — from each
-     * person's age, or from the count a guest gave for their party.
+     * a children's age, how many of them are children — from each person's
+     * age, or from the count a guest gave for their party. "paying" is the
+     * rest (meaningful when children don't pay).
      *
      * @return array{people: int, children: int|null, paying: int|null}
      */

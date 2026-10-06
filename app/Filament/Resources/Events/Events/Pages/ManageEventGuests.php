@@ -63,9 +63,11 @@ class ManageEventGuests extends ManageRelatedRecords
             return $people;
         }
 
-        $children = $headcount['children'] === 1 ? '1 criança' : "{$headcount['children']} crianças";
+        $children = ($headcount['children'] === 1 ? '1 criança' : "{$headcount['children']} crianças")." com menos de {$event->childAgeLimit()} anos";
 
-        return "{$people} · {$headcount['paying']} pagantes · {$children} com menos de {$event->childAgeLimit()} anos";
+        return $event->childrenDontPay()
+            ? "{$people} · {$headcount['paying']} pagantes · {$children}"
+            : "{$people} · {$children}";
     }
 
     public function table(Table $table): Table
@@ -95,7 +97,7 @@ class ManageEventGuests extends ManageRelatedRecords
                     ->sortable()
                     ->badge(fn (Guest $record): bool => $this->isChild($record))
                     ->color(fn (Guest $record): ?string => $this->isChild($record) ? 'warning' : null)
-                    ->description(fn (Guest $record): ?string => $this->isChild($record) ? 'Não paga' : null)
+                    ->description(fn (Guest $record): ?string => $this->isChild($record) ? ($this->childrenDontPay() ? 'Criança · não paga' : 'Criança') : null)
                     ->toggleable(),
                 TextColumn::make('whatsapp')
                     ->label('WhatsApp')
@@ -213,6 +215,14 @@ class ManageEventGuests extends ManageRelatedRecords
         $event = $this->getOwnerRecord();
 
         return $event->childAgeLimit();
+    }
+
+    private function childrenDontPay(): bool
+    {
+        /** @var Event $event */
+        $event = $this->getOwnerRecord();
+
+        return $event->childrenDontPay();
     }
 
     private function isChild(Guest $guest): bool

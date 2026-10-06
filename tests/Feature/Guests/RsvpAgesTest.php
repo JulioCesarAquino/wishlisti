@@ -31,6 +31,7 @@ class RsvpAgesTest extends TestCase
                 'fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
                 'companion_fields' => [...EventRsvpSetting::DEFAULT_FIELDS, ...$fields],
                 'child_age_limit' => $childAgeLimit,
+                'children_dont_pay' => true,
             ])
             ->create(['is_published' => true]);
     }
@@ -73,7 +74,7 @@ class RsvpAgesTest extends TestCase
 
         Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
             ->assertSee('3 pessoas confirmadas · 2 pagantes · 1 criança com menos de 5 anos')
-            ->assertSee('Não paga');
+            ->assertSee('Criança · não paga');
     }
 
     public function test_companions_have_fields_of_their_own(): void
@@ -115,6 +116,29 @@ class RsvpAgesTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+    }
+
+    public function test_the_age_can_just_tell_children_apart_without_them_not_paying(): void
+    {
+        $event = Event::factory()->withRsvpSettings(['child_age_limit' => 12, 'children_dont_pay' => false])->create(['is_published' => true]);
+
+        $this->get("/{$event->slug}")->assertInertia(fn ($page) => $page
+            ->where('event.rsvp_child_age_limit', 12)
+            ->where('event.rsvp_children_dont_pay', false));
+
+        $this->post("/{$event->slug}/rsvp", [
+            'guest' => ['name' => 'Ana', 'whatsapp' => '11999999999'],
+            'attending' => true,
+            'guests_count' => 4,
+            'children_count' => 2,
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($event->user);
+
+        // No "pagantes": nobody said children don't pay.
+        Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
+            ->assertSee('4 pessoas confirmadas · 2 crianças com menos de 12 anos')
+            ->assertDontSee('pagantes');
     }
 
     public function test_a_required_age_must_be_given_for_everyone(): void

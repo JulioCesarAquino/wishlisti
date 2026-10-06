@@ -19,11 +19,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property bool $collect_companions
  * @property array<string, string>|null $fields field => FIELD_HIDDEN|FIELD_OPTIONAL|FIELD_REQUIRED
  * @property array<string, string>|null $companion_fields the same, for each companion
- * @property int|null $child_age_limit children under this age don't pay
+ * @property int|null $child_age_limit under this age, a guest counts as a child
+ * @property bool $children_dont_pay children (under that age) don't pay
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['collect_companions', 'fields', 'companion_fields', 'child_age_limit'])]
+#[Fillable(['collect_companions', 'fields', 'companion_fields', 'child_age_limit', 'children_dont_pay'])]
 class EventRsvpSetting extends Model
 {
     use LogsActivity;
@@ -58,6 +59,7 @@ class EventRsvpSetting extends Model
      */
     protected $attributes = [
         'collect_companions' => false,
+        'children_dont_pay' => false,
     ];
 
     /**
@@ -95,6 +97,7 @@ class EventRsvpSetting extends Model
             'fields' => 'array',
             'companion_fields' => 'array',
             'child_age_limit' => 'integer',
+            'children_dont_pay' => 'boolean',
         ];
     }
 
