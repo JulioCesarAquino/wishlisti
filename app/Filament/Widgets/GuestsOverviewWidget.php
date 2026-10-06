@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\Guests\Guests\GuestResource;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use Filament\Support\Icons\Heroicon;
@@ -14,11 +15,9 @@ class GuestsOverviewWidget extends StatsOverviewWidget
     {
         $isAdmin = (bool) auth()->user()?->isAdmin();
 
-        $guestsQuery = Guest::query()
-            ->when(! $isAdmin, fn ($query) => $query->whereHas(
-                'event',
-                fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),
-            ));
+        // The same guests as the list below: not those of an event in the
+        // trash, and only the host's own events for a host.
+        $guestsQuery = GuestResource::getEloquentQuery();
 
         // Companions listed by another guest are already inside that guest's
         // headcount, so they don't count as a separate response.
