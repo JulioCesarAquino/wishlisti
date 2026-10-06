@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Events\Event;
 use App\Models\User;
 use App\Notifications\Identity\PasswordResetNotification;
 use Carbon\CarbonImmutable;
 use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureLogViewer();
+
+        // Dates are stored in UTC; the panel shows them in Brasília time.
+        FilamentTimezone::set(Event::TIMEZONE);
     }
 
     /**
