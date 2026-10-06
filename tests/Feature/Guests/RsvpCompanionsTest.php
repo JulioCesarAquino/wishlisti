@@ -21,6 +21,7 @@ class RsvpCompanionsTest extends TestCase
             ->withRsvpSettings([
                 'collect_companions' => $collectCompanions,
                 'fields' => EventRsvpSetting::fieldsRequiring($requiredFields),
+                'companion_fields' => EventRsvpSetting::fieldsRequiring($requiredFields),
             ])
             ->create(['is_published' => true]);
     }

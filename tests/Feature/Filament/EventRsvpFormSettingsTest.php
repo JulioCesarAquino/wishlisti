@@ -57,6 +57,8 @@ class EventRsvpFormSettingsTest extends TestCase
                 'rsvpSettings.fields.cpf' => EventRsvpSetting::FIELD_REQUIRED,
                 'rsvpSettings.fields.age' => EventRsvpSetting::FIELD_OPTIONAL,
                 'rsvpSettings.collect_companions' => true,
+                'rsvpSettings.companion_fields.whatsapp' => EventRsvpSetting::FIELD_HIDDEN,
+                'rsvpSettings.companion_fields.age' => EventRsvpSetting::FIELD_REQUIRED,
             ])
             ->call('save')
             ->assertHasNoFormErrors();
@@ -66,6 +68,8 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->assertSame(['email', 'cpf'], $event->rsvpRequiredFields());
         $this->assertSame(EventRsvpSetting::FIELD_OPTIONAL, $event->rsvpFields()['age']);
         $this->assertTrue($event->collectsRsvpCompanions());
+        $this->assertSame(EventRsvpSetting::FIELD_HIDDEN, $event->rsvpCompanionFields()['whatsapp']);
+        $this->assertSame(EventRsvpSetting::FIELD_REQUIRED, $event->rsvpCompanionFields()['age']);
     }
 
     public function test_a_form_can_ask_only_for_the_name_and_the_age(): void

@@ -18,11 +18,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $event_id
  * @property bool $collect_companions
  * @property array<string, string>|null $fields field => FIELD_HIDDEN|FIELD_OPTIONAL|FIELD_REQUIRED
+ * @property array<string, string>|null $companion_fields the same, for each companion
  * @property int|null $child_age_limit children under this age don't pay
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['collect_companions', 'fields', 'child_age_limit'])]
+#[Fillable(['collect_companions', 'fields', 'companion_fields', 'child_age_limit'])]
 class EventRsvpSetting extends Model
 {
     use LogsActivity;
@@ -40,6 +41,14 @@ class EventRsvpSetting extends Model
     public const DEFAULT_FIELDS = [
         'whatsapp' => self::FIELD_REQUIRED,
         'email' => self::FIELD_OPTIONAL,
+        'cpf' => self::FIELD_HIDDEN,
+        'age' => self::FIELD_HIDDEN,
+    ];
+
+    /** Companions: a name, and a phone if they like. */
+    public const DEFAULT_COMPANION_FIELDS = [
+        'whatsapp' => self::FIELD_OPTIONAL,
+        'email' => self::FIELD_HIDDEN,
         'cpf' => self::FIELD_HIDDEN,
         'age' => self::FIELD_HIDDEN,
     ];
@@ -84,6 +93,7 @@ class EventRsvpSetting extends Model
         return [
             'collect_companions' => 'boolean',
             'fields' => 'array',
+            'companion_fields' => 'array',
             'child_age_limit' => 'integer',
         ];
     }

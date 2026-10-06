@@ -56,6 +56,8 @@ export type EventData = {
     rsvp_collect_companions: boolean;
     /** Each field of the RSVP form (besides the name): hidden, optional or required. */
     rsvp_fields: Record<RsvpField, RsvpFieldMode>;
+    /** The same, for each companion (the children: name and age, say). */
+    rsvp_companion_fields: Record<RsvpField, RsvpFieldMode>;
     /** Children under this age don't pay; null when everyone does. */
     rsvp_child_age_limit: number | null;
     /** The form asks how many of the party are under that age. */

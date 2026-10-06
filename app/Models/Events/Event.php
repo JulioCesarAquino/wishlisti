@@ -412,16 +412,36 @@ class Event extends Model
      */
     public function rsvpFields(): array
     {
-        $chosen = $this->hasFeature(Feature::GuestList) ? ($this->rsvpSettings->fields ?? []) : [];
-        $fields = EventRsvpSetting::DEFAULT_FIELDS;
+        return $this->chosenFields($this->rsvpSettings->fields, EventRsvpSetting::DEFAULT_FIELDS);
+    }
+
+    /**
+     * What the form asks of each companion — of their own, so the children
+     * a guest brings don't need a WhatsApp. Premium, like the companions.
+     *
+     * @return array<string, string>
+     */
+    public function rsvpCompanionFields(): array
+    {
+        return $this->chosenFields($this->rsvpSettings->companion_fields, EventRsvpSetting::DEFAULT_COMPANION_FIELDS);
+    }
+
+    /**
+     * @param  array<string, string>|null  $chosen
+     * @param  array<string, string>  $defaults
+     * @return array<string, string>
+     */
+    private function chosenFields(?array $chosen, array $defaults): array
+    {
+        $chosen = $this->hasFeature(Feature::GuestList) ? ($chosen ?? []) : [];
 
         foreach (EventRsvpSetting::FIELDS as $field) {
             if (in_array($chosen[$field] ?? null, [EventRsvpSetting::FIELD_HIDDEN, EventRsvpSetting::FIELD_OPTIONAL, EventRsvpSetting::FIELD_REQUIRED], true)) {
-                $fields[$field] = $chosen[$field];
+                $defaults[$field] = $chosen[$field];
             }
         }
 
-        return $fields;
+        return $defaults;
     }
 
     /**
@@ -456,12 +476,12 @@ class Event extends Model
     /**
      * Whether the form asks how many of the guest's party are children:
      * whenever there's an age limit and each person's age can't tell —
-     * companions not listed one by one, or no age asked.
+     * companions not listed one by one, or not asked their age.
      */
     public function asksRsvpChildrenCount(): bool
     {
         return $this->childAgeLimit() !== null
-            && ! ($this->collectsRsvpCompanions() && $this->rsvpFields()['age'] !== EventRsvpSetting::FIELD_HIDDEN);
+            && ! ($this->collectsRsvpCompanions() && $this->rsvpCompanionFields()['age'] !== EventRsvpSetting::FIELD_HIDDEN);
     }
 
     /**

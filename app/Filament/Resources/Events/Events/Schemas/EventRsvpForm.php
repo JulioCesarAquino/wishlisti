@@ -7,6 +7,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
@@ -55,28 +56,7 @@ class EventRsvpForm
                 ->icon('heroicon-o-clipboard-document-list')
                 ->columns(2)
                 ->components([
-                    ...array_map(fn (string $field) => ToggleButtons::make("fields.{$field}")
-                        ->label(self::FIELD_LABELS[$field])
-                        ->options([
-                            EventRsvpSetting::FIELD_HIDDEN => 'Não pedir',
-                            EventRsvpSetting::FIELD_OPTIONAL => 'Opcional',
-                            EventRsvpSetting::FIELD_REQUIRED => 'Obrigatório',
-                        ])
-                        ->colors([
-                            EventRsvpSetting::FIELD_HIDDEN => 'gray',
-                            EventRsvpSetting::FIELD_OPTIONAL => 'info',
-                            EventRsvpSetting::FIELD_REQUIRED => 'success',
-                        ])
-                        ->inline()
-                        ->live()
-                        ->required()
-                        ->default(EventRsvpSetting::DEFAULT_FIELDS[$field])
-                        // Events from before each field had a mode.
-                        ->afterStateHydrated(function (ToggleButtons $component, ?string $state) use ($field): void {
-                            if (blank($state)) {
-                                $component->state(EventRsvpSetting::DEFAULT_FIELDS[$field]);
-                            }
-                        }), EventRsvpSetting::FIELDS),
+                    ...self::fieldModes('fields', EventRsvpSetting::DEFAULT_FIELDS),
                     Text::make('Sem telefone, e-mail ou CPF obrigatório, você não terá como falar com os convidados, e a mesma pessoa pode acabar confirmando duas vezes de outro aparelho.')
                         ->color('warning')
                         ->visible(fn (Get $get): bool => ! in_array(EventRsvpSetting::FIELD_REQUIRED, [$get('fields.whatsapp'), $get('fields.email'), $get('fields.cpf')], true))
@@ -88,8 +68,48 @@ class EventRsvpForm
                     Toggle::make('collect_companions')
                         ->label('Pedir os dados de cada acompanhante')
                         ->helperText('Em vez de só informar quantas pessoas vão, o convidado preenche os dados de cada uma. Se um acompanhante confirmar presença por conta própria, ele deixa de contar para quem o listou e vira uma confirmação individual.')
+                        ->live()
                         ->default(false),
+                    Grid::make(2)
+                        ->visible(fn (Get $get): bool => (bool) $get('collect_companions'))
+                        ->components([
+                            Text::make('O que pedir de cada acompanhante (o nome é sempre pedido). Para crianças, por exemplo: só nome e idade.')
+                                ->columnSpanFull(),
+                            ...self::fieldModes('companion_fields', EventRsvpSetting::DEFAULT_COMPANION_FIELDS),
+                        ]),
                 ]),
         ];
+    }
+
+    /**
+     * One "Não pedir / Opcional / Obrigatório" choice per field.
+     *
+     * @param  array<string, string>  $defaults
+     * @return array<int, ToggleButtons>
+     */
+    private static function fieldModes(string $statePath, array $defaults): array
+    {
+        return array_map(fn (string $field) => ToggleButtons::make("{$statePath}.{$field}")
+            ->label(self::FIELD_LABELS[$field])
+            ->options([
+                EventRsvpSetting::FIELD_HIDDEN => 'Não pedir',
+                EventRsvpSetting::FIELD_OPTIONAL => 'Opcional',
+                EventRsvpSetting::FIELD_REQUIRED => 'Obrigatório',
+            ])
+            ->colors([
+                EventRsvpSetting::FIELD_HIDDEN => 'gray',
+                EventRsvpSetting::FIELD_OPTIONAL => 'info',
+                EventRsvpSetting::FIELD_REQUIRED => 'success',
+            ])
+            ->inline()
+            ->live()
+            ->required()
+            ->default($defaults[$field])
+            // Events from before each field had a mode.
+            ->afterStateHydrated(function (ToggleButtons $component, ?string $state) use ($defaults, $field): void {
+                if (blank($state)) {
+                    $component->state($defaults[$field]);
+                }
+            }), EventRsvpSetting::FIELDS);
     }
 }

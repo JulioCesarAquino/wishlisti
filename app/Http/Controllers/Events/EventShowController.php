@@ -104,6 +104,7 @@ class EventShowController extends Controller
                 'rsvp_required_fields' => $event->rsvpRequiredFields(),
                 // Each field hidden, optional or required (the age too).
                 'rsvp_fields' => $event->rsvpFields(),
+                'rsvp_companion_fields' => $event->rsvpCompanionFields(),
                 'rsvp_child_age_limit' => $event->childAgeLimit(),
                 'rsvp_asks_children_count' => $event->asksRsvpChildrenCount(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),

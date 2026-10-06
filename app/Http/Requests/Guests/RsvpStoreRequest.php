@@ -41,7 +41,7 @@ class RsvpStoreRequest extends FormRequest
             $companionsCount = max(0, (int) $this->input('guests_count', 1) - 1);
 
             $rules['companions'] = [$companionsCount > 0 ? 'required' : 'nullable', 'array', "size:{$companionsCount}"];
-            $rules += $this->guestContactRules('companions.*', $event->rsvpFields());
+            $rules += $this->guestContactRules('companions.*', $event->rsvpCompanionFields());
         }
 
         return $rules;
