@@ -82,6 +82,8 @@ class EventDetailsForm
                     ? "O Premium foi comprado para esta data. Você pode ajustá-la entre {$dates[0]->format('d/m/Y')} e {$dates[1]->format('d/m/Y')}; para mudar além disso, fale com o Wishlisti."
                     : null),
             TimePicker::make('event_time')
+                // Typed in Brasília time already: stored as typed, not converted.
+                ->timezone(config('app.timezone'))
                 ->label('Horário de início')
                 ->seconds(false)
                 ->helperText('Aparece junto à data, e a contagem regressiva conta até ele. Cerimônia e festa em horários diferentes? Informe o horário de cada uma em Localização.'),

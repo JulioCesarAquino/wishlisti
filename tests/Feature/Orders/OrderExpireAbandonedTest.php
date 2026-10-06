@@ -85,6 +85,60 @@ class OrderExpireAbandonedTest extends TestCase
         $this->assertTrue($openBoleto->fresh()->updated_at->isAfter(now()->subMinute()));
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function pix(int $id, string $status, Order $order): array
+    {
+        return ['id' => $id, 'status' => $status, 'status_detail' => $status, 'external_reference' => (string) $order->id, 'payment_method_id' => 'pix'];
+    }
+
+    public function test_a_pix_still_open_hours_later_is_cancelled(): void
+    {
+        $order = $this->order(['payment_id' => '111']);
+
+        $fake = new FakeMercadoPagoHttpClient(
+            new MPResponse(200, $this->pix(111, 'pending', $order)),   // how it's doing
+            new MPResponse(200, $this->pix(111, 'cancelled', $order)), // the cancel
+        );
+        MercadoPagoConfig::setHttpClient($fake);
+
+        $this->artisan('orders:expire-abandoned')->assertSuccessful();
+
+        $this->assertSame('PUT', $fake->requests[1]->getMethod());
+        $this->assertSame('cancelled', json_decode($fake->requests[1]->getPayload(), true)['status']);
+        $this->assertSame(Order::STATUS_CANCELLED, $order->fresh()->status);
+    }
+
+    public function test_a_pix_paid_just_as_it_would_be_cancelled_counts_as_paid(): void
+    {
+        $order = $this->order(['payment_id' => '111']);
+
+        MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
+            new MPResponse(200, $this->pix(111, 'pending', $order)),
+            new MPResponse(400, ['message' => 'Payment already approved']), // the cancel, refused
+            new MPResponse(200, $this->pix(111, 'approved', $order)),      // asked again
+        ));
+
+        $this->artisan('orders:expire-abandoned')->assertSuccessful();
+
+        $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
+    }
+
+    public function test_a_payment_unknown_to_the_events_account_is_closed(): void
+    {
+        // Made with the credentials the host had before.
+        $order = $this->order(['payment_id' => '111']);
+
+        MercadoPagoConfig::setHttpClient(new FakeMercadoPagoHttpClient(
+            new MPResponse(404, ['message' => 'Payment not found', 'error' => 'not_found', 'status' => 404]),
+        ));
+
+        $this->artisan('orders:expire-abandoned')->assertSuccessful();
+
+        $this->assertSame(Order::STATUS_EXPIRED, $order->fresh()->status);
+    }
+
     public function test_the_list_opens_on_the_gifts_with_the_rest_in_tabs_of_their_own(): void
     {
         $guest = fn (string $name) => Guest::factory()->create(['event_id' => $this->event->id, 'name' => $name]);

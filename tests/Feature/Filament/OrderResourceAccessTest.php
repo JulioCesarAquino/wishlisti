@@ -104,7 +104,7 @@ class OrderResourceAccessTest extends TestCase
 
         Livewire::test(ListOrders::class)
             ->assertDontSee('Maria Segredo')
-            ->assertDontSee('27/09/2026 21:36')
+            ->assertDontSee('27/09/2026 18:36')
             ->assertSee('Presente anônimo')
             ->assertSee('Felicidades!');
 
@@ -112,6 +112,7 @@ class OrderResourceAccessTest extends TestCase
 
         Livewire::test(ListOrders::class)
             ->assertSee('Maria Segredo (anônimo)')
-            ->assertSee('27/09/2026 21:36');
+            // 21:36 UTC, in Brasília time.
+            ->assertSee('27/09/2026 18:36');
     }
 }

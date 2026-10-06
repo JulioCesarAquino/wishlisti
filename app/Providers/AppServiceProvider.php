@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Events\Event;
 use App\Models\User;
 use App\Notifications\Identity\PasswordResetNotification;
 use Carbon\CarbonImmutable;
 use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureLogViewer();
+
+        // Dates are stored in UTC; the panel shows them in Brasília time.
+        FilamentTimezone::set(Event::TIMEZONE);
     }
 
     /**
@@ -57,14 +62,14 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+        // At least 8 characters, with an upper and a lower case letter, a
+        // number and a symbol — everywhere, so the tests see it too. Leaked
+        // passwords (haveibeenpwned) are refused only in production, where
+        // asking that service is fine.
+        Password::defaults(function (): Password {
+            $rule = Password::min(8)->mixedCase()->numbers()->symbols();
+
+            return app()->isProduction() ? $rule->uncompromised() : $rule;
+        });
     }
 }

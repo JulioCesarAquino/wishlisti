@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Orders\Tables;
 
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
@@ -91,12 +92,12 @@ class OrdersTable
                 // the guest's RSVP to find out who gave it.
                 TextColumn::make('paid_at')
                     ->label('Pago em')
-                    ->formatStateUsing(fn (Order $record, $state) => $record->hidesGiverFrom(auth()->user()) ? '—' : $state?->format('d/m/Y H:i'))
+                    ->formatStateUsing(fn (Order $record, $state) => $record->hidesGiverFrom(auth()->user()) ? '—' : $state?->timezone(Event::TIMEZONE)->format('d/m/Y H:i'))
                     ->sortable()
                     ->placeholder('—'),
                 TextColumn::make('created_at')
                     ->label('Criado em')
-                    ->formatStateUsing(fn (Order $record, $state) => $record->hidesGiverFrom(auth()->user()) ? '—' : $state?->format('d/m/Y H:i'))
+                    ->formatStateUsing(fn (Order $record, $state) => $record->hidesGiverFrom(auth()->user()) ? '—' : $state?->timezone(Event::TIMEZONE)->format('d/m/Y H:i'))
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

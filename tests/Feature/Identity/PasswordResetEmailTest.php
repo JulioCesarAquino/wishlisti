@@ -10,6 +10,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -50,11 +53,34 @@ class PasswordResetEmailTest extends TestCase
         $this->assertNotInstanceOf(ShouldQueue::class, $sent);
 
         Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => $sent->token])
-            ->fillForm(['password' => 'nova-senha-123', 'passwordConfirmation' => 'nova-senha-123'])
+            ->fillForm(['password' => 'Nova@senha1', 'passwordConfirmation' => 'Nova@senha1'])
             ->call('resetPassword')
             ->assertHasNoFormErrors();
 
-        $this->assertTrue(Hash::check('nova-senha-123', $host->fresh()->password));
+        $this->assertTrue(Hash::check('Nova@senha1', $host->fresh()->password));
+    }
+
+    public function test_the_new_password_needs_8_characters_with_upper_lower_number_and_symbol(): void
+    {
+        // The rule itself (the reset page only allows a couple of tries a minute).
+        $passes = fn (string $password) => Validator::make(['password' => $password], ['password' => [PasswordRule::default()]])->passes();
+
+        $this->assertFalse($passes('Ab1@xyz'));   // 7 characters
+        $this->assertFalse($passes('abcdef1@'));  // no upper case
+        $this->assertFalse($passes('ABCDEF1@'));  // no lower case
+        $this->assertFalse($passes('Abcdefg@'));  // no number
+        $this->assertFalse($passes('Abcdefg1'));  // no symbol
+        $this->assertTrue($passes('Abcdef1@'));
+
+        // And on the page the e-mailed link opens.
+        $host = User::factory()->create();
+
+        Livewire::test(ResetPassword::class, ['email' => $host->email, 'token' => Password::broker()->createToken($host)])
+            ->fillForm(['password' => 'Abcdef1@', 'passwordConfirmation' => 'Abcdef1@'])
+            ->call('resetPassword')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue(Hash::check('Abcdef1@', $host->fresh()->password));
     }
 
     public function test_an_unknown_email_gets_nothing(): void

@@ -76,6 +76,8 @@ class EventLocationForm
                 ->default('Local do evento')
                 ->placeholder('Cerimônia, Festa…'),
             TimePicker::make('start_time')
+                // Typed in Brasília time already: stored as typed, not converted.
+                ->timezone(config('app.timezone'))
                 ->label('Horário (opcional)')
                 ->seconds(false)
                 ->helperText('Quando começa esta parte do evento. Aparece com a localização e, com mais de uma, na programação da tela inicial.'),
