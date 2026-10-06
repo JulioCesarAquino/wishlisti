@@ -97,6 +97,29 @@ class GuestResourceAccessTest extends TestCase
         return $guest;
     }
 
+    public function test_guests_of_an_event_in_the_trash_leave_the_list_with_it(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $event = Event::factory()->create();
+        $event->guests()->create(['name' => 'Convidado da Lixeira', 'identifier' => (string) Str::uuid()]);
+        Event::factory()->create()->guests()->create(['name' => 'Convidado Ativo', 'identifier' => (string) Str::uuid()]);
+
+        $event->delete();
+
+        $this->actingAs($admin);
+
+        // Used to break the whole page: the event's link had no event.
+        $this->get(GuestResource::getUrl('index'))->assertOk();
+
+        Livewire::test(ListGuests::class)
+            ->assertSee('Convidado Ativo')
+            ->assertDontSee('Convidado da Lixeira');
+
+        $event->restore();
+
+        Livewire::test(ListGuests::class)->assertSee('Convidado da Lixeira');
+    }
+
     public function test_hosts_see_how_many_gifts_each_guest_gave(): void
     {
         $host = User::factory()->create(['is_admin' => false]);

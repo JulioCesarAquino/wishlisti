@@ -27,7 +27,8 @@ class GuestResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        // Guests of an event in the trash go (and come back) with it.
+        $query = parent::getEloquentQuery()->whereHas('event');
 
         if (! auth()->user()?->isAdmin()) {
             $query->whereHas('event', fn (Builder $eventQuery) => $eventQuery->scopes(['managedBy' => [auth()->id()]]));

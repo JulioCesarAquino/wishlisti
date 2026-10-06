@@ -29,7 +29,7 @@ class GuestsTable
                     ->label('Evento')
                     ->searchable()
                     ->toggleable()
-                    ->url(fn (Guest $record) => EventResource::getUrl('edit', ['record' => $record->event])),
+                    ->url(fn (Guest $record) => $record->event ? EventResource::getUrl('edit', ['record' => $record->event]) : null),
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(),
