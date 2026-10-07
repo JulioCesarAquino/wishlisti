@@ -27,6 +27,33 @@ const FIELD_LABELS: Record<RsvpField, string> = {
 
 const FIELD_ORDER: RsvpField[] = ['whatsapp', 'email', 'cpf', 'age'];
 
+/**
+ * "(61) 99999-9999" as the guest types — a landline "(61) 3333-4444" too.
+ * The server compares only the digits, so any format matches.
+ */
+export function formatPhone(value: string): string {
+    let digits = value.replace(/\D/g, '');
+
+    // A number saved with the country code shows without it.
+    if (digits.length > 11 && digits.startsWith('55')) {
+        digits = digits.slice(2);
+    }
+
+    digits = digits.slice(0, 11);
+
+    if (digits.length <= 2) {
+        return digits.length ? `(${digits}` : '';
+    }
+
+    const area = `(${digits.slice(0, 2)}) `;
+    const number = digits.slice(2);
+    const split = number.length > 8 ? 5 : 4;
+
+    return number.length > split
+        ? `${area}${number.slice(0, split)}-${number.slice(split)}`
+        : `${area}${number}`;
+}
+
 export function toContactForm(
     contact: GuestContact | null | undefined,
 ): ContactForm {
@@ -75,7 +102,9 @@ export function ContactFields({
                     ? 'email'
                     : field === 'age'
                       ? 'number'
-                      : 'text',
+                      : field === 'whatsapp'
+                        ? 'tel'
+                        : 'text',
         })),
     ];
 
@@ -93,18 +122,36 @@ export function ContactFields({
                             inputMode={
                                 key === 'cpf' || key === 'age'
                                     ? 'numeric'
-                                    : undefined
+                                    : key === 'whatsapp'
+                                      ? 'tel'
+                                      : undefined
                             }
                             min={key === 'age' ? 0 : undefined}
                             max={key === 'age' ? 120 : undefined}
-                            placeholder={key === 'age' ? 'Em anos' : undefined}
+                            placeholder={
+                                key === 'age'
+                                    ? 'Em anos'
+                                    : key === 'whatsapp'
+                                      ? '(61) 99999-9999'
+                                      : undefined
+                            }
                             aria-invalid={error ? true : undefined}
                             aria-describedby={
                                 error ? `${idPrefix}_${key}_error` : undefined
                             }
-                            value={value[key]}
+                            value={
+                                key === 'whatsapp'
+                                    ? formatPhone(value[key])
+                                    : value[key]
+                            }
                             onChange={(e) =>
-                                onChange({ ...value, [key]: e.target.value })
+                                onChange({
+                                    ...value,
+                                    [key]:
+                                        key === 'whatsapp'
+                                            ? formatPhone(e.target.value)
+                                            : e.target.value,
+                                })
                             }
                         />
                         {error && (
