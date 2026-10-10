@@ -1,6 +1,7 @@
 #!/bin/sh
-# Daily production backup: database dump + uploads, sent to S3 or any
-# S3-compatible storage (e.g. Oracle Object Storage).
+# Daily production backup: database dump + uploads, sent with rclone to
+# Google Drive (or any other rclone remote). Keeps the BACKUP_KEEP most recent
+# copies, both there and in backups/.
 # Runs on the server (host), usually from cron. Setup and restore: docs/deploy.md
 #
 #   0 3 * * * /caminho/do/wishlisti/docker/backup.sh >> /var/log/wishlisti-backup.log 2>&1
@@ -13,8 +14,9 @@ env_value() {
     grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'
 }
 
-BUCKET=$(env_value BACKUP_S3_BUCKET)
-KEEP_LOCAL_DAYS=7
+REMOTE=$(env_value BACKUP_REMOTE)
+KEEP=$(env_value BACKUP_KEEP)
+KEEP=${KEEP:-5}
 DIR=backups
 STAMP=$(date +%F-%H%M)
 DB_FILE="$DIR/db-$STAMP.sql.gz"
@@ -51,36 +53,42 @@ docker run --rm \
     -v "$PWD/$DIR:/backup" \
     alpine tar czf "/backup/$(basename "$UPLOADS_FILE")" -C /dados .
 
-if [ -n "$BUCKET" ]; then
-    # Access keys from .env if set; otherwise the EC2 instance role is used.
-    set --
-    for var in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
-        value=$(env_value "$var")
-        if [ -n "$value" ]; then
-            set -- "$@" -e "$var=$value"
-        fi
+# rclone.conf (with the Google token) lives on the host, created once with
+# `rclone config`. Same uid as the host, so rclone can save a refreshed token.
+rclone() {
+    docker run --rm --user "$(id -u):$(id -g)" \
+        -v "$HOME/.config/rclone:/config/rclone" \
+        -v "$PWD/$DIR:/backup:ro" \
+        rclone/rclone:1.75 "$@"
+}
+
+# Reads file names, newest first by the stamp in the name, and prints the
+# ones beyond the KEEP most recent.
+beyond_keep() {
+    sort -r | tail -n +"$((KEEP + 1))"
+}
+
+if [ -n "$REMOTE" ]; then
+    for file in "$DB_FILE" "$UPLOADS_FILE"; do
+        rclone copyto "/backup/$(basename "$file")" "$REMOTE/$(basename "$file")"
     done
 
-    # S3-compatible storage other than AWS (e.g. Oracle Object Storage).
-    ENDPOINT=$(env_value BACKUP_S3_ENDPOINT)
-    ENDPOINT_ARG=
-    if [ -n "$ENDPOINT" ]; then
-        ENDPOINT_ARG="--endpoint-url $ENDPOINT"
-        # Recent aws-cli versions send checksums that not every provider accepts.
-        set -- "$@" -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
-            -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
-    fi
-
-    for file in "$DB_FILE" "$UPLOADS_FILE"; do
-        # shellcheck disable=SC2086 # ENDPOINT_ARG is two words on purpose
-        docker run --rm "$@" -v "$PWD/$DIR:/backup:ro" amazon/aws-cli $ENDPOINT_ARG \
-            s3 cp "/backup/$(basename "$file")" "s3://$BUCKET/wishlisti/$(basename "$file")"
+    # Only reached when both uploads worked (set -e), so a failing backup
+    # never deletes the good copies that are already there.
+    for prefix in db- uploads-; do
+        rclone lsf "$REMOTE" --files-only --include "$prefix*.gz" | beyond_keep |
+            while read -r old; do
+                # Straight to deletion: Drive's trash counts against the quota.
+                rclone deletefile --drive-use-trash=false "$REMOTE/$old"
+                echo "Apagado do remoto: $old"
+            done
     done
 else
-    echo "AVISO: BACKUP_S3_BUCKET vazio no .env; o backup ficou só neste servidor."
+    echo "AVISO: BACKUP_REMOTE vazio no .env; o backup ficou só neste servidor."
 fi
 
-# Local copies are only a convenience; the real copy is the one in S3.
-find "$DIR" -name '*.gz' -mtime +"$KEEP_LOCAL_DAYS" -delete
+for prefix in db- uploads-; do
+    find "$DIR" -maxdepth 1 -name "$prefix*.gz" | beyond_keep | xargs -r rm -f
+done
 
 echo "[$(date)] Backup concluído: $DB_FILE, $UPLOADS_FILE"
