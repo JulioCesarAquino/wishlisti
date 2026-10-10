@@ -30,23 +30,27 @@ class GuestsOverviewWidget extends StatsOverviewWidget
             ->sum('rsvp_guests_count');
         $declinedGuests = (clone $guestsQuery)->where('rsvp_status', Guest::RSVP_DECLINED)->count();
 
-        // Events where children under an age don't pay: each with its own limit.
-        $childrenFree = Event::query()
+        // Events that tell children apart (each with its own age).
+        $childEvents = Event::query()
             ->when(! $isAdmin, fn ($query) => $query->managedBy(auth()->id()))
             ->whereHas('rsvpSettings', fn ($query) => $query->whereNotNull('child_age_limit'))
             ->with('rsvpSettings')
-            ->get()
-            ->map(fn (Event $event) => $event->rsvpHeadcount()['children'] ?? 0);
+            ->get();
+        $ages = $childEvents->map(fn (Event $event) => $event->childAgeLimit())->unique();
 
         return [
-            Stat::make('Confirmaram presença', (string) $confirmedGuests)
-                ->icon(Heroicon::OutlinedCheckCircle)
-                ->color('success'),
             Stat::make('Total de pessoas confirmadas', (string) $totalPeopleConfirmed)
                 ->icon(Heroicon::OutlinedUserGroup)
                 ->color('info'),
-            ...($childrenFree->isEmpty() ? [] : [
-                Stat::make('Crianças que não pagam', (string) $childrenFree->sum())
+            Stat::make('Confirmaram presença', (string) $confirmedGuests)
+                ->description('Respostas (os acompanhantes vão no total de pessoas)')
+                ->icon(Heroicon::OutlinedCheckCircle)
+                ->color('success'),
+            ...($childEvents->isEmpty() ? [] : [
+                Stat::make(
+                    $ages->count() === 1 ? "Crianças (menos de {$ages->first()} anos)" : 'Crianças',
+                    (string) $childEvents->sum(fn (Event $event) => $event->rsvpHeadcount()['children'] ?? 0),
+                )
                     ->description('Já incluídas no total de pessoas')
                     ->icon(Heroicon::OutlinedFaceSmile)
                     ->color('warning'),

@@ -102,17 +102,22 @@ dcp up -d --force-recreate app scheduler
 
 ## Backup
 
-**Sem backup, um problema no servidor apaga os dados de vez.** O [docker/backup.sh](../docker/backup.sh) copia o banco e os uploads e envia tudo para um bucket S3, **fora do servidor**. No servidor ficam só as cópias dos últimos 7 dias, na pasta `backups/`.
+**Sem backup, um problema no servidor apaga os dados de vez.** Todo dia, o [docker/backup.sh](../docker/backup.sh) copia o banco e os uploads e envia tudo para uma pasta no **Google Drive**, fora da Oracle: se a conta for suspensa, os backups continuam lá. Ficam só as 5 cópias mais recentes (`BACKUP_KEEP`), no Drive e na pasta `backups/` do servidor. As mais antigas são apagadas só depois que a do dia chega ao Drive; assim, se o backup falhar, as cópias boas continuam lá.
+
+O envio é feito pelo [rclone](https://rclone.org/drive/), que roda num container e não precisa ser instalado no servidor. Ele também funciona com S3, Dropbox, OneDrive e outros: basta criar outro remote e trocar o `BACKUP_REMOTE`.
 
 ### Configurar uma vez
 
-O exemplo usa o **Object Storage da Oracle**, que tem 20 GB no Always Free e aceita a mesma API do S3. Na AWS, use um bucket S3 e deixe `BACKUP_S3_ENDPOINT` vazio.
-
-1. **Crie o bucket** em _Storage → Buckets_ (ex.: `wishlisti-backups`), no compartimento **root**, porque é nele que a API compatível com S3 procura os buckets. Deixe a visibilidade **Private**, que é o padrão.
-2. **Anote o namespace** da conta. Ele aparece nos detalhes do bucket, em _Namespace_.
-3. **Gere as chaves de acesso:** clique no seu perfil, no canto superior direito, e vá em _Customer secret keys → Generate secret key_. O valor da chave aparece **uma vez só**. Ele é o `AWS_SECRET_ACCESS_KEY`, e o _Access key_ da lista é o `AWS_ACCESS_KEY_ID`.
-4. **Preencha no `.env`:** `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (com o namespace), as duas chaves e `AWS_DEFAULT_REGION` (ex.: `sa-saopaulo-1`).
-5. **Teste** rodando uma vez à mão e confira se os dois arquivos aparecem no bucket, na pasta `wishlisti/`:
+1. **Instale o rclone no seu computador**, que tem navegador (ex.: `sudo apt install rclone`). Ele só serve para fazer o login no Google.
+2. **Crie o remote no servidor**, na máquina da aplicação:
+    ```bash
+    mkdir -p ~/.config/rclone
+    docker run --rm -it --user "$(id -u):$(id -g)" -v ~/.config/rclone:/config/rclone rclone/rclone:1.75 config
+    ```
+    Responda: `n` (novo remote), nome **`gdrive`**, tipo **`drive`**, `client_id` e `client_secret` em branco, scope **`drive.file`** (o rclone só enxerga os arquivos que ele mesmo criou, não o resto do seu Drive), `root_folder_id` e `service_account_file` em branco, `n` para a configuração avançada.
+3. **Faça o login.** Quando ele perguntar se pode abrir o navegador, responda `n`. Ele mostra um comando `rclone authorize "drive" "..."`: rode esse comando **no seu computador**, entre na conta do Google e copie o token que aparece no terminal. Cole o token no servidor, responda `n` para Shared Drive e `y` para confirmar. O token fica em `~/.config/rclone/rclone.conf`; ele dá acesso ao Drive, então não o copie para outro lugar.
+4. **Preencha no `.env`:** `BACKUP_REMOTE=gdrive:wishlisti-backups` (`gdrive` é o nome do remote e `wishlisti-backups` é a pasta, que é criada sozinha) e, se quiser outro número de cópias, `BACKUP_KEEP`.
+5. **Teste** rodando uma vez à mão e confira se os dois arquivos aparecem na pasta `wishlisti-backups` do Drive:
     ```bash
     ./docker/backup.sh
     ```
@@ -121,9 +126,9 @@ O exemplo usa o **Object Storage da Oracle**, que tem 20 GB no Always Free e ace
     0 3 * * * /home/ubuntu/wishlisti/docker/backup.sh >> /home/ubuntu/wishlisti/backups/backup.log 2>&1
     ```
 
-Os 20 GB gratuitos duram bastante, mas as cópias antigas se acumulam. De tempos em tempos, apague as mais velhas pelo console, no bucket. Outra opção é criar uma regra automática em _Lifecycle Policy Rules_. Para ela funcionar, a Oracle exige uma policy de IAM que autorize o serviço de Object Storage; o próprio console mostra o aviso e o texto da policy.
+O Drive gratuito tem 15 GB, divididos com o Gmail e o Fotos. O arquivo dos uploads costuma ser o maior, e são 5 cópias dele; de vez em quando, confira o tamanho da pasta.
 
-De vez em quando, confira o `backups/backup.log`. Se o backup falhar, o erro aparece lá.
+De vez em quando, confira também o `backups/backup.log`. Se o backup falhar, o erro aparece lá.
 
 ### Restaurar
 
@@ -133,15 +138,13 @@ Serve tanto para voltar os dados num servidor que já existe quanto para montar 
     ```bash
     dcp stop app scheduler
     ```
-2. **Baixe os arquivos** do dia escolhido. Se estiverem na pasta `backups/` do servidor, pule este passo.
+2. **Baixe os arquivos** do dia escolhido. Se estiverem na pasta `backups/` do servidor, pule este passo. Num servidor novo, faça antes os passos 2 e 3 da configuração (ou copie o `rclone.conf` do seu computador para `~/.config/rclone/`).
     ```bash
     mkdir -p backups
-    docker run --rm -v "$PWD/backups:/backup" --env-file .env \
-        -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
-        amazon/aws-cli --endpoint-url "$(grep '^BACKUP_S3_ENDPOINT=' .env | cut -d= -f2-)" \
-        s3 cp s3://wishlisti-backups/wishlisti/ /backup/ --recursive --exclude '*' --include '*2026-09-28*'
+    docker run --rm --user "$(id -u):$(id -g)" -v ~/.config/rclone:/config/rclone -v "$PWD/backups:/backup" \
+        rclone/rclone:1.75 copy gdrive:wishlisti-backups /backup --include '*2026-09-28*'
     ```
-    Troque `wishlisti-backups` pelo nome do bucket e a data pela do backup escolhido.
+    Troque a data pela do backup escolhido. Também dá para baixar pelo site do Drive e mandar para o servidor com `scp`.
 3. **Restaure o banco.** Isso substitui todos os dados atuais pelos do backup:
     ```bash
     gzip -dc backups/db-2026-09-28-0300.sql.gz \

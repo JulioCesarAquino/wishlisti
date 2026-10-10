@@ -49,17 +49,16 @@ export function RsvpSection({ event, guest }: Props) {
     );
     const collectsCompanions = event.rsvp_collect_companions;
     const childAgeLimit = event.rsvp_child_age_limit;
-    const ageHint = childAgeLimit
-        ? `Crianças com menos de ${childAgeLimit} anos não pagam.`
-        : undefined;
 
     const initialCount = guest?.rsvp_guests_count ?? 1;
 
+    // The counts are kept as typed (text): a number field holding a number
+    // turns a cleared field into 0 — and then "3" typed after it into "03".
     const form = useForm({
         guest: toContactForm(guest),
         attending: null as boolean | null,
-        guests_count: initialCount,
-        children_count: guest?.rsvp_children_count ?? 0,
+        guests_count: String(initialCount),
+        children_count: String(guest?.rsvp_children_count ?? 0),
         companions: collectsCompanions
             ? resizeCompanions(
                   (guest?.companions ?? []).map(toContactForm),
@@ -70,15 +69,22 @@ export function RsvpSection({ event, guest }: Props) {
 
     const errors = form.errors as Record<string, string | undefined>;
 
-    const setGuestsCount = (count: number) => {
+    const guestsCount = Number(form.data.guests_count) || 0;
+
+    const setGuestsCount = (typed: string) => {
+        const count = Math.min(20, Number(typed) || 0);
+
         form.setData((data) => ({
             ...data,
-            guests_count: count,
-            children_count:
-                count > 1 ? Math.min(data.children_count, count) : 0,
-            companions: collectsCompanions
-                ? resizeCompanions(data.companions, count)
-                : [],
+            guests_count: typed,
+            // Someone coming alone sends 0 children.
+            children_count: count === 1 ? '0' : data.children_count,
+            // A field cleared to type another number keeps the companions
+            // filled in so far.
+            companions:
+                collectsCompanions && count >= 1
+                    ? resizeCompanions(data.companions, count)
+                    : data.companions,
         }));
     };
 
@@ -103,7 +109,7 @@ export function RsvpSection({ event, guest }: Props) {
             : form.data.attending;
         const count = guest?.rsvp_status
             ? guest.rsvp_guests_count
-            : form.data.guests_count;
+            : guestsCount;
 
         return (
             <div className="mx-auto max-w-lg px-6 py-16 text-center">
@@ -156,7 +162,6 @@ export function RsvpSection({ event, guest }: Props) {
                     fields={fields}
                     requiredFields={requiredFields}
                     nameLabel="Seu nome"
-                    ageHint={ageHint}
                     errors={errors}
                     onChange={(value) => form.setData('guest', value)}
                 />
@@ -211,10 +216,9 @@ export function RsvpSection({ event, guest }: Props) {
                             type="number"
                             min={1}
                             max={20}
+                            inputMode="numeric"
                             value={form.data.guests_count}
-                            onChange={(e) =>
-                                setGuestsCount(Number(e.target.value))
-                            }
+                            onChange={(e) => setGuestsCount(e.target.value)}
                         />
                         {form.errors.guests_count && (
                             <p className="text-sm text-red-600">
@@ -232,7 +236,7 @@ export function RsvpSection({ event, guest }: Props) {
                 {/* Only for a party: someone coming alone sends 0. */}
                 {form.data.attending === true &&
                     event.rsvp_asks_children_count &&
-                    form.data.guests_count > 1 && (
+                    guestsCount > 1 && (
                         <div className="grid gap-1.5">
                             <Label htmlFor="rsvp_children">
                                 {`Quantas dessas pessoas têm menos de ${childAgeLimit} anos?`}
@@ -242,12 +246,12 @@ export function RsvpSection({ event, guest }: Props) {
                                 type="number"
                                 inputMode="numeric"
                                 min={0}
-                                max={form.data.guests_count}
+                                max={guestsCount}
                                 value={form.data.children_count}
                                 onChange={(e) =>
                                     form.setData(
                                         'children_count',
-                                        Number(e.target.value),
+                                        e.target.value,
                                     )
                                 }
                             />

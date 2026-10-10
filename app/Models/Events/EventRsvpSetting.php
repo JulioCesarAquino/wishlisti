@@ -19,7 +19,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property bool $collect_companions
  * @property array<string, string>|null $fields field => FIELD_HIDDEN|FIELD_OPTIONAL|FIELD_REQUIRED
  * @property array<string, string>|null $companion_fields the same, for each companion
- * @property int|null $child_age_limit children under this age don't pay
+ * @property int|null $child_age_limit under this age, a guest counts as a child
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

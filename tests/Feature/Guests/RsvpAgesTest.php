@@ -66,14 +66,14 @@ class RsvpAgesTest extends TestCase
         $this->assertNull($ana->whatsapp);
         $this->assertSame(3, Guest::where('name', 'Lia')->firstOrFail()->age);
 
-        $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 3, 'children' => 1], $event->fresh()->rsvpHeadcount());
 
         // What the host sees on the guest list.
         $this->actingAs($event->user);
 
         Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
-            ->assertSee('3 pessoas confirmadas · 2 pagantes · 1 criança com menos de 5 anos')
-            ->assertSee('Não paga');
+            ->assertSee('3 pessoas confirmadas · 1 criança com menos de 5 anos')
+            ->assertSee('Criança');
     }
 
     public function test_companions_have_fields_of_their_own(): void
@@ -114,7 +114,7 @@ class RsvpAgesTest extends TestCase
             'companions' => [['name' => 'Lia', 'age' => 3], ['name' => 'Théo', 'age' => 7]],
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame(['people' => 3, 'children' => 1, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 3, 'children' => 1], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_a_required_age_must_be_given_for_everyone(): void
@@ -160,7 +160,7 @@ class RsvpAgesTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(2, Guest::firstOrFail()->rsvp_children_count);
-        $this->assertSame(['people' => 4, 'children' => 2, 'paying' => 2], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 4, 'children' => 2], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_companions_without_their_age_fall_back_to_asking_how_many_are_children(): void
@@ -182,7 +182,7 @@ class RsvpAgesTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertNull(Guest::firstOrFail()->rsvp_children_count);
-        $this->assertSame(['people' => 2, 'children' => null, 'paying' => null], $event->fresh()->rsvpHeadcount());
+        $this->assertSame(['people' => 2, 'children' => null], $event->fresh()->rsvpHeadcount());
     }
 
     public function test_free_events_keep_the_original_form_whatever_was_chosen(): void

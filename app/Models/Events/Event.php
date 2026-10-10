@@ -466,7 +466,7 @@ class Event extends Model
     }
 
     /**
-     * "Children under X don't pay" — any event, free or premium.
+     * Under this age a guest counts as a child — any event, free or premium.
      */
     public function childAgeLimit(): ?int
     {
@@ -485,11 +485,11 @@ class Event extends Model
     }
 
     /**
-     * Who's coming, for the host (and the buffet): people confirmed and, with
-     * an age limit, how many of them are children under it — from each
-     * person's age, or from the count a guest gave for their party.
+     * Who's coming, for the host: people confirmed and, with a children's
+     * age, how many of them are children — from each person's age, or from
+     * the count a guest gave for their party.
      *
-     * @return array{people: int, children: int|null, paying: int|null}
+     * @return array{people: int, children: int|null}
      */
     public function rsvpHeadcount(): array
     {
@@ -498,7 +498,7 @@ class Event extends Model
         $limit = $this->childAgeLimit();
 
         if ($limit === null) {
-            return ['people' => $people, 'children' => null, 'paying' => null];
+            return ['people' => $people, 'children' => null];
         }
 
         $isChild = fn (Guest $guest): bool => $guest->age !== null && $guest->age < $limit;
@@ -507,7 +507,7 @@ class Event extends Model
             ? $guest->rsvp_children_count
             : (int) $isChild($guest));
 
-        return ['people' => $people, 'children' => (int) $children, 'paying' => max(0, $people - (int) $children)];
+        return ['people' => $people, 'children' => (int) $children];
     }
 
     /**
