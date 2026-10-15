@@ -30,12 +30,27 @@ class GuestResolveService
             ? $event->guests()->where('identifier', $guestIdentifier)->first()
             : null;
 
+        // Someone else answering on the same phone (a family's): a guest of
+        // their own, never the previous person's record renamed.
+        if ($guest && ! $guest->couldBeNamed($guestData['name'] ?? null)) {
+            $guest = null;
+        }
+
         $guest ??= $this->findByContact($event, $guestData);
 
         if ($guest) {
             // Blank fields are left out so a form that doesn't ask for, say,
             // the CPF doesn't wipe the one we already know.
-            $guest->update(array_filter($guestData, fn ($value) => filled($value)));
+            $guest->fill(array_filter($guestData, fn ($value) => filled($value)));
+            $renamed = $guest->isDirty('name');
+            $guest->save();
+
+            if ($renamed) {
+                activity('guest')
+                    ->performedOn($guest)
+                    ->event('renamed')
+                    ->log('o convidado mudou o próprio nome ao responder');
+            }
 
             return $guest;
         }
@@ -55,13 +70,17 @@ class GuestResolveService
      * tests, and because per-event guest lists are small enough that
      * loading them isn't a real cost.
      *
-     * @param  array{whatsapp?: ?string, email?: ?string, cpf?: ?string}  $contact
+     * With a name, only guests who could have it count (see
+     * Guest::couldBeNamed()): two people of a family may share a number.
+     *
+     * @param  array{name?: ?string, whatsapp?: ?string, email?: ?string, cpf?: ?string}  $contact
      */
     public function findByContact(Event $event, array $contact, ?Guest $except = null): ?Guest
     {
         $guests = $event->guests()
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
-            ->get();
+            ->get()
+            ->filter(fn (Guest $guest): bool => $guest->couldBeNamed($contact['name'] ?? null));
 
         return ContactMatcher::firstMatch($guests, $contact);
     }

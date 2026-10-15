@@ -97,7 +97,7 @@ class RsvpStoreControllerTest extends TestCase
     {
         $event = Event::factory()->create(['is_published' => true]);
         $guest = $event->guests()->create([
-            'name' => 'Guest Antigo',
+            'name' => 'Novo',
             'whatsapp' => '5511888888888',
             'identifier' => (string) Str::uuid(),
         ]);
