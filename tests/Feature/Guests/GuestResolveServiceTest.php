@@ -93,7 +93,7 @@ class GuestResolveServiceTest extends TestCase
         $event = Event::factory()->create();
 
         $byCookie = $event->guests()->create([
-            'name' => 'Nome no Cookie',
+            'name' => 'Nome',
             'whatsapp' => '11999999999',
             'identifier' => (string) Str::uuid(),
         ]);

@@ -117,9 +117,9 @@ class RsvpStoreService
     }
 
     /**
-     * Companions no longer on the host's list are removed — unless they have
-     * gift orders of their own, in which case they're kept as a regular
-     * guest without an RSVP.
+     * Companions no longer on the guest's list leave it — to the trash, or
+     * kept as guests without an answer if they gave a gift — never deleted
+     * for good: a family sharing a phone can replace someone else's list.
      *
      * @param  array<int, int>  $except
      */
@@ -127,23 +127,7 @@ class RsvpStoreService
     {
         $host->companions()
             ->whereKeyNot($except)
-            ->withCount('orders')
             ->get()
-            ->each(function (Guest $companion): void {
-                // Taking someone off one's own companion list is the guest
-                // editing their answer, not a removal to audit or undo.
-                if ($companion->orders_count === 0) {
-                    $companion->disableLogging()->forceDelete();
-
-                    return;
-                }
-
-                $companion->forceFill([
-                    'companion_of_guest_id' => null,
-                    'rsvp_status' => null,
-                    'rsvp_guests_count' => null,
-                    'rsvp_responded_at' => null,
-                ])->save();
-            });
+            ->each->leaveCompanionList('saiu da lista de acompanhantes quando o convidado refez a confirmação');
     }
 }

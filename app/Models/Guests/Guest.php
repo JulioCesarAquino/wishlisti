@@ -130,6 +130,55 @@ class Guest extends Model
     }
 
     /**
+     * Takes a companion off the list of whoever listed them, without losing
+     * them: they stay a guest without an answer — in the trash, restorable
+     * for 30 days, or on the list if they gave a gift. Audited, since it
+     * happens without the host.
+     */
+    public function leaveCompanionList(string $why): void
+    {
+        $this->forceFill([
+            'companion_of_guest_id' => null,
+            'rsvp_status' => null,
+            'rsvp_guests_count' => null,
+            'rsvp_responded_at' => null,
+        ])->setRelation('companionOf', null)->save();
+
+        if (! $this->orders()->exists()) {
+            $this->disableLogging()->delete();
+            $this->enableLogging();
+        }
+
+        activity('guest')
+            ->performedOn($this)
+            ->event('companion_removed')
+            ->log($why);
+    }
+
+    /**
+     * Whether a name given on a form can be this guest's: the same words,
+     * one name being the start of the other, ignoring case and accents
+     * ("Flávia" and "Flavia Barbosa" yes; "Flávia" and "Julio", or "Ana
+     * Cristina" and "Ana Katrine", no). Without a name — an anonymous gift —
+     * or on a guest still without one, nothing tells them apart.
+     *
+     * A phone or a browser is often shared by a family, so this is what
+     * keeps one person's answer from overwriting another's.
+     */
+    public function couldBeNamed(?string $name): bool
+    {
+        if (blank($name) || $this->name === self::ANONYMOUS_GIVER_NAME) {
+            return true;
+        }
+
+        $words = fn (string $name): array => preg_split('/\s+/', Str::lower(Str::ascii(trim($name)))) ?: [];
+
+        [$shorter, $longer] = collect([$words($this->name), $words($name)])->sortBy(fn (array $words) => count($words))->values()->all();
+
+        return $shorter === array_slice($longer, 0, count($shorter));
+    }
+
+    /**
      * Guests with a paid order are part of the event's financial history,
      * so they're never deleted for good — only anonymized.
      */

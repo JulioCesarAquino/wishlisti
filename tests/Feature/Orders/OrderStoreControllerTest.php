@@ -95,7 +95,7 @@ class OrderStoreControllerTest extends TestCase
         $event = Event::factory()->withFeatures(Feature::Payments)->withMercadoPago()->create(['is_published' => true]);
         $product = EventProduct::factory()->create(['event_id' => $event->id]);
         $guest = $event->guests()->create([
-            'name' => 'Guest Antigo',
+            'name' => 'Guest',
             'whatsapp' => '5511888888888',
             'identifier' => (string) Str::uuid(),
         ]);

@@ -124,7 +124,9 @@ O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porqu
 1. pelo **cookie** do navegador, que dura 5 anos por evento;
 2. por **CPF**, **telefone** (só os dígitos, ignorando a formatação) ou **e-mail** (sem diferenciar maiúsculas), dentro do mesmo evento e nessa ordem de prioridade.
 
-Se reconhecer, atualiza o cadastro existente. Se não, cria um novo. — `GuestResolveService`, `ContactMatcher`
+Só reconhece se **o nome bate**: as mesmas palavras, ou uma o começo da outra, sem diferenciar maiúsculas nem acentos. "Flávia" e "Flavia Barbosa" batem; "Flávia" e "Julio", ou "Ana Cristina" e "Ana Katrine", não. Um nome diferente vira **outro convidado**, mesmo com o cookie ou o telefone de alguém que já respondeu. **Por quê:** famílias dividem celular e número. Um marido confirmava no celular onde a esposa já tinha confirmado, e a resposta dele apagava a dela. Sem nome (presente anônimo), vale o cookie ou o contato.
+
+Se reconhecer, atualiza o cadastro existente. Uma mudança de nome fica na auditoria. Se não reconhecer, cria um novo. — `GuestResolveService`, `ContactMatcher`, `Guest::couldBeNamed()`
 
 **RN-23. Ao atualizar um convidado reconhecido, campos em branco não apagam o que já se sabia.** Exemplo: um formulário que não pede CPF não apaga o CPF salvo.
 
@@ -157,7 +159,7 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 
 **RN-36. Refazer a resposta substitui a lista de acompanhantes.**
 
-- Quem saiu da lista é excluído, **exceto** quem já deu presente: essa pessoa continua como convidado, sem confirmação.
+- Quem saiu da lista vira convidado **sem resposta**. Vai para a **lixeira** e pode ser restaurado por 30 dias, ou continua na lista se já deu presente. Nunca é apagado de vez, e a saída fica na auditoria. O mesmo vale quando o anfitrião tira alguém em "Acompanhantes" (RN-38d).
 - Responder "não vou" libera todos os acompanhantes.
 
 **RN-37. Excluir ou restaurar um acompanhante ajusta a contagem** de quem o listou. Mandar o titular para a lixeira leva os acompanhantes junto, e restaurar traz de volta. — eventos do model `Guest`
@@ -187,7 +189,7 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 **RN-38d. Nomear os acompanhantes** (Premium "Lista nominal de convidados"; o admin sempre pode). Para quem confirmou só a quantidade de pessoas, a ação "Acompanhantes" deixa o anfitrião informar nome, idade, WhatsApp, e-mail e CPF de cada acompanhante. Ela também serve para corrigir os acompanhantes que o próprio convidado listou.
 
 - **Limite:** no máximo o tamanho do grupo menos 1.
-- **A contagem não muda:** quem ficar sem nome continua contando como "+ N pessoas". Tirar alguém da lista o devolve a essa condição. Se a pessoa tiver presente, ela continua como convidado sem resposta.
+- **A contagem não muda:** quem ficar sem nome continua contando como "+ N pessoas". Tirar alguém da lista o devolve a essa condição: o registro dele vai para a lixeira, ou continua como convidado sem resposta se tiver presente.
 - **Pré-lista:** um acompanhante com o contato de alguém da pré-lista que ainda não respondeu passa a usar esse registro, sem criar outro.
 - **Crianças:** se o grupo já informou quantas crianças tinha, vale esse número, mesmo depois de os acompanhantes ganharem idade.
 
@@ -491,7 +493,6 @@ Assim, quem já era premium não perdeu nada nem é cobrado de novo.
 Comportamentos que hoje **não** são como deveriam, ou que ainda não têm regra. Servem de ponto de partida para decisões:
 
 - **Posição do presente anônimo:** na lista de pedidos, ordenada por data, a posição de um pedido anônimo dá uma pista aproximada de quando ele foi feito (RN-61).
-- **Mesmo navegador:** um acompanhante que confirma presença pelo navegador de quem o listou é reconhecido pelo cookie como essa pessoa (RN-22).
 - **Convite com e-mail repetido:** o pedido de convite não verifica duplicidade. Aprovar um pedido cujo e-mail já tem conta gera erro.
 - **Retirada de recurso comprado:** o admin consegue retirar em "Liberar recursos" um recurso que o anfitrião pagou (RN-77).
 - **Limpeza da auditoria:** está configurada para 365 dias (`config/activitylog.php`), mas o comando de limpeza não está agendado. Na prática, a auditoria nunca é limpa.

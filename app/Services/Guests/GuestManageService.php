@@ -128,21 +128,8 @@ class GuestManageService
             // Taken off the list: back to an unnamed person in the headcount.
             $host->companions()
                 ->whereKeyNot($keptIds)
-                ->withCount('orders')
                 ->get()
-                ->each(function (Guest $companion): void {
-                    if ($companion->orders_count === 0) {
-                        $companion->disableLogging()->forceDelete();
-
-                        return;
-                    }
-
-                    $companion->forceFill([
-                        'companion_of_guest_id' => null,
-                        'rsvp_status' => null,
-                        'rsvp_responded_at' => null,
-                    ])->save();
-                });
+                ->each->leaveCompanionList('tirado da lista de acompanhantes pelo anfitrião');
         });
     }
 
