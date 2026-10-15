@@ -2,14 +2,18 @@
 
 namespace App\Filament\Resources\Events\Events\Schemas;
 
+use App\Enums\Premium\Feature;
+use App\Filament\Forms\Components\TextareaWithVariables;
+use App\Filament\Support\PremiumLock;
+use App\Models\Events\Event;
 use App\Models\Events\EventAppearance;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Slider;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -54,15 +58,24 @@ class EventAppearanceForm
                             ->directory('events/gallery'),
                     ]),
                 Section::make('Mensagem do WhatsApp')
-                    ->description('O texto que já vem escrito quando alguém toca em compartilhar no WhatsApp, na página do evento ou no botão "Convidar pelo WhatsApp" do painel.')
+                    ->description('O texto que já vem escrito quando alguém toca em compartilhar no WhatsApp: na página do evento, no botão "Convidar pelo WhatsApp" do painel ou no convite enviado a um convidado.')
                     ->columnSpanFull()
                     ->components([
-                        Textarea::make('share_message')
+                        Group::make()
+                            ->hidden(fn (?Event $record): bool => ! $record || $record->hasFeature(Feature::GuestList))
+                            ->schema(fn (?Event $record): array => [
+                                auth()->user()?->isAdmin()
+                                    ? PremiumLock::notGrantedNotice(Feature::GuestList)
+                                    : PremiumLock::callout(Feature::GuestList, $record),
+                            ]),
+                        TextareaWithVariables::make('share_message')
+                            ->variables(Event::sharePlaceholders())
                             ->hiddenLabel()
-                            ->rows(9)
+                            ->rows(10)
                             ->maxLength(1500)
-                            ->placeholder("Oi, tudo bem?\n\nEstamos te convidando para o aniversário de 4 anos da Maria Júlia! 🎈\n\nPor favor, confirme sua presença na aba *Confirmar presença* do site. Vai ser muito especial ter você com a gente!\n\nTodos os detalhes e a localização estão no convite:\n👉 {link}")
-                            ->helperText('Escreva {link} onde o link do convite deve aparecer; sem ele, o link vai no final. Para negrito, use *asteriscos*, como no WhatsApp. Em branco, vai só o nome do evento e o link.'),
+                            ->disabled(fn (?Event $record): bool => $record && ! $record->hasFeature(Feature::GuestList) && ! auth()->user()?->isAdmin())
+                            ->placeholder("Oi, {nome}! Tudo bem? 😊\n\nQueremos muito você com a gente nesse dia tão especial! 🎉\n\nConfirme sua presença por aqui:\n👉 {link_confirmacao}\n\nTodos os detalhes e a localização estão no convite.")
+                            ->helperText('Digite { para ver as variáveis. Use {link} para o link do convite. Para abrir direto numa aba: {link_confirmacao}, {link_localizacao}, {link_presentes} ou {link_recados} (a aba precisa estar visível na página; senão, vai o link do convite). Sem nenhum link, o do convite vai no final. {nome} vira o primeiro nome do convidado quando você envia o convite a alguém pela lista de convidados (no compartilhamento geral, ele some). Para negrito, use *asteriscos*, como no WhatsApp. Em branco, vai só o nome do evento e o link.'),
                     ]),
                 Section::make('Estilo')
                     ->relationship('appearance')

@@ -117,32 +117,97 @@ class Event extends Model
         return $minutes === 0 ? "{$hours}h" : sprintf('%dh%02d', $hours, $minutes);
     }
 
-    /** Where the link goes in the host's WhatsApp message. */
+    /**
+     * What the host can write in the WhatsApp message: the invitation's
+     * link, the links straight to a tab (RSVP, location, gifts, guestbook)
+     * and the guest's first name.
+     */
     public const SHARE_LINK_PLACEHOLDER = '{link}';
+
+    /** Links straight to a tab of the page. */
+    public const SHARE_SECTION_LINK_PLACEHOLDERS = [
+        '{link_confirmacao}' => PageSection::Rsvp,
+        '{link_localizacao}' => PageSection::Location,
+        '{link_presentes}' => PageSection::Gifts,
+        '{link_recados}' => PageSection::Guestbook,
+    ];
+
+    public const SHARE_NAME_PLACEHOLDER = '{nome}';
+
+    /**
+     * Every variable the host can use in the WhatsApp message, with what it
+     * turns into — the suggestions shown while typing it.
+     *
+     * @return array<string, string>
+     */
+    public static function sharePlaceholders(): array
+    {
+        return [
+            self::SHARE_NAME_PLACEHOLDER => 'Primeiro nome do convidado, ao enviar o convite a alguém da lista',
+            self::SHARE_LINK_PLACEHOLDER => 'Link do convite',
+            ...array_map(
+                fn (PageSection $section): string => "Link que abre direto em \"{$section->label()}\"",
+                self::SHARE_SECTION_LINK_PLACEHOLDERS,
+            ),
+        ];
+    }
 
     /**
      * What comes already written when the event is shared on WhatsApp: the
-     * host's message, with the link where they put "{link}" (or at the end),
-     * or just the title and the link.
+     * host's message (guest list premium), or just the title and the link.
+     *
+     * The links go where the host put them, or the invitation's link at the
+     * end. "{nome}" becomes the guest's first name when inviting someone in
+     * particular; otherwise it's left out along with the comma or space
+     * before it ("Oi, {nome}!" → "Oi!").
      */
-    public function shareText(): string
+    public function shareText(?Guest $guest = null): string
     {
         $url = route('events.show', ['event' => $this->slug]);
         $message = trim((string) $this->share_message);
 
-        if ($message === '') {
+        if ($message === '' || ! $this->hasFeature(Feature::GuestList)) {
             return "{$this->title} — {$url}";
         }
 
-        return str_contains($message, self::SHARE_LINK_PLACEHOLDER)
-            ? str_replace(self::SHARE_LINK_PLACEHOLDER, $url, $message)
-            : "{$message}\n\n{$url}";
+        // A tab the page doesn't show falls back to the invitation's link.
+        $links = [self::SHARE_LINK_PLACEHOLDER => $url];
+
+        foreach (self::SHARE_SECTION_LINK_PLACEHOLDERS as $placeholder => $section) {
+            $links[$placeholder] = match (true) {
+                ! $this->showsSection($section) => $url,
+                $section === PageSection::Location => route('events.locations', ['event' => $this->slug]),
+                default => $url.'#'.$section->key(),
+            };
+        }
+
+        $placesLinks = Str::contains($message, array_keys($links));
+
+        $firstName = $guest ? Str::before(trim($guest->name), ' ') : '';
+
+        $message = $firstName !== ''
+            ? str_replace(self::SHARE_NAME_PLACEHOLDER, $firstName, $message)
+            : (string) preg_replace(['/[ \t]*,?[ \t]*'.preg_quote(self::SHARE_NAME_PLACEHOLDER, '/').'/u', '/^[ \t,]+/mu'], '', $message);
+
+        $message = strtr($message, $links);
+
+        return $placesLinks ? $message : "{$message}\n\n{$url}";
     }
 
-    /** WhatsApp's link to start a conversation with shareText() written. */
-    public function whatsappShareUrl(): string
+    /**
+     * WhatsApp's link to start a conversation with shareText() written —
+     * straight to the guest's chat when we know their number.
+     */
+    public function whatsappShareUrl(?Guest $guest = null): string
     {
-        return 'https://wa.me/?text='.rawurlencode($this->shareText());
+        $number = preg_replace('/\D+/', '', (string) $guest?->whatsapp);
+
+        // Brazilian numbers are typed without the country code.
+        if (in_array(strlen((string) $number), [10, 11], true)) {
+            $number = '55'.$number;
+        }
+
+        return 'https://wa.me/'.$number.'?text='.rawurlencode($this->shareText($guest));
     }
 
     /** "Casamento", "Churrasco"… — "Evento" when it's another kind. */
@@ -532,9 +597,17 @@ class Event extends Model
 
         $isChild = fn (Guest $guest): bool => $guest->age !== null && $guest->age < $limit;
 
-        $children = $confirmed->sum(fn (Guest $guest): int => $guest->companion_of_guest_id === null && $guest->rsvp_children_count !== null
-            ? $guest->rsvp_children_count
-            : (int) $isChild($guest));
+        // A party whose size came with how many children it has is counted
+        // by that number, even after the host names its people.
+        $countedByParty = $confirmed
+            ->filter(fn (Guest $guest): bool => $guest->companion_of_guest_id === null && $guest->rsvp_children_count !== null)
+            ->modelKeys();
+
+        $children = $confirmed->sum(fn (Guest $guest): int => match (true) {
+            in_array($guest->id, $countedByParty, true) => (int) $guest->rsvp_children_count,
+            in_array($guest->companion_of_guest_id, $countedByParty, true) => 0,
+            default => (int) $isChild($guest),
+        });
 
         return ['people' => $people, 'children' => (int) $children];
     }

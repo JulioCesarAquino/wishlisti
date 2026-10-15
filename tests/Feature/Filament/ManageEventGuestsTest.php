@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Models\Events\Event;
 use App\Models\Events\EventLocation;
 use App\Models\Guests\Guest;
 use App\Services\Guests\GuestListPdfService;
 use Filament\Actions\Testing\TestAction;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -27,7 +29,7 @@ class ManageEventGuestsTest extends TestCase
     {
         parent::setUp();
 
-        $this->event = Event::factory()->create(['title' => 'Casamento da Ana e do Bruno', 'event_date' => '2026-11-14', 'event_time' => '16:00']);
+        $this->event = Event::factory()->withFeatures(Feature::GuestList)->withRsvpSettings(['child_age_limit' => 10])->create(['title' => 'Casamento da Ana e do Bruno', 'event_date' => '2026-11-14', 'event_time' => '16:00']);
         $this->actingAs($this->event->user);
     }
 
@@ -146,5 +148,68 @@ class ManageEventGuestsTest extends TestCase
         app(GuestListPdfService::class)->render($this->event->fresh());
 
         return $captured;
+    }
+
+    public function test_the_host_names_the_companions_of_a_headcount_only_answer(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Carlos', 'rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 4, 'rsvp_children_count' => 1, 'rsvp_responded_at' => now()]);
+        $preListed = $this->event->guests()->create(['name' => 'Marina', 'whatsapp' => '19911112222']);
+
+        $this->page()
+            ->callAction(TestAction::make('companions')->table($guest), [
+                'companions' => [
+                    ['name' => 'Pedro', 'age' => 8],
+                    ['name' => 'Marina Almeida', 'whatsapp' => '(19) 91111-2222'],
+                ],
+            ])
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(2, $guest->companions()->count());
+        $this->assertSame($guest->id, $preListed->refresh()->companion_of_guest_id, 'the pre-listed guest is reused');
+        $this->assertSame('Marina Almeida', $preListed->name);
+        $this->assertSame(Guest::RSVP_CONFIRMED, $preListed->rsvp_status);
+        $this->assertSame(4, $guest->refresh()->rsvp_guests_count, 'the one left unnamed still counts');
+        $this->assertSame(['people' => 4, 'children' => 1], $this->event->rsvpHeadcount(), 'Pedro is the child the guest already counted');
+
+        // Taking someone off the list leaves them unnamed again.
+        $this->page()
+            ->callAction(TestAction::make('companions')->table($guest), [
+                'companions' => [['id' => $preListed->id, 'name' => 'Marina Almeida', 'whatsapp' => '19911112222']],
+            ])
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(1, $guest->companions()->count());
+        $this->assertNull(Guest::firstWhere('name', 'Pedro'));
+        $this->assertSame(4, $guest->refresh()->rsvp_guests_count);
+    }
+
+    public function test_the_host_invites_a_guest_by_their_first_name(): void
+    {
+        $this->event->update(['share_message' => 'Oi, {nome}! {link_confirmacao}']);
+        $guest = $this->event->guests()->create(['name' => 'Beatriz Lima', 'whatsapp' => '19982220002']);
+
+        $this->page()->assertActionHasUrl(
+            TestAction::make('invite')->table($guest),
+            'https://wa.me/5519982220002?text='.rawurlencode('Oi, Beatriz! '.url('/'.$this->event->slug).'#confirmar-presenca'),
+        );
+    }
+
+    public function test_merging_and_naming_companions_are_premium(): void
+    {
+        $event = Event::factory()->create();
+        $this->actingAs($event->user);
+
+        $guest = $event->guests()->create(['name' => 'Carlos', 'rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 2, 'rsvp_responded_at' => now()]);
+        $other = $event->guests()->create(['name' => 'Carlos A.']);
+
+        Livewire::test(ManageEventGuests::class, ['record' => $event->getRouteKey()])
+            ->assertActionHasIcon(TestAction::make('merge')->table($guest), Heroicon::OutlinedLockClosed)
+            ->assertActionHasIcon(TestAction::make('companions')->table($guest), Heroicon::OutlinedLockClosed)
+            ->mountAction(TestAction::make('merge')->table($guest))
+            ->assertMountedActionModalSee('Recurso premium: Lista nominal de convidados')
+            ->assertMountedActionModalDontSee('É a mesma pessoa que');
+
+        $this->assertNotNull($other->fresh());
+        $this->assertSame(0, $guest->companions()->count());
     }
 }
