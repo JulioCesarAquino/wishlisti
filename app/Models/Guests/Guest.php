@@ -116,7 +116,11 @@ class Guest extends Model
         });
     }
 
-    private function adjustHeadcount(int $by): void
+    /**
+     * Moves the headcount of a confirmed guest by one person each time one
+     * of their companions leaves or joins (never below themselves).
+     */
+    public function adjustHeadcount(int $by): void
     {
         if ($this->rsvp_status !== self::RSVP_CONFIRMED || $this->rsvp_guests_count === null) {
             return;

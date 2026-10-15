@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Events\Events\Pages\Concerns;
 
+use App\Models\Events\Event;
 use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
 
@@ -20,9 +21,25 @@ trait HasEventHeaderActions
             ->openUrlInNewTab();
     }
 
+    protected function shareOnWhatsappAction(): Action
+    {
+        return Action::make('shareOnWhatsapp')
+            ->label('Convidar pelo WhatsApp')
+            ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+            ->color('gray')
+            ->url(function (): string {
+                /** @var Event $event */
+                $event = $this->getRecord();
+
+                return $event->whatsappShareUrl();
+            })
+            ->openUrlInNewTab();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            $this->shareOnWhatsappAction(),
             $this->viewPublicPageAction(),
         ];
     }

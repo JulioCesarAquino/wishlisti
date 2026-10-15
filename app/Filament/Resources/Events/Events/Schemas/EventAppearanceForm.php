@@ -7,6 +7,7 @@ use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Slider;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
@@ -51,6 +52,17 @@ class EventAppearanceForm
                             ->reorderable()
                             ->imagePreviewHeight('120')
                             ->directory('events/gallery'),
+                    ]),
+                Section::make('Mensagem do WhatsApp')
+                    ->description('O texto que já vem escrito quando alguém toca em compartilhar no WhatsApp, na página do evento ou no botão "Convidar pelo WhatsApp" do painel.')
+                    ->columnSpanFull()
+                    ->components([
+                        Textarea::make('share_message')
+                            ->hiddenLabel()
+                            ->rows(9)
+                            ->maxLength(1500)
+                            ->placeholder("Oi, tudo bem?\n\nEstamos te convidando para o aniversário de 4 anos da Maria Júlia! 🎈\n\nPor favor, confirme sua presença na aba *Confirmar presença* do site. Vai ser muito especial ter você com a gente!\n\nTodos os detalhes e a localização estão no convite:\n👉 {link}")
+                            ->helperText('Escreva {link} onde o link do convite deve aparecer; sem ele, o link vai no final. Para negrito, use *asteriscos*, como no WhatsApp. Em branco, vai só o nome do evento e o link.'),
                     ]),
                 Section::make('Estilo')
                     ->relationship('appearance')

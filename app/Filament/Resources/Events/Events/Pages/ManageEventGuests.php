@@ -8,15 +8,26 @@ use App\Filament\Support\SafeDeleteBulkAction;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
+use App\Rules\Guests\Cpf;
 use App\Services\Guests\GuestAnonymizeService;
+use App\Services\Guests\GuestListPdfService;
+use App\Services\Guests\GuestManageService;
+use App\Services\Guests\GuestMergeService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -25,7 +36,9 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ManageEventGuests extends ManageRelatedRecords
 {
@@ -43,9 +56,66 @@ class ManageEventGuests extends ManageRelatedRecords
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
+    /**
+     * The host adding someone by hand (a pre-list of who's invited, without
+     * an answer until the guest replies or the host marks it) or fixing a
+     * guest's details.
+     */
     public function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        $isCompanion = fn (?Guest $record): bool => $record?->companion_of_guest_id !== null;
+        $confirmed = fn (Get $get, ?Guest $record): bool => ! $isCompanion($record) && $get('rsvp_status') === Guest::RSVP_CONFIRMED;
+
+        return $schema->components([
+            TextInput::make('name')
+                ->label('Nome')
+                ->required()
+                ->maxLength(255)
+                ->columnSpanFull(),
+            TextInput::make('whatsapp')
+                ->label('WhatsApp')
+                ->tel()
+                ->maxLength(30),
+            TextInput::make('email')
+                ->label('E-mail')
+                ->email()
+                ->maxLength(255),
+            TextInput::make('cpf')
+                ->label('CPF')
+                ->rule(new Cpf),
+            TextInput::make('age')
+                ->label('Idade')
+                ->integer()
+                ->minValue(0)
+                ->maxValue(120)
+                ->suffix('anos'),
+            Select::make('rsvp_status')
+                ->label('Presença')
+                ->placeholder('Sem resposta')
+                ->options([
+                    Guest::RSVP_CONFIRMED => 'Confirmada',
+                    Guest::RSVP_DECLINED => 'Não vai',
+                ])
+                ->live()
+                ->hidden($isCompanion)
+                ->helperText('Fica "Sem resposta" até o convidado responder ou você marcar.'),
+            TextInput::make('rsvp_guests_count')
+                ->label('Pessoas no grupo')
+                ->helperText('Contando com o convidado.')
+                ->integer()
+                ->default(1)
+                ->minValue(fn (?Guest $record): int => 1 + ($record?->companions()->count() ?? 0))
+                ->maxValue(20)
+                ->required($confirmed)
+                ->visible($confirmed),
+            TextInput::make('rsvp_children_count')
+                ->label(fn (): string => 'Crianças com menos de '.$this->childAgeLimit().' anos')
+                ->helperText('Quantas pessoas do grupo.')
+                ->integer()
+                ->minValue(0)
+                ->lte('rsvp_guests_count')
+                ->visible(fn (Get $get, ?Guest $record): bool => $confirmed($get, $record) && $this->event()->asksRsvpChildrenCount()),
+        ])->columns(2);
     }
 
     /**
@@ -160,9 +230,76 @@ class ManageEventGuests extends ManageRelatedRecords
                         Guest::RSVP_DECLINED => 'Não vai',
                     ]),
             ])
-            ->headerActions([])
+            ->headerActions([
+                Action::make('pdf')
+                    ->label('Lista em PDF')
+                    ->icon(Heroicon::OutlinedPrinter)
+                    ->color('gray')
+                    ->modalHeading('Lista de convidados em PDF')
+                    ->modalDescription('Para imprimir: cada convidado numa linha, com um quadrinho marcado para quem confirmou e vazio para quem ainda não respondeu.')
+                    ->modalSubmitActionLabel('Baixar PDF')
+                    ->schema([
+                        Toggle::make('include_declined')
+                            ->label('Incluir quem disse que não vai'),
+                        Toggle::make('show_whatsapp')
+                            ->label('Mostrar o WhatsApp'),
+                    ])
+                    ->action(function (array $data, GuestListPdfService $service): StreamedResponse {
+                        $event = $this->event();
+                        $pdf = $service->render(
+                            $event,
+                            includeDeclined: (bool) $data['include_declined'],
+                            showWhatsapp: (bool) $data['show_whatsapp'],
+                            hostView: ! auth()->user()?->isAdmin(),
+                        );
+
+                        return response()->streamDownload(fn () => print $pdf, $service->filename($event), ['Content-Type' => 'application/pdf']);
+                    }),
+                CreateAction::make()
+                    ->label('Adicionar convidado')
+                    ->modalHeading('Adicionar convidado')
+                    ->using(fn (array $data, GuestManageService $service): Guest => $service->save($this->event(), $data)),
+            ])
             ->recordActions([
+                Action::make('confirm')
+                    ->label('Confirmar')
+                    ->icon(Heroicon::OutlinedCheckCircle)
+                    ->color('success')
+                    ->tooltip('Marcar a presença como confirmada')
+                    ->visible(fn (Guest $record): bool => $this->canBeConfirmed($record))
+                    ->action(function (Guest $record, GuestManageService $service): void {
+                        $service->confirm($record);
+
+                        Notification::make()->success()->title("Presença de {$record->name} confirmada")->send();
+                    }),
                 ActionGroup::make([
+                    EditAction::make()
+                        ->visible(fn (Guest $record): bool => ! $record->trashed())
+                        ->using(fn (Guest $record, array $data, GuestManageService $service): Guest => $service->save($this->event(), $data, $record)),
+                    Action::make('merge')
+                        ->label('Unificar com…')
+                        ->icon(Heroicon::OutlinedArrowsPointingIn)
+                        ->visible(fn (Guest $record): bool => ! $record->trashed())
+                        ->modalHeading(fn (Guest $record): string => "Unificar {$record->name}")
+                        ->modalDescription('Para quando a mesma pessoa aparece duas vezes, como o filho que confirmou sozinho e também foi listado pelo pai. Fica a confirmação feita pela própria pessoa, o que faltar num registro (WhatsApp, e-mail, CPF, idade) vem do outro, e os presentes e recados passam para o registro que fica. Quem tinha listado a pessoa passa a contar uma a menos.')
+                        ->modalSubmitActionLabel('Unificar')
+                        ->schema([
+                            Select::make('other_guest_id')
+                                ->label('É a mesma pessoa que')
+                                ->options(fn (Guest $record): array => $this->mergeCandidates($record))
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Guest $record, array $data, GuestMergeService $service): void {
+                            $other = $this->event()->guests()->whereKey($data['other_guest_id'])->firstOrFail();
+                            $kept = $service->execute($record, $other);
+
+                            Notification::make()
+                                ->success()
+                                ->title('Registros unificados')
+                                ->body("Ficou o registro de {$kept->name}.")
+                                ->send();
+                        }),
                     DeleteAction::make()
                         ->label('Mover para a lixeira')
                         ->modalDescription('O convidado fica 30 dias na lixeira e pode ser restaurado nesse período. Os acompanhantes dele vão junto.')
@@ -198,6 +335,21 @@ class ManageEventGuests extends ManageRelatedRecords
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('confirm')
+                        ->label('Confirmar presença')
+                        ->icon(Heroicon::OutlinedCheckCircle)
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records, GuestManageService $service): void {
+                            foreach ($records as $guest) {
+                                if ($guest instanceof Guest && $this->canBeConfirmed($guest)) {
+                                    $service->confirm($guest);
+                                }
+                            }
+
+                            Notification::make()->success()->title('Presenças confirmadas')->send();
+                        }),
                     SafeDeleteBulkAction::make(
                         fn (Guest $guest): bool => $guest->hasIdentifiedPaidOrders(),
                         'Convidados com presentes pagos fazem parte do histórico financeiro e não podem ser excluídos. Use "Anonimizar" se eles pediram a remoção dos dados.',
@@ -207,12 +359,57 @@ class ManageEventGuests extends ManageRelatedRecords
             ]);
     }
 
-    private function childAgeLimit(): ?int
+    private function event(): Event
     {
         /** @var Event $event */
         $event = $this->getOwnerRecord();
 
-        return $event->childAgeLimit();
+        return $event;
+    }
+
+    private function childAgeLimit(): ?int
+    {
+        return $this->event()->childAgeLimit();
+    }
+
+    /** Companions follow whoever listed them. */
+    private function canBeConfirmed(Guest $guest): bool
+    {
+        return ! $guest->trashed()
+            && $guest->companion_of_guest_id === null
+            && $guest->rsvp_status !== Guest::RSVP_CONFIRMED;
+    }
+
+    /**
+     * The other guests of the event, each told apart by how they're on the
+     * list ("confirmou", "acompanhante de Fulano"…) and a contact, so two
+     * people with the same name aren't mixed up.
+     *
+     * @return array<int, string>
+     */
+    private function mergeCandidates(Guest $guest): array
+    {
+        return $this->event()->guests()
+            ->with('companionOf')
+            ->whereKeyNot($guest->id)
+            ->where(fn (Builder $query) => $query
+                ->whereNull('companion_of_guest_id')
+                ->orWhere('companion_of_guest_id', '!=', $guest->id))
+            ->whereKeyNot($guest->companion_of_guest_id ?? 0)
+            ->when(! auth()->user()?->isAdmin(), fn (Builder $query) => $query->scopes('visibleToHost'))
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (Guest $other): array => [$other->id => implode(' · ', array_filter([
+                $other->name,
+                match (true) {
+                    $other->companion_of_guest_id !== null => 'acompanhante de '.$other->companionOf?->name,
+                    $other->rsvp_status === Guest::RSVP_CONFIRMED => 'confirmou',
+                    $other->rsvp_status === Guest::RSVP_DECLINED => 'não vai',
+                    default => 'sem resposta',
+                },
+                $other->whatsapp ?? $other->email,
+            ]))])
+            ->all();
     }
 
     private function isChild(Guest $guest): bool

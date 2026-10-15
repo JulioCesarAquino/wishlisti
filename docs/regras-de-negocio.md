@@ -97,6 +97,8 @@ O mapa da página pública marca o local com um **pin**, pelas coordenadas ou, s
 
 **RN-16. Aparência:** a intensidade do desfoque da capa vai de 0 (foto normal) a 100 (efeito completo, o padrão).
 
+**RN-16a. Mensagem do WhatsApp.** Em Aparência, o anfitrião escreve o convite que já vem escrito quando alguém compartilha o evento no WhatsApp, tanto pelo botão do rodapé da página pública quanto por "Convidar pelo WhatsApp" no painel. O link do evento entra onde estiver escrito `{link}`. Sem `{link}`, ele vai no final. Com a mensagem em branco, vai "título — link". O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porque o WhatsApp o monta a partir do link. — `Event::shareText()`
+
 ---
 
 ## 3. Convidados e identificação
@@ -149,6 +151,40 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 **RN-37. Excluir ou restaurar um acompanhante ajusta a contagem** de quem o listou. Mandar o titular para a lixeira leva os acompanhantes junto, e restaurar traz de volta. — eventos do model `Guest`
 
 **RN-38. "Confirmaram presença" no painel conta respostas, não pessoas.** Acompanhantes não entram. O total de pessoas é o indicador "Total de pessoas confirmadas".
+
+**RN-38a. O anfitrião administra a lista à mão** (página Convidados do evento, qualquer plano):
+
+- **"Adicionar convidado"** monta uma pré-lista: a pessoa entra "Sem resposta" e não conta, até ela mesma responder (é reconhecida pelo contato, RN-22) ou o anfitrião marcar.
+- **Editar** corrige nome e contatos e muda a presença. Ao confirmar, o grupo nunca fica menor que 1 + os acompanhantes já listados.
+- **"Confirmar"** (na linha ou em massa) marca a presença, com os acompanhantes já listados.
+- A presença de um acompanhante segue a de quem o listou.
+
+— `GuestManageService`
+
+**RN-38b. Unificar a mesma pessoa.** Quando alguém foi listado como acompanhante sem um contato que o identificasse e também confirmou sozinho, aparecem dois registros, e a pessoa é contada duas vezes. **"Unificar com…"** junta os dois registros:
+
+- **Qual registro fica:** prevalece a resposta da própria pessoa, depois a de quem a listou, depois a de quem não respondeu. Entre duas respostas próprias, fica a mais recente.
+- **Dados:** WhatsApp, e-mail, CPF e idade que faltam no registro que fica são copiados do outro.
+- **O que passa para o registro que fica:** presentes, recados e acompanhantes do outro registro.
+- **Contagem:** quem tinha listado o registro removido passa a contar uma pessoa a menos.
+- **Bloqueios:** não dá para unificar alguém com o próprio acompanhante, nem convidados de eventos diferentes.
+- **Auditoria:** registra "unificou dois registros do mesmo convidado", sem dados pessoais.
+
+— `GuestMergeService`
+
+**RN-38c. Lista em PDF para imprimir.** O PDF traz:
+
+- **Cabeçalho:** tipo, título, data e horário, e cada local com horário e endereço.
+- **Resumo:** pessoas confirmadas, crianças e quantos estão sem resposta.
+- **Uma linha por pessoa:** em ordem alfabética, com os acompanhantes logo abaixo de quem os listou. Cada linha começa com um quadrinho:
+    - **✓ preenchido** para quem confirmou;
+    - **vazio** para quem não respondeu, para marcar à caneta;
+    - **✕** para quem não vai. Esses só aparecem se o anfitrião pedir, numa seção à parte.
+- **Grupos sem nomes:** se o grupo tem mais gente do que nomes, aparece "+ N pessoas".
+- **WhatsApp:** só aparece se o anfitrião pedir.
+- **Rodapé:** "Wishlisti · wishlisti.com.br" e o número da página.
+
+— `GuestListPdfService`, `resources/views/pdf/guest-list.blade.php`
 
 ---
 

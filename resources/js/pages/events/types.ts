@@ -28,6 +28,8 @@ export type EventData = {
     story_title: string;
     story: string | null;
     url: string;
+    /** wa.me link with the host's invitation already written. */
+    whatsapp_share_url: string;
     /** Tabs of the menu, in the host's order (only those turned on). */
     sections: { key: PageSectionKey; label: string }[];
     locations: EventLocation[];
