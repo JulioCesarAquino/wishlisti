@@ -69,6 +69,36 @@ export function RsvpSection({ event, guest }: Props) {
 
     const errors = form.errors as Record<string, string | undefined>;
 
+    // On a phone shared by a family, the page remembers whoever answered
+    // last: someone else answering starts from a blank form, so nothing of
+    // the previous person's answer (their phone, their companions) is
+    // carried into theirs.
+    const answerAsSomeoneElse = () => {
+        form.clearErrors();
+        form.setData({
+            guest: toContactForm(null),
+            attending: null,
+            guests_count: '1',
+            children_count: '0',
+            companions: [],
+        });
+        setJustResponded(false);
+        setEditing(true);
+    };
+
+    const changeAnswer = () => {
+        setJustResponded(false);
+        setEditing(true);
+    };
+
+    const backToAnswer = () => {
+        form.reset();
+        form.clearErrors();
+        setEditing(false);
+    };
+
+    const firstName = guest?.name.trim().split(/\s+/)[0] ?? '';
+
     const guestsCount = Number(form.data.guests_count) || 0;
 
     const setGuestsCount = (typed: string) => {
@@ -128,16 +158,32 @@ export function RsvpSection({ event, guest }: Props) {
                     className="mb-2 text-2xl font-semibold"
                     style={headingStyle(event)}
                 >
+                    {firstName && `${firstName}, `}
                     {attending
-                        ? `Presença confirmada para ${count} pessoa${count === 1 ? '' : 's'}!`
-                        : 'Você avisou que não vai poder comparecer.'}
+                        ? `${firstName ? 'presença' : 'Presença'} confirmada para ${count} pessoa${count === 1 ? '' : 's'}!`
+                        : `${firstName ? 'você' : 'Você'} avisou que não vai poder comparecer.`}
                 </h2>
                 <p className="mb-6" style={bodyTextStyle(event)}>
                     Obrigado por responder.
                 </p>
-                <Button variant="outline" onClick={() => setEditing(true)}>
+                <Button variant="outline" onClick={changeAnswer}>
                     Alterar resposta
                 </Button>
+                {firstName && (
+                    <p
+                        className="mt-6 text-sm opacity-80"
+                        style={bodyTextStyle(event)}
+                    >
+                        Outra pessoa vai confirmar neste celular?{' '}
+                        <button
+                            type="button"
+                            className="font-medium underline underline-offset-4"
+                            onClick={answerAsSomeoneElse}
+                        >
+                            Confirmar outra pessoa
+                        </button>
+                    </p>
+                )}
             </div>
         );
     }
@@ -304,6 +350,16 @@ export function RsvpSection({ event, guest }: Props) {
                 >
                     Enviar confirmação
                 </Button>
+
+                {guest?.rsvp_status && (
+                    <Button
+                        variant="ghost"
+                        className="w-full"
+                        onClick={backToAnswer}
+                    >
+                        Voltar
+                    </Button>
+                )}
             </div>
         </div>
     );
