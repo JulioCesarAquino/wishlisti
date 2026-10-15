@@ -40,6 +40,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $event_time HH:MM:SS, Brasília time
  * @property string|null $cover_image
  * @property string|null $share_image
+ * @property string|null $share_message the WhatsApp invitation; "{link}" marks where the link goes
  * @property array<int, string>|null $gallery
  * @property string|null $description
  * @property string|null $story_title the story section's title, when the host wrote one
@@ -60,7 +61,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'event_time', 'cover_image', 'share_image',
-    'gallery', 'description', 'story_title', 'story', 'is_published', 'archived_at',
+    'share_message', 'gallery', 'description', 'story_title', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
 {
@@ -116,6 +117,34 @@ class Event extends Model
         return $minutes === 0 ? "{$hours}h" : sprintf('%dh%02d', $hours, $minutes);
     }
 
+    /** Where the link goes in the host's WhatsApp message. */
+    public const SHARE_LINK_PLACEHOLDER = '{link}';
+
+    /**
+     * What comes already written when the event is shared on WhatsApp: the
+     * host's message, with the link where they put "{link}" (or at the end),
+     * or just the title and the link.
+     */
+    public function shareText(): string
+    {
+        $url = route('events.show', ['event' => $this->slug]);
+        $message = trim((string) $this->share_message);
+
+        if ($message === '') {
+            return "{$this->title} — {$url}";
+        }
+
+        return str_contains($message, self::SHARE_LINK_PLACEHOLDER)
+            ? str_replace(self::SHARE_LINK_PLACEHOLDER, $url, $message)
+            : "{$message}\n\n{$url}";
+    }
+
+    /** WhatsApp's link to start a conversation with shareText() written. */
+    public function whatsappShareUrl(): string
+    {
+        return 'https://wa.me/?text='.rawurlencode($this->shareText());
+    }
+
     /** "Casamento", "Churrasco"… — "Evento" when it's another kind. */
     public function typeLabel(): string
     {
@@ -138,7 +167,7 @@ class Event extends Model
         return LogOptions::defaults()
             ->useLogName('event')
             ->logOnly([
-                'title', 'type', 'event_date', 'event_time', 'description', 'story_title', 'story', 'cover_image', 'share_image', 'gallery',
+                'title', 'type', 'event_date', 'event_time', 'description', 'story_title', 'story', 'cover_image', 'share_image', 'share_message', 'gallery',
                 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()

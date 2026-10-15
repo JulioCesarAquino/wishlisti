@@ -70,6 +70,7 @@ class EventShowController extends Controller
                 'story_title' => $event->storyTitle(),
                 'story' => $event->story,
                 'url' => route('events.show', ['event' => $event->slug]),
+                'whatsapp_share_url' => $event->whatsappShareUrl(),
                 'sections' => array_map(fn (PageSection $section) => [
                     'key' => $section->key(),
                     'label' => $section->label(),

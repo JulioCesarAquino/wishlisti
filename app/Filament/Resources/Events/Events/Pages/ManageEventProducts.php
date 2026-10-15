@@ -124,6 +124,7 @@ class ManageEventProducts extends ManageRelatedRecords
     protected function getHeaderActions(): array
     {
         return [
+            $this->shareOnWhatsappAction(),
             $this->viewPublicPageAction(),
             Action::make('displaySettings')
                 ->label('Exibição na página')

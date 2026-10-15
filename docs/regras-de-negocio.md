@@ -97,6 +97,8 @@ O mapa da página pública marca o local com um **pin**, pelas coordenadas ou, s
 
 **RN-16. Aparência:** a intensidade do desfoque da capa vai de 0 (foto normal) a 100 (efeito completo, o padrão).
 
+**RN-16a. Mensagem do WhatsApp.** Em Aparência, o anfitrião escreve o convite que já vem escrito quando alguém compartilha o evento no WhatsApp, tanto pelo botão do rodapé da página pública quanto por "Convidar pelo WhatsApp" no painel. O link do evento entra onde estiver escrito `{link}`. Sem `{link}`, ele vai no final. Com a mensagem em branco, vai "título — link". O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porque o WhatsApp o monta a partir do link. — `Event::shareText()`
+
 ---
 
 ## 3. Convidados e identificação
@@ -175,9 +177,9 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 - **Cabeçalho:** tipo, título, data e horário, e cada local com horário e endereço.
 - **Resumo:** pessoas confirmadas, crianças e quantos estão sem resposta.
 - **Uma linha por pessoa:** em ordem alfabética, com os acompanhantes logo abaixo de quem os listou. Cada linha começa com um quadrinho:
-  - **✓ preenchido** para quem confirmou;
-  - **vazio** para quem não respondeu, para marcar à caneta;
-  - **✕** para quem não vai. Esses só aparecem se o anfitrião pedir, numa seção à parte.
+    - **✓ preenchido** para quem confirmou;
+    - **vazio** para quem não respondeu, para marcar à caneta;
+    - **✕** para quem não vai. Esses só aparecem se o anfitrião pedir, numa seção à parte.
 - **Grupos sem nomes:** se o grupo tem mais gente do que nomes, aparece "+ N pessoas".
 - **WhatsApp:** só aparece se o anfitrião pedir.
 - **Rodapé:** "Wishlisti · wishlisti.com.br" e o número da página.

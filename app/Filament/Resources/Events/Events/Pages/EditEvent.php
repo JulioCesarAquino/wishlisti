@@ -37,6 +37,7 @@ class EditEvent extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->shareOnWhatsappAction(),
             $this->viewPublicPageAction(),
             RestoreAction::make(),
             ActionGroup::make([

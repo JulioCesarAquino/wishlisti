@@ -28,7 +28,7 @@ export function Footer({ event }: { event: EventData }) {
         {
             label: 'WhatsApp',
             icon: MessageCircle,
-            href: `https://wa.me/?text=${encodeURIComponent(`${event.title} — ${url}`)}`,
+            href: event.whatsapp_share_url,
         },
         {
             label: 'Facebook',
