@@ -97,7 +97,19 @@ O mapa da página pública marca o local com um **pin**, pelas coordenadas ou, s
 
 **RN-16. Aparência:** a intensidade do desfoque da capa vai de 0 (foto normal) a 100 (efeito completo, o padrão).
 
-**RN-16a. Mensagem do WhatsApp.** Em Aparência, o anfitrião escreve o convite que já vem escrito quando alguém compartilha o evento no WhatsApp, tanto pelo botão do rodapé da página pública quanto por "Convidar pelo WhatsApp" no painel. O link do evento entra onde estiver escrito `{link}`. Sem `{link}`, ele vai no final. Com a mensagem em branco, vai "título — link". O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porque o WhatsApp o monta a partir do link. — `Event::shareText()`
+**RN-16a. Mensagem do WhatsApp** (Premium "Lista nominal de convidados"). Em Aparência, o anfitrião escreve o convite que já vem escrito quando alguém compartilha o evento no WhatsApp. Ele vale para o botão do rodapé da página pública, para "Convidar pelo WhatsApp" no painel e para "Enviar convite pelo WhatsApp" na linha de cada convidado.
+
+- `{link}` vira o link do evento.
+- `{link_confirmacao}` vira o link que abre direto na aba "Confirmar presença".
+- `{link_localizacao}` vira o link que abre direto na aba "Localização", com todos os locais do evento.
+- `{link_presentes}` e `{link_recados}` abrem direto nas abas "Presentes" e "Recados".
+- Um link de aba que a página não mostra (desligada, sem locais, presentes fora do modo "lista", sem o mural) vira o link do evento.
+- Se a mensagem não tiver nenhum desses links, o link do evento vai no final.
+- `{nome}` vira o primeiro nome do convidado quando o convite é enviado a ele. No compartilhamento geral, `{nome}` some junto com a vírgula ou o espaço antes dele: "Oi, {nome}!" vira "Oi!".
+- O convite enviado a um convidado com WhatsApp cadastrado abre direto a conversa com ele (o DDI 55 é acrescentado aos números com DDD).
+- Sem o recurso, ou com a mensagem em branco, vai "título — link". O admin pode escrever a mensagem antes de o recurso ser liberado.
+
+O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porque o WhatsApp o monta a partir do link. — `Event::shareText()`, `whatsappShareUrl()`
 
 ---
 
@@ -161,7 +173,7 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 
 — `GuestManageService`
 
-**RN-38b. Unificar a mesma pessoa.** Quando alguém foi listado como acompanhante sem um contato que o identificasse e também confirmou sozinho, aparecem dois registros, e a pessoa é contada duas vezes. **"Unificar com…"** junta os dois registros:
+**RN-38b. Unificar a mesma pessoa** (Premium "Lista nominal de convidados"; o admin sempre pode). Quando alguém foi listado como acompanhante sem um contato que o identificasse e também confirmou sozinho, aparecem dois registros, e a pessoa é contada duas vezes. **"Unificar com…"** junta os dois registros:
 
 - **Qual registro fica:** prevalece a resposta da própria pessoa, depois a de quem a listou, depois a de quem não respondeu. Entre duas respostas próprias, fica a mais recente.
 - **Dados:** WhatsApp, e-mail, CPF e idade que faltam no registro que fica são copiados do outro.
@@ -171,6 +183,15 @@ Sem o recurso, vale sempre o formulário gratuito, mesmo que as configurações 
 - **Auditoria:** registra "unificou dois registros do mesmo convidado", sem dados pessoais.
 
 — `GuestMergeService`
+
+**RN-38d. Nomear os acompanhantes** (Premium "Lista nominal de convidados"; o admin sempre pode). Para quem confirmou só a quantidade de pessoas, a ação "Acompanhantes" deixa o anfitrião informar nome, idade, WhatsApp, e-mail e CPF de cada acompanhante. Ela também serve para corrigir os acompanhantes que o próprio convidado listou.
+
+- **Limite:** no máximo o tamanho do grupo menos 1.
+- **A contagem não muda:** quem ficar sem nome continua contando como "+ N pessoas". Tirar alguém da lista o devolve a essa condição. Se a pessoa tiver presente, ela continua como convidado sem resposta.
+- **Pré-lista:** um acompanhante com o contato de alguém da pré-lista que ainda não respondeu passa a usar esse registro, sem criar outro.
+- **Crianças:** se o grupo já informou quantas crianças tinha, vale esse número, mesmo depois de os acompanhantes ganharem idade.
+
+— `GuestManageService::saveCompanions()`
 
 **RN-38c. Lista em PDF para imprimir.** O PDF traz:
 

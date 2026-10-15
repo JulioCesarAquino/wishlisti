@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
  */
 class GuestManageService
 {
+    public function __construct(
+        protected GuestResolveService $guestResolveService,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $data  name, whatsapp, email, cpf, age, rsvp_status, rsvp_guests_count, rsvp_children_count
      */
@@ -74,6 +78,82 @@ class GuestManageService
 
             $this->syncCompanionsStatus($guest);
         });
+    }
+
+    /**
+     * The names (and details) of the people a guest said were coming with
+     * them, filled in by the host — for a guest who only gave a headcount,
+     * or to fix the companions they listed. The headcount stays as the guest
+     * told it: someone left out still comes, just unnamed.
+     *
+     * A new companion with the contact details of someone pre-listed by the
+     * host, still without an answer, takes that record instead of making a
+     * second one.
+     *
+     * @param  array<int, array<string, mixed>>  $companions  id (existing ones), name, whatsapp, email, cpf, age
+     */
+    public function saveCompanions(Guest $host, array $companions): void
+    {
+        DB::transaction(function () use ($host, $companions) {
+            $keptIds = [];
+
+            foreach (array_slice($companions, 0, max(0, (int) $host->rsvp_guests_count - 1)) as $data) {
+                $details = [
+                    'name' => $data['name'],
+                    'whatsapp' => $data['whatsapp'] ?? null,
+                    'email' => $data['email'] ?? null,
+                    'cpf' => $data['cpf'] ?? null,
+                    'age' => $data['age'] ?? null,
+                ];
+
+                $companion = filled($data['id'] ?? null)
+                    ? $host->companions()->whereKey($data['id'])->first()
+                    : null;
+
+                $companion ??= $this->preListed($host, $details)
+                    ?? new Guest(['event_id' => $host->event_id]);
+
+                $companion->fill($details);
+                $companion->forceFill([
+                    'companion_of_guest_id' => $host->id,
+                    'rsvp_status' => Guest::RSVP_CONFIRMED,
+                    'rsvp_guests_count' => null,
+                    'rsvp_children_count' => null,
+                    'rsvp_responded_at' => $companion->rsvp_responded_at ?? now(),
+                ])->save();
+
+                $keptIds[] = $companion->id;
+            }
+
+            // Taken off the list: back to an unnamed person in the headcount.
+            $host->companions()
+                ->whereKeyNot($keptIds)
+                ->withCount('orders')
+                ->get()
+                ->each(function (Guest $companion): void {
+                    if ($companion->orders_count === 0) {
+                        $companion->disableLogging()->forceDelete();
+
+                        return;
+                    }
+
+                    $companion->forceFill([
+                        'companion_of_guest_id' => null,
+                        'rsvp_status' => null,
+                        'rsvp_responded_at' => null,
+                    ])->save();
+                });
+        });
+    }
+
+    /**
+     * @param  array{whatsapp?: ?string, email?: ?string, cpf?: ?string}  $contact
+     */
+    private function preListed(Guest $host, array $contact): ?Guest
+    {
+        $match = $this->guestResolveService->findByContact($host->event, $contact, except: $host);
+
+        return $match && $match->rsvp_status === null && $match->companion_of_guest_id === null ? $match : null;
     }
 
     private function syncCompanionsStatus(Guest $guest): void

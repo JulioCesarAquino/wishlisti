@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Events\Events\Pages;
 
+use App\Enums\Premium\Feature;
 use App\Filament\Resources\Events\Events\EventResource;
 use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
+use App\Filament\Support\PremiumLock;
 use App\Filament\Support\SafeDeleteBulkAction;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
@@ -22,6 +24,8 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -276,7 +280,65 @@ class ManageEventGuests extends ManageRelatedRecords
                     EditAction::make()
                         ->visible(fn (Guest $record): bool => ! $record->trashed())
                         ->using(fn (Guest $record, array $data, GuestManageService $service): Guest => $service->save($this->event(), $data, $record)),
-                    Action::make('merge')
+                    Action::make('invite')
+                        ->label('Enviar convite pelo WhatsApp')
+                        ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+                        ->visible(fn (Guest $record): bool => ! $record->trashed() && $record->name !== Guest::ANONYMIZED_NAME)
+                        ->url(fn (Guest $record): string => $this->event()->whatsappShareUrl($record))
+                        ->openUrlInNewTab(),
+                    $this->requiresGuestList(Action::make('companions')
+                        ->label('Acompanhantes')
+                        ->icon(Heroicon::OutlinedUsers)
+                        ->visible(fn (Guest $record): bool => ! $record->trashed()
+                            && $record->companion_of_guest_id === null
+                            && $record->rsvp_status === Guest::RSVP_CONFIRMED
+                            && $record->rsvp_guests_count > 1)
+                        ->modalHeading(fn (Guest $record): string => "Acompanhantes de {$record->name}")
+                        ->modalDescription(fn (Guest $record): string => "O grupo tem {$record->rsvp_guests_count} pessoas, contando com {$record->name}. Preencha quem você souber; quem ficar de fora continua contando, sem nome.")
+                        ->modalSubmitActionLabel('Salvar')
+                        ->fillForm(fn (Guest $record): array => [
+                            'companions' => $record->companions()->orderBy('id')->get()
+                                ->map(fn (Guest $companion): array => $companion->only(['id', 'name', 'age', 'whatsapp', 'email', 'cpf']))
+                                ->all(),
+                        ])
+                        ->schema(fn (Guest $record): array => [
+                            Repeater::make('companions')
+                                ->hiddenLabel()
+                                ->schema([
+                                    Hidden::make('id'),
+                                    TextInput::make('name')
+                                        ->label('Nome')
+                                        ->required()
+                                        ->maxLength(255),
+                                    TextInput::make('age')
+                                        ->label('Idade')
+                                        ->integer()
+                                        ->minValue(0)
+                                        ->maxValue(120)
+                                        ->suffix('anos'),
+                                    TextInput::make('whatsapp')
+                                        ->label('WhatsApp')
+                                        ->tel()
+                                        ->maxLength(30),
+                                    TextInput::make('email')
+                                        ->label('E-mail')
+                                        ->email()
+                                        ->maxLength(255),
+                                    TextInput::make('cpf')
+                                        ->label('CPF')
+                                        ->rule(new Cpf),
+                                ])
+                                ->columns(2)
+                                ->defaultItems(0)
+                                ->maxItems($record->rsvp_guests_count - 1)
+                                ->addActionLabel('Adicionar acompanhante'),
+                        ])
+                        ->action(function (Guest $record, array $data, GuestManageService $service): void {
+                            $service->saveCompanions($record, array_values($data['companions'] ?? []));
+
+                            Notification::make()->success()->title('Acompanhantes salvos')->send();
+                        })),
+                    $this->requiresGuestList(Action::make('merge')
                         ->label('Unificar com…')
                         ->icon(Heroicon::OutlinedArrowsPointingIn)
                         ->visible(fn (Guest $record): bool => ! $record->trashed())
@@ -299,7 +361,7 @@ class ManageEventGuests extends ManageRelatedRecords
                                 ->title('Registros unificados')
                                 ->body("Ficou o registro de {$kept->name}.")
                                 ->send();
-                        }),
+                        })),
                     DeleteAction::make()
                         ->label('Mover para a lixeira')
                         ->modalDescription('O convidado fica 30 dias na lixeira e pode ser restaurado nesse período. Os acompanhantes dele vão junto.')
@@ -370,6 +432,30 @@ class ManageEventGuests extends ManageRelatedRecords
     private function childAgeLimit(): ?int
     {
         return $this->event()->childAgeLimit();
+    }
+
+    /**
+     * A guest list premium action: hosts without the feature still find it,
+     * and it tells them what it is and how to get it. The admin can always
+     * use it.
+     */
+    private function requiresGuestList(Action $action): Action
+    {
+        $event = $this->event();
+
+        if (auth()->user()?->isAdmin() || $event->hasFeature(Feature::GuestList)) {
+            return $action;
+        }
+
+        return $action
+            ->icon(Heroicon::OutlinedLockClosed)
+            ->modalHeading(Feature::GuestList->label())
+            ->modalDescription(null)
+            ->fillForm([])
+            ->schema([PremiumLock::callout(Feature::GuestList, $event)])
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->action(fn () => abort(403));
     }
 
     /** Companions follow whoever listed them. */
