@@ -12,8 +12,8 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * How the RSVP form behaves. The fields, the companions and the invite-only
  * confirmation only take effect while the event has the guest list premium
- * feature (see Event::rsvpFields()); the children's age limit and the
- * companion limit, always.
+ * feature (see Event::rsvpFields()); the children's age limit, the
+ * companion limit and the event's capacity, always.
  *
  * @property int $id
  * @property int $event_id
@@ -23,10 +23,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $child_age_limit under this age, a guest counts as a child
  * @property int|null $max_companions how many companions each guest may bring, unless the host gave them a limit of their own; null: up to the party size limit
  * @property bool $invite_only only by the guest's personal invitation link
+ * @property int|null $capacity how many people fit in the event, guests and companions; null: no limit
+ * @property bool $capacity_excludes_children children under the age limit don't take a place
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['collect_companions', 'fields', 'companion_fields', 'child_age_limit', 'max_companions', 'invite_only'])]
+#[Fillable(['collect_companions', 'fields', 'companion_fields', 'child_age_limit', 'max_companions', 'invite_only', 'capacity', 'capacity_excludes_children'])]
 class EventRsvpSetting extends Model
 {
     use LogsActivity;
@@ -62,6 +64,7 @@ class EventRsvpSetting extends Model
     protected $attributes = [
         'collect_companions' => false,
         'invite_only' => false,
+        'capacity_excludes_children' => false,
     ];
 
     /**
@@ -101,6 +104,8 @@ class EventRsvpSetting extends Model
             'child_age_limit' => 'integer',
             'max_companions' => 'integer',
             'invite_only' => 'boolean',
+            'capacity' => 'integer',
+            'capacity_excludes_children' => 'boolean',
         ];
     }
 

@@ -62,6 +62,26 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->assertTrue($event->fresh()->rsvpIsInviteOnly());
     }
 
+    public function test_any_host_sets_the_events_capacity_and_whether_children_count(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
+            ->assertFormFieldIsHidden('rsvpSettings.capacity_excludes_children')
+            ->fillForm(['rsvpSettings.capacity' => 50, 'rsvpSettings.child_age_limit' => 5])
+            ->assertFormFieldIsVisible('rsvpSettings.capacity_excludes_children')
+            ->fillForm(['rsvpSettings.capacity_excludes_children' => true])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $event = $event->fresh();
+        $this->assertSame(50, $event->rsvpCapacity());
+        $this->assertTrue($event->capacityExcludesChildren());
+    }
+
     public function test_hosts_choose_each_field_once_the_feature_is_enabled(): void
     {
         $host = User::factory()->create(['is_admin' => false]);

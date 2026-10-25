@@ -141,14 +141,16 @@ class ManageEventGuests extends ManageRelatedRecords
         $event = $this->getOwnerRecord();
         $headcount = $event->rsvpHeadcount();
         $people = $headcount['people'] === 1 ? '1 pessoa confirmada' : "{$headcount['people']} pessoas confirmadas";
+        $capacity = $event->rsvpCapacity();
+        $places = $capacity === null ? null : "{$event->rsvpTakenPlaces()} de {$capacity} vagas ocupadas";
 
         if ($headcount['children'] === null) {
-            return $people;
+            return implode(' · ', array_filter([$people, $places]));
         }
 
         $children = ($headcount['children'] === 1 ? '1 criança' : "{$headcount['children']} crianças")." com menos de {$event->childAgeLimit()} anos";
 
-        return "{$people} · {$children}";
+        return implode(' · ', array_filter([$people, $children, $places]));
     }
 
     public function table(Table $table): Table
