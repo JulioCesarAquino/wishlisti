@@ -109,7 +109,7 @@ class ManageEventGuests extends ManageRelatedRecords
                 ->integer()
                 ->default(1)
                 ->minValue(fn (?Guest $record): int => 1 + ($record?->companions()->count() ?? 0))
-                ->maxValue(20)
+                ->maxValue(Guest::MAX_PARTY_SIZE)
                 ->required($confirmed)
                 ->visible($confirmed),
             TextInput::make('rsvp_children_count')
@@ -119,6 +119,15 @@ class ManageEventGuests extends ManageRelatedRecords
                 ->minValue(0)
                 ->lte('rsvp_guests_count')
                 ->visible(fn (Get $get, ?Guest $record): bool => $confirmed($get, $record) && $this->event()->asksRsvpChildrenCount()),
+            TextInput::make('max_companions')
+                ->label('Pode levar até')
+                ->suffix('acompanhantes')
+                ->integer()
+                ->minValue(0)
+                ->maxValue(Guest::MAX_PARTY_SIZE - 1)
+                ->placeholder(fn (): string => 'Padrão do evento: '.$this->event()->rsvpCompanionLimit())
+                ->helperText('Para quem vai levar a família toda, ou para um convite só da pessoa (0). Em branco, vale o padrão do evento.')
+                ->hidden($isCompanion),
         ])->columns(2);
     }
 
@@ -206,6 +215,12 @@ class ManageEventGuests extends ManageRelatedRecords
                     ->label('Pessoas')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('max_companions')
+                    ->label('Pode levar')
+                    ->tooltip('Quantos acompanhantes o convidado pode levar ao confirmar')
+                    ->placeholder(fn (): string => 'Padrão ('.$this->event()->rsvpCompanionLimit().')')
+                    ->numeric()
+                    ->toggleable(),
                 TextColumn::make('rsvp_children_count')
                     ->label('Crianças')
                     ->tooltip(fn (): ?string => ($limit = $this->childAgeLimit()) ? "Quantas pessoas do grupo têm menos de {$limit} anos" : null)
@@ -286,6 +301,21 @@ class ManageEventGuests extends ManageRelatedRecords
                         ->visible(fn (Guest $record): bool => ! $record->trashed() && $record->name !== Guest::ANONYMIZED_NAME)
                         ->url(fn (Guest $record): string => $this->event()->whatsappShareUrl($record))
                         ->openUrlInNewTab(),
+                    Action::make('invite_link')
+                        ->label('Link do convite')
+                        ->icon(Heroicon::OutlinedLink)
+                        ->visible(fn (Guest $record): bool => ! $record->trashed() && $record->name !== Guest::ANONYMIZED_NAME)
+                        ->modalHeading(fn (Guest $record): string => "Link do convite de {$record->name}")
+                        ->modalDescription('Para mandar por outro aplicativo: quem abre este link já é reconhecido na página e vê quantos acompanhantes pode levar. Não compartilhe com outras pessoas.')
+                        ->fillForm(fn (Guest $record): array => ['url' => $record->setRelation('event', $this->event())->inviteUrl()])
+                        ->schema([
+                            TextInput::make('url')
+                                ->hiddenLabel()
+                                ->readOnly()
+                                ->copyable(copyMessage: 'Link copiado'),
+                        ])
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Fechar'),
                     $this->requiresGuestList(Action::make('companions')
                         ->label('Acompanhantes')
                         ->icon(Heroicon::OutlinedUsers)

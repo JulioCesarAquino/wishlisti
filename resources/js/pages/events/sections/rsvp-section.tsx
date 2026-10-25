@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { CalendarCheck, CalendarX } from 'lucide-react';
+import { CalendarCheck, CalendarX, MailOpen } from 'lucide-react';
 import { useState } from 'react';
 import { store as storeRsvp } from '@/routes/rsvp';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,9 @@ type Props = {
 function resizeCompanions(
     companions: ContactForm[],
     guestsCount: number,
+    maxPeople: number,
 ): ContactForm[] {
-    const size = Math.max(0, Math.min(guestsCount, 20) - 1);
+    const size = Math.max(0, Math.min(guestsCount, maxPeople) - 1);
 
     return Array.from(
         { length: size },
@@ -40,6 +41,10 @@ function resizeCompanions(
 export function RsvpSection({ event, guest }: Props) {
     const [justResponded, setJustResponded] = useState(false);
     const [editing, setEditing] = useState(false);
+    // Answering for another person on the same phone: the event's limit,
+    // not the previous guest's.
+    const [answeringForSomeoneElse, setAnsweringForSomeoneElse] =
+        useState(false);
 
     const fields = visibleFields(event.rsvp_fields);
     const requiredFields = requiredFieldsOf(event.rsvp_fields);
@@ -52,6 +57,18 @@ export function RsvpSection({ event, guest }: Props) {
 
     const initialCount = guest?.rsvp_guests_count ?? 1;
 
+    const maxCompanions =
+        guest && !answeringForSomeoneElse
+            ? guest.max_companions
+            : event.rsvp_max_companions;
+    const maxPeople = maxCompanions + 1;
+
+    // The host only accepts confirmations by the personal invitation link,
+    // and this browser didn't open one.
+    const locked =
+        event.rsvp_invite_only &&
+        (!guest?.is_invited || answeringForSomeoneElse);
+
     // The counts are kept as typed (text): a number field holding a number
     // turns a cleared field into 0 — and then "3" typed after it into "03".
     const form = useForm({
@@ -63,6 +80,7 @@ export function RsvpSection({ event, guest }: Props) {
             ? resizeCompanions(
                   (guest?.companions ?? []).map(toContactForm),
                   initialCount,
+                  maxPeople,
               )
             : [],
     });
@@ -84,6 +102,7 @@ export function RsvpSection({ event, guest }: Props) {
         });
         setJustResponded(false);
         setEditing(true);
+        setAnsweringForSomeoneElse(true);
     };
 
     const changeAnswer = () => {
@@ -95,6 +114,7 @@ export function RsvpSection({ event, guest }: Props) {
         form.reset();
         form.clearErrors();
         setEditing(false);
+        setAnsweringForSomeoneElse(false);
     };
 
     const firstName = guest?.name.trim().split(/\s+/)[0] ?? '';
@@ -102,7 +122,7 @@ export function RsvpSection({ event, guest }: Props) {
     const guestsCount = Number(form.data.guests_count) || 0;
 
     const setGuestsCount = (typed: string) => {
-        const count = Math.min(20, Number(typed) || 0);
+        const count = Math.min(maxPeople, Number(typed) || 0);
 
         form.setData((data) => ({
             ...data,
@@ -113,7 +133,7 @@ export function RsvpSection({ event, guest }: Props) {
             // filled in so far.
             companions:
                 collectsCompanions && count >= 1
-                    ? resizeCompanions(data.companions, count)
+                    ? resizeCompanions(data.companions, count, maxPeople)
                     : data.companions,
         }));
     };
@@ -124,6 +144,8 @@ export function RsvpSection({ event, guest }: Props) {
             onSuccess: () => {
                 setJustResponded(true);
                 setEditing(false);
+                // The page now holds whoever just answered.
+                setAnsweringForSomeoneElse(false);
             },
         });
     };
@@ -166,10 +188,12 @@ export function RsvpSection({ event, guest }: Props) {
                 <p className="mb-6" style={bodyTextStyle(event)}>
                     Obrigado por responder.
                 </p>
-                <Button variant="outline" onClick={changeAnswer}>
-                    Alterar resposta
-                </Button>
-                {firstName && (
+                {!locked && (
+                    <Button variant="outline" onClick={changeAnswer}>
+                        Alterar resposta
+                    </Button>
+                )}
+                {firstName && !event.rsvp_invite_only && (
                     <p
                         className="mt-6 text-sm opacity-80"
                         style={bodyTextStyle(event)}
@@ -184,6 +208,28 @@ export function RsvpSection({ event, guest }: Props) {
                         </button>
                     </p>
                 )}
+            </div>
+        );
+    }
+
+    if (locked) {
+        return (
+            <div className="mx-auto max-w-lg px-6 py-16 text-center">
+                <MailOpen
+                    className="mx-auto mb-3 size-10 opacity-50"
+                    style={bodyTextStyle(event)}
+                />
+                <h2
+                    className="mb-2 text-2xl font-semibold"
+                    style={headingStyle(event)}
+                >
+                    Confirmar presença
+                </h2>
+                <p style={bodyTextStyle(event)}>
+                    A confirmação de presença é feita pelo link que você recebeu
+                    no seu convite. Abra esse link para confirmar. Não recebeu?
+                    Fale com os anfitriões.
+                </p>
             </div>
         );
     }
@@ -252,7 +298,21 @@ export function RsvpSection({ event, guest }: Props) {
                     )}
                 </div>
 
-                {form.data.attending === true && (
+                {form.data.attending === true && maxCompanions === 0 && (
+                    <p className="text-sm" style={bodyTextStyle(event)}>
+                        Seu convite é individual.
+                    </p>
+                )}
+
+                {form.data.attending === true &&
+                    maxCompanions === 0 &&
+                    form.errors.guests_count && (
+                        <p className="text-sm text-red-600">
+                            {form.errors.guests_count}
+                        </p>
+                    )}
+
+                {form.data.attending === true && maxCompanions > 0 && (
                     <div className="grid gap-1.5">
                         <Label htmlFor="rsvp_count">
                             Quantas pessoas (incluindo você)?
@@ -261,11 +321,19 @@ export function RsvpSection({ event, guest }: Props) {
                             id="rsvp_count"
                             type="number"
                             min={1}
-                            max={20}
+                            max={maxPeople}
                             inputMode="numeric"
                             value={form.data.guests_count}
                             onChange={(e) => setGuestsCount(e.target.value)}
                         />
+                        {maxPeople < 20 && (
+                            <p
+                                className="text-sm opacity-80"
+                                style={bodyTextStyle(event)}
+                            >
+                                {`Seu convite é para até ${maxPeople} pessoas, contando com você.`}
+                            </p>
+                        )}
                         {form.errors.guests_count && (
                             <p className="text-sm text-red-600">
                                 {form.errors.guests_count}

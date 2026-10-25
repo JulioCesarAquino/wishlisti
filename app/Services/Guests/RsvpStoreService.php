@@ -5,6 +5,7 @@ namespace App\Services\Guests;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RsvpStoreService
 {
@@ -15,6 +16,9 @@ class RsvpStoreService
     /**
      * @param  array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string, age?: ?int}  $guestData
      * @param  array<int, array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string, age?: ?int}>  $companions
+     * @param  Guest|null  $invited  whose personal invitation link the browser opened
+     *
+     * @throws ValidationException beyond the guest's companion limit, or without their invitation link when the host only accepts it
      */
     public function execute(
         Event $event,
@@ -24,9 +28,16 @@ class RsvpStoreService
         array $companions,
         ?string $guestIdentifier,
         ?int $childrenCount = null,
+        ?Guest $invited = null,
     ): Guest {
-        return DB::transaction(function () use ($event, $guestData, $attending, $guestsCount, $companions, $guestIdentifier, $childrenCount) {
+        return DB::transaction(function () use ($event, $guestData, $attending, $guestsCount, $companions, $guestIdentifier, $childrenCount, $invited) {
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
+
+            $this->ensureInvited($event, $guest, $invited);
+
+            if ($attending) {
+                $this->ensureWithinCompanionLimit($event, $guest, $guestsCount, $companions);
+            }
 
             $this->detachFromHost($guest);
 
@@ -47,6 +58,43 @@ class RsvpStoreService
 
             return $guest;
         });
+    }
+
+    /**
+     * When the host only accepts confirmations by the personal link, the
+     * one answering must be whoever that link belongs to. Thrown inside the
+     * transaction, so nothing the resolution saved stays.
+     */
+    private function ensureInvited(Event $event, Guest $guest, ?Guest $invited): void
+    {
+        if (! $event->rsvpIsInviteOnly() || $guest->is($invited)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'guest.name' => $invited
+                ? "Este convite é de {$invited->name}. Para confirmar outra pessoa, use o link do convite dela."
+                : 'A confirmação de presença é feita pelo link do seu convite. Não recebeu? Fale com os anfitriões.',
+        ]);
+    }
+
+    /**
+     * @param  array<int, mixed>  $companions
+     */
+    private function ensureWithinCompanionLimit(Event $event, Guest $guest, ?int $guestsCount, array $companions): void
+    {
+        $asked = $event->collectsRsvpCompanions() ? count($companions) : max(0, (int) $guestsCount - 1);
+        $allowed = $guest->setRelation('event', $event)->allowedCompanions();
+
+        if ($asked <= $allowed) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'guests_count' => $allowed === 0
+                ? 'Seu convite é individual: confirme só a sua presença.'
+                : 'Seu convite é para até '.($allowed + 1).' pessoas, contando com você.',
+        ]);
     }
 
     /**

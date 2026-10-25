@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Events\Events\Schemas;
 
 use App\Models\Events\EventRsvpSetting;
+use App\Models\Guests\Guest;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
@@ -20,6 +21,28 @@ class EventRsvpForm
         'cpf' => 'CPF',
         'age' => 'Idade',
     ];
+
+    /**
+     * How many people each invitation is for: on any event, free or
+     * premium. A family gets more in the guest list, guest by guest.
+     */
+    public static function companionLimit(): Section
+    {
+        return Section::make('Acompanhantes por convidado')
+            ->description('Quantas pessoas cada convidado pode levar ao confirmar presença.')
+            ->icon('heroicon-o-users')
+            ->components([
+                TextInput::make('max_companions')
+                    ->label('Cada convidado pode levar até')
+                    ->suffix('acompanhantes')
+                    ->integer()
+                    ->minValue(0)
+                    ->maxValue(Guest::MAX_PARTY_SIZE - 1)
+                    ->placeholder('Em branco: até '.(Guest::MAX_PARTY_SIZE - 1))
+                    ->helperText('0: cada convite é só para quem foi convidado. Para quem vai levar a família toda, mude o limite da pessoa em Convidados → Editar. Quem já confirmou com mais gente continua confirmado.')
+                    ->maxWidth('md'),
+            ]);
+    }
 
     /**
      * "Children under X don't pay": on any event, free or premium.
@@ -77,6 +100,14 @@ class EventRsvpForm
                                 ->columnSpanFull(),
                             ...self::fieldModes('companion_fields', EventRsvpSetting::DEFAULT_COMPANION_FIELDS),
                         ]),
+                ]),
+            Section::make('Quem pode confirmar')
+                ->icon('heroicon-o-lock-closed')
+                ->components([
+                    Toggle::make('invite_only')
+                        ->label('Só pelo link do convite')
+                        ->helperText('Cada convidado da lista tem um link próprio, que vai no "Enviar convite pelo WhatsApp" (ou em Convidados → Link do convite). Ligado, só quem abrir o próprio link consegue confirmar; quem chega pelo link geral do evento vê a página, mas não a confirmação.')
+                        ->default(false),
                 ]),
         ];
     }

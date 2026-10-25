@@ -18,7 +18,7 @@ class GuestManageService
     ) {}
 
     /**
-     * @param  array<string, mixed>  $data  name, whatsapp, email, cpf, age, rsvp_status, rsvp_guests_count, rsvp_children_count
+     * @param  array<string, mixed>  $data  name, whatsapp, email, cpf, age, rsvp_status, rsvp_guests_count, rsvp_children_count, max_companions
      */
     public function save(Event $event, array $data, ?Guest $guest = null): Guest
     {
@@ -32,6 +32,10 @@ class GuestManageService
                 'cpf' => $data['cpf'] ?? null,
                 'age' => $data['age'] ?? null,
             ]);
+
+            if (array_key_exists('max_companions', $data)) {
+                $guest->max_companions = $data['max_companions'];
+            }
 
             // A companion's presence follows whoever listed them.
             if ($guest->companion_of_guest_id !== null) {

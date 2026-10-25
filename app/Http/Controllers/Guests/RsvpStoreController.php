@@ -34,6 +34,7 @@ class RsvpStoreController extends Controller
             companions: $request->validated('companions') ?? [],
             childrenCount: $request->validated('children_count'),
             guestIdentifier: is_string($guestIdentifier) ? $guestIdentifier : null,
+            invited: Guest::invitedFrom($request, $event),
         );
 
         Inertia::flash('toast', [

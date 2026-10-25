@@ -4,6 +4,7 @@ namespace App\Http\Requests\Guests;
 
 use App\Http\Requests\Guests\Concerns\ValidatesGuestContact;
 use App\Models\Events\Event;
+use App\Models\Guests\Guest;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RsvpStoreRequest extends FormRequest
@@ -29,7 +30,7 @@ class RsvpStoreRequest extends FormRequest
         $rules = [
             ...$this->guestContactRules('guest', $event->rsvpFields()),
             'attending' => ['required', 'boolean'],
-            'guests_count' => ['required_if:attending,true', 'nullable', 'integer', 'min:1', 'max:20'],
+            'guests_count' => ['required_if:attending,true', 'nullable', 'integer', 'min:1', 'max:'.Guest::MAX_PARTY_SIZE],
             // "How many of them are under X?" — of the whole party, the guest
             // included.
             'children_count' => $event->asksRsvpChildrenCount() && $this->boolean('attending')

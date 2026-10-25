@@ -37,6 +37,31 @@ class EventRsvpFormSettingsTest extends TestCase
         $this->assertSame(5, $event->fresh()->childAgeLimit());
     }
 
+    public function test_any_host_limits_the_companions_but_only_premium_locks_to_the_invitation_link(): void
+    {
+        $host = User::factory()->create(['is_admin' => false]);
+        $event = Event::factory()->create(['user_id' => $host->id]);
+
+        $this->actingAs($host);
+
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
+            ->assertFormFieldDoesNotExist('rsvpSettings.invite_only')
+            ->fillForm(['rsvpSettings.max_companions' => 2])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(2, $event->fresh()->rsvpCompanionLimit());
+
+        $event->syncFeatures([Feature::GuestList]);
+
+        Livewire::test(EditEventRsvp::class, ['record' => $event->getRouteKey()])
+            ->fillForm(['rsvpSettings.invite_only' => true])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue($event->fresh()->rsvpIsInviteOnly());
+    }
+
     public function test_hosts_choose_each_field_once_the_feature_is_enabled(): void
     {
         $host = User::factory()->create(['is_admin' => false]);

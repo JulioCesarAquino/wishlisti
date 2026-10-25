@@ -164,20 +164,25 @@ class Event extends Model
     public function shareText(?Guest $guest = null): string
     {
         $url = route('events.show', ['event' => $this->slug]);
+        // Someone in particular gets their personal link: the page opens
+        // already knowing who they are.
+        $guestUrl = $guest?->setRelation('event', $this)->inviteUrl() ?? $url;
         $message = trim((string) $this->share_message);
 
         if ($message === '' || ! $this->hasFeature(Feature::GuestList)) {
-            return "{$this->title} — {$url}";
+            return "{$this->title} — {$guestUrl}";
         }
 
         // A tab the page doesn't show falls back to the invitation's link.
-        $links = [self::SHARE_LINK_PLACEHOLDER => $url];
+        $links = [self::SHARE_LINK_PLACEHOLDER => $guestUrl];
 
         foreach (self::SHARE_SECTION_LINK_PLACEHOLDERS as $placeholder => $section) {
             $links[$placeholder] = match (true) {
-                ! $this->showsSection($section) => $url,
+                ! $this->showsSection($section) => $guestUrl,
                 $section === PageSection::Location => route('events.locations', ['event' => $this->slug]),
-                default => $url.'#'.$section->key(),
+                // The browser keeps the #tab through the personal link's
+                // redirect.
+                default => $guestUrl.'#'.$section->key(),
             };
         }
 
@@ -191,7 +196,7 @@ class Event extends Model
 
         $message = strtr($message, $links);
 
-        return $placesLinks ? $message : "{$message}\n\n{$url}";
+        return $placesLinks ? $message : "{$message}\n\n{$guestUrl}";
     }
 
     /**
@@ -619,6 +624,24 @@ class Event extends Model
     public function collectsRsvpCompanions(): bool
     {
         return $this->hasFeature(Feature::GuestList) && $this->rsvpSettings->collect_companions;
+    }
+
+    /**
+     * How many companions a guest may bring when the host gave them no
+     * limit of their own — any event, free or premium.
+     */
+    public function rsvpCompanionLimit(): int
+    {
+        return $this->rsvpSettings->max_companions ?? Guest::MAX_PARTY_SIZE - 1;
+    }
+
+    /**
+     * Whether only someone who opened their personal invitation link can
+     * confirm — also premium-only.
+     */
+    public function rsvpIsInviteOnly(): bool
+    {
+        return $this->hasFeature(Feature::GuestList) && $this->rsvpSettings->invite_only;
     }
 
     public function coverImageUrl(): ?string

@@ -190,8 +190,36 @@ class ManageEventGuestsTest extends TestCase
 
         $this->page()->assertActionHasUrl(
             TestAction::make('invite')->table($guest),
-            'https://wa.me/5519982220002?text='.rawurlencode('Oi, Beatriz! '.url('/'.$this->event->slug).'#confirmar-presenca'),
+            'https://wa.me/5519982220002?text='.rawurlencode('Oi, Beatriz! '.url("/{$this->event->slug}/c/{$guest->invite_code}").'#confirmar-presenca'),
         );
+    }
+
+    public function test_the_host_gives_a_guest_a_companion_limit_of_their_own(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Tia Rosa']);
+
+        $this->page()
+            ->callAction(TestAction::make('edit')->table($guest), ['name' => 'Tia Rosa', 'max_companions' => 6])
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(6, $guest->refresh()->max_companions);
+        $this->assertSame(6, $guest->allowedCompanions());
+
+        $this->page()
+            ->callAction(TestAction::make('edit')->table($guest), ['name' => 'Tia Rosa', 'max_companions' => null])
+            ->assertHasNoFormErrors();
+
+        $this->assertNull($guest->refresh()->max_companions);
+        $this->assertSame(Guest::MAX_PARTY_SIZE - 1, $guest->allowedCompanions());
+    }
+
+    public function test_the_host_copies_a_guests_invitation_link(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Beatriz Lima']);
+
+        $this->page()
+            ->mountAction(TestAction::make('invite_link')->table($guest))
+            ->assertSchemaStateSet(['url' => url("/{$this->event->slug}/c/{$guest->invite_code}")]);
     }
 
     public function test_merging_and_naming_companions_are_premium(): void
