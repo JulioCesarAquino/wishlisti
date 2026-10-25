@@ -124,7 +124,8 @@ class Guest extends Model
 
     /**
      * Moves the headcount of a confirmed guest by one person each time one
-     * of their companions leaves or joins (never below themselves).
+     * of their companions leaves or joins (never below themselves, and never
+     * with more children than people).
      */
     public function adjustHeadcount(int $by): void
     {
@@ -132,7 +133,12 @@ class Guest extends Model
             return;
         }
 
-        $this->forceFill(['rsvp_guests_count' => max(1, $this->rsvp_guests_count + $by)])->saveQuietly();
+        $count = max(1, $this->rsvp_guests_count + $by);
+
+        $this->forceFill([
+            'rsvp_guests_count' => $count,
+            'rsvp_children_count' => $this->rsvp_children_count === null ? null : min($this->rsvp_children_count, $count),
+        ])->saveQuietly();
     }
 
     /**

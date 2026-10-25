@@ -297,6 +297,20 @@ class ManageEventGuests extends ManageRelatedRecords
                     EditAction::make()
                         ->visible(fn (Guest $record): bool => ! $record->trashed())
                         ->using(fn (Guest $record, array $data, GuestManageService $service): Guest => $service->save($this->event(), $data, $record)),
+                    Action::make('decline')
+                        ->label('Marcar que não vai')
+                        ->icon(Heroicon::OutlinedXCircle)
+                        ->color('danger')
+                        ->visible(fn (Guest $record): bool => $this->canBeDeclined($record))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Guest $record): string => "{$record->name} não vai?")
+                        ->modalDescription(fn (Guest $record): string => $this->declineDescription($record))
+                        ->modalSubmitActionLabel('Marcar que não vai')
+                        ->action(function (Guest $record, GuestManageService $service): void {
+                            $service->decline($record);
+
+                            Notification::make()->success()->title("{$record->name} marcado como \"Não vai\"")->send();
+                        }),
                     Action::make('invite')
                         ->label('Enviar convite pelo WhatsApp')
                         ->icon(Heroicon::OutlinedChatBubbleLeftRight)
@@ -444,6 +458,24 @@ class ManageEventGuests extends ManageRelatedRecords
 
                             Notification::make()->success()->title('Presenças confirmadas')->send();
                         }),
+                    BulkAction::make('decline')
+                        ->label('Marcar que não vão')
+                        ->icon(Heroicon::OutlinedXCircle)
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalDescription('Continuam na lista, mas deixam de contar nas pessoas confirmadas. Um acompanhante sai do grupo de quem o listou; os acompanhantes de um convidado também ficam como "Não vai".')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records, GuestManageService $service): void {
+                            foreach ($records as $guest) {
+                                // Fresh: a guest declined earlier in the loop takes
+                                // their companions along.
+                                if ($guest instanceof Guest && $this->canBeDeclined($guest->refresh())) {
+                                    $service->decline($guest);
+                                }
+                            }
+
+                            Notification::make()->success()->title('Marcados como "Não vai"')->send();
+                        }),
                     SafeDeleteBulkAction::make(
                         fn (Guest $guest): bool => $guest->hasIdentifiedPaidOrders(),
                         'Convidados com presentes pagos fazem parte do histórico financeiro e não podem ser excluídos. Use "Anonimizar" se eles pediram a remoção dos dados.',
@@ -496,6 +528,28 @@ class ManageEventGuests extends ManageRelatedRecords
         return ! $guest->trashed()
             && $guest->companion_of_guest_id === null
             && $guest->rsvp_status !== Guest::RSVP_CONFIRMED;
+    }
+
+    private function canBeDeclined(Guest $guest): bool
+    {
+        return ! $guest->trashed() && $guest->rsvp_status !== Guest::RSVP_DECLINED;
+    }
+
+    private function declineDescription(Guest $guest): string
+    {
+        $stays = 'Continua na lista como "Não vai", mas deixa de contar nas pessoas confirmadas.';
+
+        if ($guest->companionOf) {
+            return "{$stays} Sai do grupo de {$guest->companionOf->name}, que fica com uma pessoa a menos.";
+        }
+
+        $companions = $guest->companions()->count();
+
+        return match ($companions) {
+            0 => $stays,
+            1 => "{$stays} O acompanhante listado também fica como \"Não vai\".",
+            default => "{$stays} Os {$companions} acompanhantes listados também ficam como \"Não vai\".",
+        };
     }
 
     /**
