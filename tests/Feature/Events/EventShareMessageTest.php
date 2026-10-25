@@ -111,7 +111,7 @@ class EventShareMessageTest extends TestCase
         $event = $this->premiumEvent(['share_message' => "Oi, {nome}! Tudo bem?\nOii {nome}, vem? {link}"]);
         $guest = $event->guests()->create(['name' => 'Beatriz Lima']);
 
-        $this->assertSame("Oi, Beatriz! Tudo bem?\nOii Beatriz, vem? ".url('/maju'), $event->shareText($guest));
+        $this->assertSame("Oi, Beatriz! Tudo bem?\nOii Beatriz, vem? ".url("/maju/c/{$guest->invite_code}"), $event->shareText($guest));
         $this->assertSame("Oi! Tudo bem?\nOii, vem? ".url('/maju'), $event->shareText());
     }
 
@@ -121,9 +121,26 @@ class EventShareMessageTest extends TestCase
         $guest = $event->guests()->create(['name' => 'Bia', 'whatsapp' => '(19) 98222-0002']);
 
         $this->assertSame(
-            'https://wa.me/5519982220002?text='.rawurlencode('Oi, Bia! '.url('/maju')),
+            'https://wa.me/5519982220002?text='.rawurlencode('Oi, Bia! '.url("/maju/c/{$guest->invite_code}")),
             $event->whatsappShareUrl($guest),
         );
+    }
+
+    public function test_a_guests_tab_links_go_through_their_personal_link(): void
+    {
+        $event = $this->premiumEvent(['share_message' => 'Confirma: {link_confirmacao}']);
+        $guest = $event->guests()->create(['name' => 'Bia']);
+
+        $this->assertSame('Confirma: '.url("/maju/c/{$guest->invite_code}").'#confirmar-presenca', $event->shareText($guest));
+        $this->assertSame('Confirma: '.url('/maju').'#confirmar-presenca', $event->shareText());
+    }
+
+    public function test_without_a_message_a_guest_still_gets_their_personal_link(): void
+    {
+        $event = Event::factory()->create(['title' => 'Maria Julia', 'slug' => 'maju']);
+        $guest = $event->guests()->create(['name' => 'Bia']);
+
+        $this->assertSame('Maria Julia — '.url("/maju/c/{$guest->invite_code}"), $event->shareText($guest));
     }
 
     public function test_without_the_guest_list_premium_the_message_isnt_used(): void

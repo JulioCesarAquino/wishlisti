@@ -14,8 +14,9 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
 /**
- * The RSVP form's settings. The children's age limit is for every event;
- * the fields and the companions, for the guest list premium feature — shown
+ * The RSVP form's settings. The companion and children's age limits are for
+ * every event; the fields, the companions' details and the invite-only
+ * confirmation, for the guest list premium feature — shown
  * locked, with the way to the premium page, to hosts without it.
  */
 class EditEventRsvp extends EditRecord
@@ -42,6 +43,7 @@ class EditEventRsvp extends EditRecord
                 ->relationship('rsvpSettings')
                 ->columnSpanFull()
                 ->components([
+                    EventRsvpForm::companionLimit(),
                     EventRsvpForm::children(),
                     ...match (true) {
                         $hasFeature => EventRsvpForm::settings(),

@@ -48,6 +48,8 @@ class EventShowController extends Controller
             $guest = $event->guests()->where('identifier', $identifier)->first();
         }
 
+        $invited = Guest::invitedFrom($request, $event);
+
         if ($event->shouldCountVisitFor($request->user()) && ! $request->cookie($event->visitCookieName())) {
             $event->increment('visits_count');
             Cookie::queue(Cookie::make($event->visitCookieName(), '1', 60 * 12));
@@ -109,6 +111,10 @@ class EventShowController extends Controller
                 'rsvp_child_age_limit' => $event->childAgeLimit(),
                 'rsvp_asks_children_count' => $event->asksRsvpChildrenCount(),
                 'rsvp_collect_companions' => $event->collectsRsvpCompanions(),
+                // For someone without a limit of their own: answering for
+                // another person on the same phone, or not on the list yet.
+                'rsvp_max_companions' => $event->rsvpCompanionLimit(),
+                'rsvp_invite_only' => $event->rsvpIsInviteOnly(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
             // Where the page opens when the URL carries no #section.
@@ -146,6 +152,9 @@ class EventShowController extends Controller
                 'rsvp_status' => $guest->rsvp_status,
                 'rsvp_guests_count' => $guest->rsvp_guests_count,
                 'rsvp_children_count' => $guest->rsvp_children_count,
+                'max_companions' => $guest->setRelation('event', $event)->allowedCompanions(),
+                // Opened their personal invitation link on this browser.
+                'is_invited' => $guest->is($invited),
                 // Gifts they reserved to hand over in person, so they can give
                 // up on one from the page.
                 'reservations' => $guest->orders()

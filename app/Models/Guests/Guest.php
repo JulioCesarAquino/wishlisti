@@ -24,6 +24,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $event_id
  * @property int|null $companion_of_guest_id
  * @property string $identifier
+ * @property string|null $invite_code in the guest's personal invitation link
  * @property string $name
  * @property string|null $whatsapp
  * @property string|null $email
@@ -32,12 +33,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $rsvp_status
  * @property int|null $rsvp_guests_count
  * @property int|null $rsvp_children_count of those, how many under the event's child age limit (headcount-only answers)
+ * @property int|null $max_companions how many companions they may bring; null: the event's default
  * @property Carbon|null $rsvp_responded_at
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['event_id', 'companion_of_guest_id', 'name', 'whatsapp', 'email', 'cpf', 'age', 'rsvp_status', 'rsvp_guests_count', 'rsvp_children_count', 'rsvp_responded_at'])]
+#[Fillable(['event_id', 'companion_of_guest_id', 'name', 'whatsapp', 'email', 'cpf', 'age', 'rsvp_status', 'rsvp_guests_count', 'rsvp_children_count', 'max_companions', 'rsvp_responded_at'])]
 class Guest extends Model
 {
     /** @use HasFactory<GuestFactory> */
@@ -71,6 +73,9 @@ class Guest extends Model
      */
     public const CONTACT_FIELDS = ['whatsapp', 'email', 'cpf'];
 
+    /** The most people one RSVP can bring, the guest included. */
+    public const MAX_PARTY_SIZE = 20;
+
     public function getActivitylogOptions(): LogOptions
     {
         // No attributes: the audit trail must not keep a copy of personal
@@ -89,6 +94,7 @@ class Guest extends Model
     {
         static::creating(function (Guest $guest): void {
             $guest->identifier ??= (string) Str::uuid();
+            $guest->invite_code ??= self::newInviteCode();
         });
 
         // Keeps the headcounts right when a guest goes to (or comes back
@@ -127,6 +133,48 @@ class Guest extends Model
         }
 
         $this->forceFill(['rsvp_guests_count' => max(1, $this->rsvp_guests_count + $by)])->saveQuietly();
+    }
+
+    /**
+     * How many companions this guest may bring: their own limit, set by the
+     * host, or the event's. Someone who already confirmed more people —
+     * before the limit came down — may keep them: the host decides about
+     * those in the panel.
+     */
+    public function allowedCompanions(): int
+    {
+        $limit = $this->max_companions ?? $this->event->rsvpCompanionLimit();
+
+        if ($this->rsvp_status === self::RSVP_CONFIRMED && $this->rsvp_guests_count !== null) {
+            return max($limit, $this->rsvp_guests_count - 1);
+        }
+
+        return $limit;
+    }
+
+    /**
+     * The guest's personal invitation link: it opens the event's page
+     * already knowing who they are.
+     */
+    public function inviteUrl(): string
+    {
+        return route('events.invite', ['event' => $this->event->slug, 'code' => $this->invite_code]);
+    }
+
+    /**
+     * Short enough for a WhatsApp message, without letters easily mistaken
+     * for others when typed.
+     */
+    public static function newInviteCode(): string
+    {
+        $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+        $code = '';
+
+        for ($i = 0; $i < 8; $i++) {
+            $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+
+        return $code;
     }
 
     /**
@@ -279,5 +327,25 @@ class Guest extends Model
             ?? $request->cookie("wishlist_guest_{$event->id}");
 
         return is_string($identifier) && $identifier !== '' ? $identifier : null;
+    }
+
+    public static function inviteCookieName(Event $event): string
+    {
+        return "wishlisti_invite_{$event->id}";
+    }
+
+    /**
+     * The guest whose personal invitation link this browser opened — what
+     * lets them confirm when the host only accepts confirmations by the
+     * link. Not the guest cookie: a gift also sets that one, for whoever
+     * gave it.
+     */
+    public static function invitedFrom(Request $request, Event $event): ?self
+    {
+        $code = $request->cookie(self::inviteCookieName($event));
+
+        return is_string($code) && $code !== ''
+            ? $event->guests()->where('invite_code', $code)->first()
+            : null;
     }
 }

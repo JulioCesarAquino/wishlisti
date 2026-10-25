@@ -56,6 +56,10 @@ export type EventData = {
     mp_public_key: string | null;
     rsvp_required_fields: RsvpContactField[];
     rsvp_collect_companions: boolean;
+    /** Companions a guest may bring without a limit of their own. */
+    rsvp_max_companions: number;
+    /** Only someone who opened their personal invitation link can confirm. */
+    rsvp_invite_only: boolean;
     /** Each field of the RSVP form (besides the name): hidden, optional or required. */
     rsvp_fields: Record<RsvpField, RsvpFieldMode>;
     /** The same, for each companion (the children: name and age, say). */
@@ -122,6 +126,10 @@ export type Guest = GuestContact & {
     rsvp_status: 'confirmed' | 'declined' | null;
     rsvp_guests_count: number | null;
     rsvp_children_count: number | null;
+    /** Companions they may bring: their own limit, or the event's. */
+    max_companions: number;
+    /** Opened their personal invitation link on this browser. */
+    is_invited: boolean;
     companions: GuestContact[];
     reservations: Reservation[];
 };

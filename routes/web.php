@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Events\EventInviteController;
 use App\Http\Controllers\Events\EventShowController;
 use App\Http\Controllers\Guests\GuestMessageStoreController;
 use App\Http\Controllers\Guests\RsvpStoreController;
@@ -19,6 +20,10 @@ Route::get('/{event:slug}', EventShowController::class)->name('events.show');
 // Shareable links that open the page straight on the location tab — on a
 // given location, when the event has more than one.
 Route::get('/{event:slug}/localizacao', EventShowController::class)->name('events.locations');
+// A guest's personal invitation link, sent by the host on WhatsApp.
+Route::get('/{event:slug}/c/{code}', EventInviteController::class)
+    ->middleware('throttle:30,1')
+    ->name('events.invite');
 Route::get('/{event:slug}/localizacao/{location:slug}', EventShowController::class)
     ->name('events.location')
     ->scopeBindings();
