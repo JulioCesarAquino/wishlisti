@@ -98,6 +98,9 @@ class AdminPanelProvider extends PanelProvider
                     .'.fi-body { display: flex; flex-direction: column; }'
                     .'.fi-body > .fi-layout, .fi-body > .fi-simple-layout { flex: 1 0 auto; min-height: 0; height: auto; }'
                     .'.fi-body > .wishlisti-signature { flex-shrink: 0; }'
+                    // The event's tabs (a dozen) wrap onto a second line
+                    // instead of hiding behind a horizontal scroll.
+                    .'.fi-page-sub-navigation-tabs { flex-wrap: wrap; row-gap: 0.25rem; overflow-x: visible; }'
                     .'</style>',
                 ),
             )

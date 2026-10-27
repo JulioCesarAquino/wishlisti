@@ -43,7 +43,9 @@ class EventResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Start;
+    // Tabs above the page, so the content keeps the whole width next to
+    // the panel's menu; on a phone, the same dropdown either way.
+    protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
     public static function getEloquentQuery(): Builder
     {
