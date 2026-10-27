@@ -85,6 +85,35 @@ class GuestManageService
     }
 
     /**
+     * Marks someone as not coming, keeping them on the list: they stop
+     * counting among the people confirmed. A companion leaves the party of
+     * whoever listed them, which gets one person smaller; a guest's listed
+     * companions follow them, as when the host changes the answer by hand.
+     */
+    public function decline(Guest $guest): void
+    {
+        if ($guest->rsvp_status === Guest::RSVP_DECLINED) {
+            return;
+        }
+
+        DB::transaction(function () use ($guest) {
+            $host = $guest->companionOf;
+
+            $guest->forceFill([
+                'companion_of_guest_id' => null,
+                'rsvp_status' => Guest::RSVP_DECLINED,
+                'rsvp_guests_count' => null,
+                'rsvp_children_count' => null,
+                'rsvp_responded_at' => now(),
+            ])->setRelation('companionOf', null)->save();
+
+            $host?->adjustHeadcount(-1);
+
+            $this->syncCompanionsStatus($guest);
+        });
+    }
+
+    /**
      * The names (and details) of the people a guest said were coming with
      * them, filled in by the host — for a guest who only gave a headcount,
      * or to fix the companions they listed. The headcount stays as the guest

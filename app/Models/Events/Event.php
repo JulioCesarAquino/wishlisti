@@ -586,13 +586,19 @@ class Event extends Model
     /**
      * Who's coming, for the host: people confirmed and, with a children's
      * age, how many of them are children — from each person's age, or from
-     * the count a guest gave for their party.
+     * the count a guest gave for their party. With a guest, just their
+     * party: them and the companions they listed.
      *
      * @return array{people: int, children: int|null}
      */
-    public function rsvpHeadcount(): array
+    public function rsvpHeadcount(?Guest $party = null): array
     {
-        $confirmed = $this->guests()->where('rsvp_status', Guest::RSVP_CONFIRMED)->get();
+        $confirmed = $this->guests()
+            ->where('rsvp_status', Guest::RSVP_CONFIRMED)
+            ->when($party, fn ($query) => $query->where(fn ($query) => $query
+                ->whereKey($party->getKey())
+                ->orWhere('companion_of_guest_id', $party->getKey())))
+            ->get();
         $people = (int) $confirmed->sum('rsvp_guests_count');
         $limit = $this->childAgeLimit();
 
@@ -633,6 +639,45 @@ class Event extends Model
     public function rsvpCompanionLimit(): int
     {
         return $this->rsvpSettings->max_companions ?? Guest::MAX_PARTY_SIZE - 1;
+    }
+
+    /**
+     * How many people fit in the event, guests and companions — any event,
+     * free or premium.
+     */
+    public function rsvpCapacity(): ?int
+    {
+        return $this->rsvpSettings->capacity ?: null;
+    }
+
+    /**
+     * Children under the age limit don't take a place: only while there is
+     * an age limit to tell them apart.
+     */
+    public function capacityExcludesChildren(): bool
+    {
+        return $this->rsvpSettings->capacity_excludes_children && $this->childAgeLimit() !== null;
+    }
+
+    /**
+     * The places taken by who confirmed — or by one guest's party.
+     */
+    public function rsvpTakenPlaces(?Guest $party = null): int
+    {
+        $headcount = $this->rsvpHeadcount($party);
+
+        return $headcount['people'] - ($this->capacityExcludesChildren() ? (int) $headcount['children'] : 0);
+    }
+
+    /**
+     * Places still free, without a capacity null. Never below zero, even
+     * when the host lowered the capacity after people confirmed.
+     */
+    public function rsvpPlacesLeft(): ?int
+    {
+        $capacity = $this->rsvpCapacity();
+
+        return $capacity === null ? null : max(0, $capacity - $this->rsvpTakenPlaces());
     }
 
     /**

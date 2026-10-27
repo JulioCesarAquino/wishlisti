@@ -45,6 +45,7 @@ class EditEventRsvp extends EditRecord
                 ->components([
                     EventRsvpForm::companionLimit(),
                     EventRsvpForm::children(),
+                    EventRsvpForm::capacity(),
                     ...match (true) {
                         $hasFeature => EventRsvpForm::settings(),
                         // The admin can prepare them before unlocking it.

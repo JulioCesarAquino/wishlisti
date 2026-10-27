@@ -194,6 +194,59 @@ class ManageEventGuestsTest extends TestCase
         );
     }
 
+    public function test_the_host_marks_that_a_guest_wont_come_and_keeps_them_on_the_list(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Tio João', 'rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 3, 'rsvp_responded_at' => now()]);
+        $companion = $this->event->guests()->create(['name' => 'Tia Rosa', 'companion_of_guest_id' => $guest->id, 'rsvp_status' => Guest::RSVP_CONFIRMED]);
+
+        $this->page()
+            ->assertActionVisible(TestAction::make('decline')->table($guest))
+            ->callAction(TestAction::make('decline')->table($guest));
+
+        $this->assertSame(Guest::RSVP_DECLINED, $guest->refresh()->rsvp_status);
+        $this->assertNull($guest->rsvp_guests_count);
+        $this->assertSame(Guest::RSVP_DECLINED, $companion->refresh()->rsvp_status);
+        $this->assertFalse($guest->trashed());
+        $this->assertSame(0, $this->event->rsvpHeadcount()['people']);
+
+        $this->page()->assertActionHidden(TestAction::make('decline')->table($guest));
+    }
+
+    public function test_a_companion_who_wont_come_leaves_the_party_and_stays_on_the_list(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Tio João', 'rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 3, 'rsvp_children_count' => 3, 'rsvp_responded_at' => now()]);
+        $companion = $this->event->guests()->create(['name' => 'Tia Rosa', 'companion_of_guest_id' => $guest->id, 'rsvp_status' => Guest::RSVP_CONFIRMED]);
+
+        $this->page()->callAction(TestAction::make('decline')->table($companion));
+
+        $companion->refresh();
+        $this->assertSame(Guest::RSVP_DECLINED, $companion->rsvp_status);
+        $this->assertNull($companion->companion_of_guest_id);
+        $this->assertFalse($companion->trashed());
+
+        $guest->refresh();
+        $this->assertSame(Guest::RSVP_CONFIRMED, $guest->rsvp_status);
+        $this->assertSame(2, $guest->rsvp_guests_count);
+        $this->assertSame(2, $guest->rsvp_children_count);
+        $this->assertSame(2, $this->event->rsvpHeadcount()['people']);
+    }
+
+    public function test_the_host_marks_several_guests_that_wont_come(): void
+    {
+        $guest = $this->event->guests()->create(['name' => 'Tio João', 'rsvp_status' => Guest::RSVP_CONFIRMED, 'rsvp_guests_count' => 2, 'rsvp_responded_at' => now()]);
+        $companion = $this->event->guests()->create(['name' => 'Tia Rosa', 'companion_of_guest_id' => $guest->id, 'rsvp_status' => Guest::RSVP_CONFIRMED]);
+        $other = $this->event->guests()->create(['name' => 'Bia']);
+
+        $this->page()
+            ->selectTableRecords([$guest, $companion, $other])
+            ->callAction(TestAction::make('decline')->table()->bulk());
+
+        foreach ([$guest, $companion, $other] as $record) {
+            $this->assertSame(Guest::RSVP_DECLINED, $record->refresh()->rsvp_status);
+        }
+        $this->assertSame(0, $this->event->rsvpHeadcount()['people']);
+    }
+
     public function test_the_host_gives_a_guest_a_companion_limit_of_their_own(): void
     {
         $guest = $this->event->guests()->create(['name' => 'Tia Rosa']);

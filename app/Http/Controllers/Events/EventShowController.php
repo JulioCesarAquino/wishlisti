@@ -115,6 +115,9 @@ class EventShowController extends Controller
                 // another person on the same phone, or not on the list yet.
                 'rsvp_max_companions' => $event->rsvpCompanionLimit(),
                 'rsvp_invite_only' => $event->rsvpIsInviteOnly(),
+                // Null without a capacity.
+                'rsvp_places_left' => $event->rsvpPlacesLeft(),
+                'rsvp_capacity_excludes_children' => $event->capacityExcludesChildren(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
             // Where the page opens when the URL carries no #section.
@@ -155,6 +158,9 @@ class EventShowController extends Controller
                 'max_companions' => $guest->setRelation('event', $event)->allowedCompanions(),
                 // Opened their personal invitation link on this browser.
                 'is_invited' => $guest->is($invited),
+                // Places their confirmed party takes: theirs again when
+                // they change their answer.
+                'rsvp_places' => $event->rsvpCapacity() !== null ? $event->rsvpTakenPlaces($guest) : 0,
                 // Gifts they reserved to hand over in person, so they can give
                 // up on one from the page.
                 'reservations' => $guest->orders()

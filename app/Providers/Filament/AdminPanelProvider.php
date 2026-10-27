@@ -2,12 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Dashboard;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationItem;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -47,6 +47,9 @@ class AdminPanelProvider extends PanelProvider
                 .'</div>',
             ))
             ->brandLogoHeight('5.5rem')
+            // The event's pages have a menu of their own: the panel's can
+            // shrink to its icons to give the content room.
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -95,6 +98,9 @@ class AdminPanelProvider extends PanelProvider
                     .'.fi-body { display: flex; flex-direction: column; }'
                     .'.fi-body > .fi-layout, .fi-body > .fi-simple-layout { flex: 1 0 auto; min-height: 0; height: auto; }'
                     .'.fi-body > .wishlisti-signature { flex-shrink: 0; }'
+                    // The event's tabs (a dozen) wrap onto a second line
+                    // instead of hiding behind a horizontal scroll.
+                    .'.fi-page-sub-navigation-tabs { flex-wrap: wrap; row-gap: 0.25rem; overflow-x: visible; }'
                     .'</style>',
                 ),
             )

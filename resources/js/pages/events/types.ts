@@ -60,6 +60,10 @@ export type EventData = {
     rsvp_max_companions: number;
     /** Only someone who opened their personal invitation link can confirm. */
     rsvp_invite_only: boolean;
+    /** Places still free in the event; null without a capacity. */
+    rsvp_places_left: number | null;
+    /** Children under the age limit don't take a place. */
+    rsvp_capacity_excludes_children: boolean;
     /** Each field of the RSVP form (besides the name): hidden, optional or required. */
     rsvp_fields: Record<RsvpField, RsvpFieldMode>;
     /** The same, for each companion (the children: name and age, say). */
@@ -130,6 +134,8 @@ export type Guest = GuestContact & {
     max_companions: number;
     /** Opened their personal invitation link on this browser. */
     is_invited: boolean;
+    /** Places their confirmed party takes (0 without a capacity). */
+    rsvp_places: number;
     companions: GuestContact[];
     reservations: Reservation[];
 };

@@ -3,21 +3,43 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Guests\Guests\GuestResource;
+use App\Filament\Resources\Guests\Guests\Pages\ListGuests;
+use App\Filament\Support\EventPicker;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use Filament\Support\Icons\Heroicon;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
+use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
+/**
+ * On the dashboard, about the event picked there; above the guest list,
+ * about the one its filter picked — or all of them.
+ */
 class GuestsOverviewWidget extends StatsOverviewWidget
 {
+    use InteractsWithPageFilters, InteractsWithPageTable;
+
+    protected function getTablePage(): string
+    {
+        return ListGuests::class;
+    }
+
+    private function eventId(): ?int
+    {
+        return EventPicker::chosen($this->pageFilters['event_id'] ?? $this->tableFilters['event_id']['value'] ?? null);
+    }
+
     protected function getStats(): array
     {
         $isAdmin = (bool) auth()->user()?->isAdmin();
+        $eventId = $this->eventId();
 
         // The same guests as the list below: not those of an event in the
         // trash, and only the host's own events for a host.
-        $guestsQuery = GuestResource::getEloquentQuery();
+        $guestsQuery = GuestResource::getEloquentQuery()
+            ->when($eventId, fn ($query) => $query->where('event_id', $eventId));
 
         // Companions listed by another guest are already inside that guest's
         // headcount, so they don't count as a separate response.
@@ -33,6 +55,7 @@ class GuestsOverviewWidget extends StatsOverviewWidget
         // Events that tell children apart (each with its own age).
         $childEvents = Event::query()
             ->when(! $isAdmin, fn ($query) => $query->managedBy(auth()->id()))
+            ->when($eventId, fn ($query) => $query->whereKey($eventId))
             ->whereHas('rsvpSettings', fn ($query) => $query->whereNotNull('child_age_limit'))
             ->with('rsvpSettings')
             ->get();

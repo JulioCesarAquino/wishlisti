@@ -18,7 +18,7 @@ class RsvpStoreService
      * @param  array<int, array{name: string, whatsapp?: ?string, email?: ?string, cpf?: ?string, age?: ?int}>  $companions
      * @param  Guest|null  $invited  whose personal invitation link the browser opened
      *
-     * @throws ValidationException beyond the guest's companion limit, or without their invitation link when the host only accepts it
+     * @throws ValidationException beyond the guest's companion limit or the event's places left, or without their invitation link when the host only accepts it
      */
     public function execute(
         Event $event,
@@ -31,6 +31,15 @@ class RsvpStoreService
         ?Guest $invited = null,
     ): Guest {
         return DB::transaction(function () use ($event, $guestData, $attending, $guestsCount, $companions, $guestIdentifier, $childrenCount, $invited) {
+            // One answer at a time per event, so two people can't both take
+            // the last place.
+            $placesTakenBefore = null;
+
+            if ($event->rsvpCapacity() !== null) {
+                Event::query()->whereKey($event->getKey())->lockForUpdate()->first();
+                $placesTakenBefore = $event->rsvpTakenPlaces();
+            }
+
             $guest = $this->guestResolveService->execute($event, $guestData, $guestIdentifier);
 
             $this->ensureInvited($event, $guest, $invited);
@@ -56,8 +65,40 @@ class RsvpStoreService
                 'rsvp_responded_at' => now(),
             ])->save();
 
+            if ($placesTakenBefore !== null) {
+                $this->ensureWithinCapacity($event, $guest, $placesTakenBefore);
+            }
+
             return $guest;
         });
+    }
+
+    /**
+     * Counted once the answer is saved — what it changed, companions who
+     * moved and children who don't take a place included — and thrown
+     * back (rolling it all back) only when it takes more places beyond the
+     * capacity: someone bringing fewer people, or the same, is never
+     * turned away, even after the host lowered the capacity.
+     */
+    private function ensureWithinCapacity(Event $event, Guest $guest, int $placesTakenBefore): void
+    {
+        $capacity = (int) $event->rsvpCapacity();
+        $placesTaken = $event->rsvpTakenPlaces();
+
+        if ($placesTaken <= $capacity || $placesTaken <= $placesTakenBefore) {
+            return;
+        }
+
+        $placesLeft = max(0, $capacity - ($placesTaken - $event->rsvpTakenPlaces($guest)));
+        $children = $event->capacityExcludesChildren() ? " (crianças com menos de {$event->childAgeLimit()} anos não contam)" : '';
+
+        throw ValidationException::withMessages([
+            'guests_count' => match ($placesLeft) {
+                0 => 'As vagas do evento acabaram. Fale com os anfitriões.',
+                1 => "Resta só 1 vaga no evento{$children}.",
+                default => "Restam só {$placesLeft} vagas no evento{$children}.",
+            },
+        ]);
     }
 
     /**

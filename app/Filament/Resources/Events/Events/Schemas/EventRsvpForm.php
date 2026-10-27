@@ -39,8 +39,34 @@ class EventRsvpForm
                     ->minValue(0)
                     ->maxValue(Guest::MAX_PARTY_SIZE - 1)
                     ->placeholder('Em branco: até '.(Guest::MAX_PARTY_SIZE - 1))
-                    ->helperText('0: cada convite é só para quem foi convidado. Para quem vai levar a família toda, mude o limite da pessoa em Convidados → Editar. Quem já confirmou com mais gente continua confirmado.')
+                    ->helperText('0: cada convite é só para quem foi convidado. Para quem vai levar a família toda, mude o limite da pessoa em Convidados → Editar.')
                     ->maxWidth('md'),
+            ]);
+    }
+
+    /**
+     * How many people fit in the event, guests and companions together: on
+     * any event, free or premium.
+     */
+    public static function capacity(): Section
+    {
+        return Section::make('Limite de pessoas no evento')
+            ->description('Somando convidados e acompanhantes. Quando as vagas acabam, a página não aceita novas confirmações; quem já confirmou continua confirmado e ainda pode diminuir o grupo ou desistir.')
+            ->icon('heroicon-o-building-office')
+            ->components([
+                TextInput::make('capacity')
+                    ->label('Cabem até')
+                    ->suffix('pessoas')
+                    ->integer()
+                    ->minValue(1)
+                    ->maxValue(65535)
+                    ->placeholder('Em branco: sem limite')
+                    ->maxWidth('md'),
+                Toggle::make('capacity_excludes_children')
+                    ->label(fn (Get $get): string => 'Crianças com menos de '.$get('child_age_limit').' anos não contam no limite')
+                    ->helperText('Usa a idade de "Contar como criança quem tem menos de", em Crianças.')
+                    ->visible(fn (Get $get): bool => filled($get('child_age_limit')))
+                    ->default(false),
             ]);
     }
 
@@ -60,6 +86,7 @@ class EventRsvpForm
                     ->minValue(1)
                     ->maxValue(18)
                     ->placeholder('Em branco: não separar crianças')
+                    ->live(onBlur: true)
                     ->helperText('Com os dados de cada acompanhante e a idade pedidos a eles, o sistema conta pela idade de cada pessoa. Senão, o formulário pergunta "quantas dessas pessoas têm menos de X anos?".')
                     ->maxWidth('md'),
             ]);

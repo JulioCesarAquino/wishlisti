@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { CalendarCheck, CalendarX, MailOpen } from 'lucide-react';
+import { CalendarCheck, CalendarX, MailOpen, UsersRound } from 'lucide-react';
 import { useState } from 'react';
 import { store as storeRsvp } from '@/routes/rsvp';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,27 @@ export function RsvpSection({ event, guest }: Props) {
         guest && !answeringForSomeoneElse
             ? guest.max_companions
             : event.rsvp_max_companions;
-    const maxPeople = maxCompanions + 1;
+
+    // Places this answer can take: the ones still free, and the ones the
+    // guest's own party already takes when they change their answer.
+    const placesForMe =
+        event.rsvp_places_left === null
+            ? null
+            : event.rsvp_places_left +
+              (guest && !answeringForSomeoneElse ? guest.rsvp_places : 0);
+    const placesNote = event.rsvp_capacity_excludes_children
+        ? ` (crianças com menos de ${childAgeLimit} anos não contam)`
+        : '';
+    // With children not taking a place, the party may be bigger than the
+    // places: the server tells.
+    const limitedByPlaces =
+        placesForMe !== null &&
+        !event.rsvp_capacity_excludes_children &&
+        placesForMe < maxCompanions + 1;
+    const maxPeople = limitedByPlaces
+        ? Math.max(1, placesForMe)
+        : maxCompanions + 1;
+    const full = placesForMe === 0;
 
     // The host only accepts confirmations by the personal invitation link,
     // and this browser didn't open one.
@@ -212,6 +232,36 @@ export function RsvpSection({ event, guest }: Props) {
         );
     }
 
+    if (full) {
+        return (
+            <div className="mx-auto max-w-lg px-6 py-16 text-center">
+                <UsersRound
+                    className="mx-auto mb-3 size-10 opacity-50"
+                    style={bodyTextStyle(event)}
+                />
+                <h2
+                    className="mb-2 text-2xl font-semibold"
+                    style={headingStyle(event)}
+                >
+                    Lista completa
+                </h2>
+                <p style={bodyTextStyle(event)}>
+                    As vagas para este evento acabaram. Qualquer dúvida, fale
+                    com os anfitriões.
+                </p>
+                {guest?.rsvp_status && (
+                    <Button
+                        variant="ghost"
+                        className="mt-6"
+                        onClick={backToAnswer}
+                    >
+                        Voltar
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
     if (locked) {
         return (
             <div className="mx-auto max-w-lg px-6 py-16 text-center">
@@ -298,21 +348,23 @@ export function RsvpSection({ event, guest }: Props) {
                     )}
                 </div>
 
-                {form.data.attending === true && maxCompanions === 0 && (
+                {form.data.attending === true && maxPeople === 1 && (
                     <p className="text-sm" style={bodyTextStyle(event)}>
-                        Seu convite é individual.
+                        {maxCompanions === 0
+                            ? 'Seu convite é individual.'
+                            : `Resta só 1 vaga no evento: confirme só a sua presença.`}
                     </p>
                 )}
 
                 {form.data.attending === true &&
-                    maxCompanions === 0 &&
+                    maxPeople === 1 &&
                     form.errors.guests_count && (
                         <p className="text-sm text-red-600">
                             {form.errors.guests_count}
                         </p>
                     )}
 
-                {form.data.attending === true && maxCompanions > 0 && (
+                {form.data.attending === true && maxPeople > 1 && (
                     <div className="grid gap-1.5">
                         <Label htmlFor="rsvp_count">
                             Quantas pessoas (incluindo você)?
@@ -326,12 +378,17 @@ export function RsvpSection({ event, guest }: Props) {
                             value={form.data.guests_count}
                             onChange={(e) => setGuestsCount(e.target.value)}
                         />
-                        {maxPeople < 20 && (
+                        {(maxPeople < 20 ||
+                            (placesForMe !== null &&
+                                placesForMe < maxCompanions + 1)) && (
                             <p
                                 className="text-sm opacity-80"
                                 style={bodyTextStyle(event)}
                             >
-                                {`Seu convite é para até ${maxPeople} pessoas, contando com você.`}
+                                {placesForMe !== null &&
+                                placesForMe < maxCompanions + 1
+                                    ? `Restam só ${placesForMe} vagas no evento${placesNote}.`
+                                    : `Seu convite é para até ${maxPeople} pessoas, contando com você.`}
                             </p>
                         )}
                         {form.errors.guests_count && (

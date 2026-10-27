@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Guests\Guests\Tables;
 
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Support\EventPicker;
 use App\Models\Guests\Guest;
 use App\Models\Orders\Order;
 use Filament\Tables\Columns\TextColumn;
@@ -77,7 +78,15 @@ class GuestsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
+            ->persistFiltersInSession()
             ->filters([
+                // Opens on the user's default event; kept while they browse.
+                SelectFilter::make('event_id')
+                    ->label('Evento')
+                    ->options(fn (): array => EventPicker::options())
+                    ->placeholder('Todos os eventos')
+                    ->searchable()
+                    ->default(fn (): ?int => EventPicker::default()),
                 SelectFilter::make('rsvp_status')
                     ->label('Presença')
                     ->options([
