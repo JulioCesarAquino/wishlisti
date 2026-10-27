@@ -33,7 +33,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -50,9 +49,6 @@ class ManageEventGuests extends ManageRelatedRecords
     use HasEventHeaderActions;
 
     protected static string $resource = EventResource::class;
-
-    // A wide table next to the event's menu: the whole screen.
-    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected static string $relationship = 'guests';
 
