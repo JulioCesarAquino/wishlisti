@@ -2,11 +2,15 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Support\EventPicker;
 use App\Models\Orders\Order;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class PaymentMethodsChartWidget extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Presentes pagos por forma de pagamento';
 
     /**
@@ -34,9 +38,11 @@ class PaymentMethodsChartWidget extends ChartWidget
     protected function getData(): array
     {
         $isAdmin = (bool) auth()->user()?->isAdmin();
+        $eventId = EventPicker::chosen($this->pageFilters['event_id'] ?? null);
 
         $counts = Order::query()
             ->where('status', Order::STATUS_PAID)
+            ->when($eventId, fn ($query) => $query->where('event_id', $eventId))
             ->when(! $isAdmin, fn ($query) => $query->whereHas(
                 'event',
                 fn ($eventQuery) => $eventQuery->managedBy(auth()->id()),

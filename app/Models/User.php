@@ -12,6 +12,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $email
  * @property bool $is_admin
+ * @property int|null $default_event_id the event the panel opens on; null: all of them
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -59,6 +61,14 @@ class User extends Authenticatable implements FilamentUser
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
+    }
+
+    /**
+     * @return BelongsTo<Event, $this>
+     */
+    public function defaultEvent(): BelongsTo
+    {
+        return $this->belongsTo(Event::class, 'default_event_id');
     }
 
     /**
