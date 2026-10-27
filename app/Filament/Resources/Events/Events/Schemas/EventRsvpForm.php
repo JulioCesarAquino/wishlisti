@@ -39,7 +39,7 @@ class EventRsvpForm
                     ->minValue(0)
                     ->maxValue(Guest::MAX_PARTY_SIZE - 1)
                     ->placeholder('Em branco: até '.(Guest::MAX_PARTY_SIZE - 1))
-                    ->helperText('0: cada convite é só para quem foi convidado. Para quem vai levar a família toda, mude o limite da pessoa em Convidados → Editar. Quem já confirmou com mais gente continua confirmado.')
+                    ->helperText('0: cada convite é só para quem foi convidado. Para quem vai levar a família toda, mude o limite da pessoa em Convidados → Editar.')
                     ->maxWidth('md'),
             ]);
     }
