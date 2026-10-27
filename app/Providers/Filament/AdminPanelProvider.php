@@ -47,6 +47,9 @@ class AdminPanelProvider extends PanelProvider
                 .'</div>',
             ))
             ->brandLogoHeight('5.5rem')
+            // The event's pages have a menu of their own: the panel's can
+            // shrink to its icons to give the content room.
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Amber,
             ])
