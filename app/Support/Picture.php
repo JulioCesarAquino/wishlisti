@@ -74,7 +74,7 @@ final class Picture
         $cropWidth = (int) round($targetWidth / $scale);
         $cropHeight = (int) round($targetHeight / $scale);
 
-        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+        $canvas = imagecreatetruecolor(max(1, $targetWidth), max(1, $targetHeight));
         // Transparent PNGs get a white background instead of a black one.
         imagefill($canvas, 0, 0, (int) imagecolorallocate($canvas, 255, 255, 255));
         imagecopyresampled(
@@ -128,6 +128,10 @@ final class Picture
             7, 8 => imagerotate($image, 90, 0),
             default => $image,
         };
+
+        if ($image === false) {
+            throw new RuntimeException('Could not turn the picture.');
+        }
 
         if (in_array($this->orientation, [2, 5, 7], true)) {
             imageflip($image, IMG_FLIP_HORIZONTAL);
