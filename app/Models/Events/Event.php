@@ -322,6 +322,21 @@ class Event extends Model
     }
 
     /**
+     * The owner and the co-hosts: who's told about what needs them (a
+     * message waiting for approval…).
+     *
+     * @return SupportCollection<int, User>
+     */
+    public function hosts(): SupportCollection
+    {
+        return collect([$this->user])
+            ->merge($this->coHosts)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
      * Users who manage the event alongside its owner.
      *
      * @return BelongsToMany<User, $this>

@@ -3,17 +3,17 @@
 namespace App\Notifications\Identity;
 
 use App\Models\User;
+use App\Notifications\Concerns\BuildsWishlistiMail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Str;
 
 /**
- * An e-mail with a link to set a password, in the Wishlisti look
- * (resources/views/mail/access-link). Sent right away, never queued: there's
- * no queue worker.
+ * An e-mail with a link to set a password (resources/views/mail/access-link).
  */
 abstract class AccessLinkNotification extends Notification
 {
+    use BuildsWishlistiMail;
+
     abstract protected function link(): string;
 
     /**
@@ -34,21 +34,9 @@ abstract class AccessLinkNotification extends Notification
 
     public function toMail(User $notifiable): MailMessage
     {
-        $copy = $this->copy();
-        $message = (new MailMessage)->subject($copy['subject']);
-
-        // It's sent from a no-reply address: a reply goes to the admin.
-        if ($admin = User::where('is_admin', true)->orderBy('id')->first()) {
-            $message->replyTo($admin->email, config('app.name'));
-        }
-
-        return $message->view(['mail.access-link', 'mail.access-link-text'], [
-            ...$copy,
-            'name' => Str::before($notifiable->name, ' '),
+        return $this->wishlistiMail($notifiable, ['mail.access-link', 'mail.access-link-text'], [
+            ...$this->copy(),
             'link' => $this->link(),
-            'logoUrl' => asset('apple-touch-icon.png'),
-            'homeUrl' => url('/'),
-            'homeHost' => parse_url(url('/'), PHP_URL_HOST),
         ]);
     }
 

@@ -5,6 +5,8 @@ namespace App\Services\Guests;
 use App\Enums\Premium\Feature;
 use App\Models\Events\Event;
 use App\Models\Guests\GuestMessage;
+use App\Notifications\Events\GuestMessageReceivedNotification;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class GuestMessageStoreService
@@ -12,7 +14,8 @@ class GuestMessageStoreService
     /**
      * A message on the guestbook (premium). It's kept unapproved — hidden
      * from the page — until the host approves it, so nothing shows up
-     * publicly without their say.
+     * publicly without their say. The hosts are told (see
+     * GuestMessageReceivedNotification).
      */
     public function execute(Event $event, ?string $authorName, string $message, ?string $guestIdentifier, bool $anonymous = false): GuestMessage
     {
@@ -26,11 +29,16 @@ class GuestMessageStoreService
             ? $event->guests()->where('identifier', $guestIdentifier)->first()
             : null;
 
-        return $event->messages()->create([
+        $guestMessage = $event->messages()->create([
             'guest_id' => $guest?->id,
             'author_name' => filled($authorName) ? $authorName : null,
             'message' => $message,
             'is_anonymous' => $anonymous,
         ]);
+
+        // On the hosts' bell now; the e-mail goes with the hour's others.
+        Notification::send($event->hosts(), new GuestMessageReceivedNotification($guestMessage));
+
+        return $guestMessage;
     }
 }
