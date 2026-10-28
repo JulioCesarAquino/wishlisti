@@ -3,7 +3,9 @@
 namespace Tests\Feature\Filament;
 
 use App\Filament\Pages\Dashboard;
+use App\Filament\Resources\Guests\Guests\GuestResource;
 use App\Filament\Resources\Guests\Guests\Pages\ListGuests;
+use App\Filament\Resources\Guests\Guests\Widgets\ListGuestsOverviewWidget;
 use App\Filament\Widgets\GuestsOverviewWidget;
 use App\Filament\Widgets\OrdersOverviewWidget;
 use App\Models\Events\Event;
@@ -70,7 +72,7 @@ class DashboardEventPickerTest extends TestCase
     {
         $this->assertSame('7', $this->cards(GuestsOverviewWidget::class)['Total de pessoas confirmadas']);
         $this->assertSame('2', $this->cards(GuestsOverviewWidget::class, ['pageFilters' => ['event_id' => $this->wedding->id]])['Total de pessoas confirmadas']);
-        $this->assertSame('5', $this->cards(GuestsOverviewWidget::class, ['tableFilters' => ['event_id' => ['value' => $this->party->id]]])['Total de pessoas confirmadas']);
+        $this->assertSame('5', $this->cards(ListGuestsOverviewWidget::class, ['tableFilters' => ['event_id' => ['value' => $this->party->id]]])['Total de pessoas confirmadas']);
 
         Order::factory()->create(['event_id' => $this->wedding->id, 'guest_id' => $this->wedding->guests()->first()->id, 'status' => Order::STATUS_PAID, 'total_amount' => 100]);
         Order::factory()->create(['event_id' => $this->party->id, 'guest_id' => $this->party->guests()->first()->id, 'status' => Order::STATUS_PAID, 'total_amount' => 250]);
@@ -134,5 +136,26 @@ class DashboardEventPickerTest extends TestCase
 
         // Someone else's event in the URL counts as none: their own only.
         $this->assertSame('3', $this->cards(GuestsOverviewWidget::class, ['pageFilters' => ['event_id' => $this->wedding->id]])['Total de pessoas confirmadas']);
+    }
+
+    /**
+     * As the browser does: every component on the page in one request, the
+     * widgets taking the page's reactive properties. A widget expecting a
+     * table the page doesn't have broke all of them (a TypeError, which
+     * Livewire turns into a 419, "page expired").
+     */
+    public function test_the_pages_requests_go_through_with_their_widgets(): void
+    {
+        foreach (['/admin?filters[event_id]='.$this->wedding->id, GuestResource::getUrl()] as $url) {
+            preg_match_all('/wire:snapshot="([^"]+)"/', $this->get($url)->assertOk()->getContent(), $matches);
+
+            $this->postJson('/livewire/update', [
+                'components' => array_map(fn (string $snapshot) => [
+                    'snapshot' => html_entity_decode($snapshot, ENT_QUOTES),
+                    'updates' => (object) [],
+                    'calls' => [],
+                ], $matches[1]),
+            ], ['X-Livewire' => 'true'])->assertOk();
+        }
     }
 }
