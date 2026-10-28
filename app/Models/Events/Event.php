@@ -11,6 +11,7 @@ use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
+use App\Services\Events\EventGalleryService;
 use App\Services\Premium\PremiumValidityService;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -259,6 +260,13 @@ class Event extends Model
             }
         });
 
+        // New gallery photos get their light copies (see EventGalleryService).
+        static::saved(function (Event $event): void {
+            if (filled($event->gallery) && ($event->wasRecentlyCreated || $event->wasChanged('gallery'))) {
+                app(EventGalleryService::class)->prepareLater($event);
+            }
+        });
+
         // The Premium ends some days after the event's date.
         static::updated(function (Event $event): void {
             if ($event->wasChanged('event_date')) {
@@ -311,6 +319,21 @@ class Event extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The owner and the co-hosts: who's told about what needs them (a
+     * message waiting for approval…).
+     *
+     * @return SupportCollection<int, User>
+     */
+    public function hosts(): SupportCollection
+    {
+        return collect([$this->user])
+            ->merge($this->coHosts)
+            ->filter()
+            ->unique('id')
+            ->values();
     }
 
     /**
@@ -692,17 +715,6 @@ class Event extends Model
     public function coverImageUrl(): ?string
     {
         return $this->cover_image ? Storage::disk('public')->url($this->cover_image) : null;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function galleryUrls(): array
-    {
-        return array_map(
-            fn (string $path): string => Storage::disk('public')->url($path),
-            $this->gallery ?? [],
-        );
     }
 
     public function isViewableBy(?User $user): bool

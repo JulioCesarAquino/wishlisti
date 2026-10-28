@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string $message
  * @property bool $is_anonymous
  * @property Carbon|null $approved_at
+ * @property Carbon|null $hosts_notified_at when the hosts got the e-mail about it
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -39,6 +40,7 @@ class GuestMessage extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'hosts_notified_at' => 'datetime',
             'is_anonymous' => 'boolean',
         ];
     }

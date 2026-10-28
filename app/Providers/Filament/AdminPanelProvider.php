@@ -50,6 +50,10 @@ class AdminPanelProvider extends PanelProvider
             // The event's pages have a menu of their own: the panel's can
             // shrink to its icons to give the content room.
             ->sidebarCollapsibleOnDesktop()
+            // The bell: messages waiting for approval, invite requests…
+            // (see app/Notifications).
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
             ])

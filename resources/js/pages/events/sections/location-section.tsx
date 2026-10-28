@@ -1,4 +1,5 @@
 import { ArrowLeft, Link as LinkIcon, MapPin, Navigation } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -93,6 +94,34 @@ export function LocationSection({ event, focused, onFocus }: Props) {
     );
 }
 
+/**
+ * Google's map takes a few seconds to come in: a pin bobs over a shimmer
+ * until it does (the same shimmer as the gallery's, see app.css).
+ */
+function LocationMap({ location }: { location: EventLocation }) {
+    const [loaded, setLoaded] = useState(false);
+
+    return (
+        <div
+            className="gallery-photo aspect-video overflow-hidden rounded-lg"
+            data-loaded={loaded || undefined}
+        >
+            {!loaded && (
+                <MapPin className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 animate-bounce opacity-60" />
+            )}
+            <iframe
+                title={`Mapa: ${location.name}`}
+                src={googleMapsEmbedUrl(location)}
+                onLoad={() => setLoaded(true)}
+                className={`relative z-1 h-full w-full border-0 transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+            />
+        </div>
+    );
+}
+
 function LocationDetails({
     event,
     location,
@@ -124,16 +153,7 @@ function LocationDetails({
             >
                 {location.address}
             </p>
-            <div className="aspect-video overflow-hidden rounded-lg">
-                <iframe
-                    title={`Mapa: ${location.name}`}
-                    src={googleMapsEmbedUrl(location)}
-                    className="h-full w-full border-0"
-                    loading="lazy"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                />
-            </div>
+            <LocationMap key={location.url} location={location} />
             <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild variant="outline">
                     <a

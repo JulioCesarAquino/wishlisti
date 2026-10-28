@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Guests\Guests\Pages;
 
 use App\Filament\Resources\Guests\Guests\GuestResource;
-use App\Filament\Widgets\GuestsOverviewWidget;
+use App\Filament\Resources\Guests\Guests\Widgets\ListGuestsOverviewWidget;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 
@@ -24,7 +24,7 @@ class ListGuests extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
-            GuestsOverviewWidget::class,
+            ListGuestsOverviewWidget::class,
         ];
     }
 }

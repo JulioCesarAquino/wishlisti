@@ -3,32 +3,25 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Guests\Guests\GuestResource;
-use App\Filament\Resources\Guests\Guests\Pages\ListGuests;
 use App\Filament\Support\EventPicker;
 use App\Models\Events\Event;
 use App\Models\Guests\Guest;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
-use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 /**
- * On the dashboard, about the event picked there; above the guest list,
- * about the one its filter picked — or all of them.
+ * On the dashboard, about the event picked there — or all of them. Above
+ * the guest list, see ListGuestsOverviewWidget.
  */
 class GuestsOverviewWidget extends StatsOverviewWidget
 {
-    use InteractsWithPageFilters, InteractsWithPageTable;
+    use InteractsWithPageFilters;
 
-    protected function getTablePage(): string
+    protected function eventId(): ?int
     {
-        return ListGuests::class;
-    }
-
-    private function eventId(): ?int
-    {
-        return EventPicker::chosen($this->pageFilters['event_id'] ?? $this->tableFilters['event_id']['value'] ?? null);
+        return EventPicker::chosen($this->pageFilters['event_id'] ?? null);
     }
 
     protected function getStats(): array

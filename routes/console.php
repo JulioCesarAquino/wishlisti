@@ -9,4 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('trash:purge')->daily();
+Schedule::command('messages:notify-hosts')->hourly()->withoutOverlapping();
 Schedule::command('orders:expire-abandoned')->everyTenMinutes()->withoutOverlapping();
