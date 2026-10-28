@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 trait BuildsWishlistiMail
 {
     /**
-     * @param  array<int, string>  $views  the HTML view and the plain-text one
+     * @param  array<int, view-string>  $views  the HTML view and the plain-text one
      * @param  array<string, mixed>  $data  what the views show; 'subject' and 'preheader' included
      */
     protected function wishlistiMail(User $notifiable, array $views, array $data): MailMessage
