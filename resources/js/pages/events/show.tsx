@@ -341,6 +341,23 @@ export default function EventShow({
                 {font.googleFontsHref && (
                     <link rel="stylesheet" href={font.googleFontsHref} />
                 )}
+                {/* The location tab's map: the connections are open by
+                    the time the guest gets there. */}
+                {event.locations.length > 0 && (
+                    <>
+                        <link rel="preconnect" href="https://www.google.com" />
+                        <link
+                            rel="preconnect"
+                            href="https://maps.gstatic.com"
+                            crossOrigin=""
+                        />
+                        <link
+                            rel="preconnect"
+                            href="https://maps.googleapis.com"
+                            crossOrigin=""
+                        />
+                    </>
+                )}
             </Head>
 
             {is_preview && (
@@ -418,10 +435,7 @@ export default function EventShow({
                         </>
                     )}
                     {section === 'galeria' && (
-                        <GallerySection
-                            event={event}
-                            galleryUrls={event.gallery_urls}
-                        />
+                        <GallerySection event={event} photos={event.gallery} />
                     )}
                     {section === 'presentes' && giftsSection(false)}
                     {section === 'confirmar-presenca' && (

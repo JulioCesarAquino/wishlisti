@@ -12,6 +12,7 @@ use App\Models\Events\EventLocation;
 use App\Models\Guests\Guest;
 use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
+use App\Services\Events\EventGalleryService;
 use App\Services\Events\EventSharePreviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,6 +31,7 @@ class EventShowController extends Controller
         Request $request,
         Event $event,
         EventSharePreviewService $sharePreview,
+        EventGalleryService $gallery,
         ?EventLocation $location = null,
     ): Response {
         abort_unless($event->isViewableBy($request->user()), 404);
@@ -67,7 +69,7 @@ class EventShowController extends Controller
                 'starts_at' => $event->startsAt()?->toIso8601String(),
                 'description' => $event->description,
                 'cover_image_url' => $event->coverImageUrl(),
-                'gallery_urls' => $event->galleryUrls(),
+                'gallery' => $gallery->photos($event),
                 'type_label' => $event->typeLabel(),
                 'story_title' => $event->storyTitle(),
                 'story' => $event->story,

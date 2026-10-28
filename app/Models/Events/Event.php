@@ -11,6 +11,7 @@ use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
+use App\Services\Events\EventGalleryService;
 use App\Services\Premium\PremiumValidityService;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -256,6 +257,13 @@ class Event extends Model
         static::creating(function (Event $event): void {
             if (blank($event->slug)) {
                 $event->slug = $event->generateUniqueSlug($event->title);
+            }
+        });
+
+        // New gallery photos get their light copies (see EventGalleryService).
+        static::saved(function (Event $event): void {
+            if (filled($event->gallery) && ($event->wasRecentlyCreated || $event->wasChanged('gallery'))) {
+                app(EventGalleryService::class)->prepareLater($event);
             }
         });
 
@@ -692,17 +700,6 @@ class Event extends Model
     public function coverImageUrl(): ?string
     {
         return $this->cover_image ? Storage::disk('public')->url($this->cover_image) : null;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function galleryUrls(): array
-    {
-        return array_map(
-            fn (string $path): string => Storage::disk('public')->url($path),
-            $this->gallery ?? [],
-        );
     }
 
     public function isViewableBy(?User $user): bool

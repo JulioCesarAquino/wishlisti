@@ -10,17 +10,118 @@ import {
     bodyTextStyle,
     headingStyle,
     type EventData,
+    type GalleryPhoto,
 } from '@/pages/events/types';
 
 type Props = {
     event: EventData;
-    galleryUrls: string[];
+    photos: GalleryPhoto[];
 };
 
-export function GallerySection({ event, galleryUrls }: Props) {
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+/**
+ * Calls back once the image is there, also when it already was (from the
+ * cache) before React got to listen for it.
+ */
+function useLoaded(): [
+    boolean,
+    (img: HTMLImageElement | null) => void,
+    () => void,
+] {
+    const [loaded, setLoaded] = useState(false);
+    const markLoaded = () => setLoaded(true);
+    const ref = (img: HTMLImageElement | null) => {
+        if (img?.complete && img.naturalWidth > 0) {
+            setLoaded(true);
+        }
+    };
 
-    if (galleryUrls.length === 0) {
+    return [loaded, ref, markLoaded];
+}
+
+/**
+ * A grid square: the tiny blurred preview shimmers until the photo
+ * arrives, then the photo "develops" over it (see .gallery-photo in
+ * app.css).
+ */
+function GalleryTile({
+    photo,
+    index,
+    onOpen,
+}: {
+    photo: GalleryPhoto;
+    index: number;
+    onOpen: () => void;
+}) {
+    const [loaded, ref, markLoaded] = useLoaded();
+
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className="gallery-photo aspect-square overflow-hidden rounded-lg"
+            data-loaded={loaded || undefined}
+        >
+            {photo.placeholder && (
+                <img
+                    src={photo.placeholder}
+                    alt=""
+                    aria-hidden
+                    className="gallery-photo-placeholder"
+                />
+            )}
+            <img
+                ref={ref}
+                src={photo.thumb}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onLoad={markLoaded}
+                onError={markLoaded}
+                // Squares that arrive together develop one after the other.
+                style={{ transitionDelay: `${(index % 3) * 90}ms` }}
+                className="gallery-photo-image h-full w-full object-cover"
+            />
+        </button>
+    );
+}
+
+/**
+ * The photo opened in full: the grid's copy (already loaded), until the
+ * large one arrives.
+ */
+function FullPhoto({ photo }: { photo: GalleryPhoto }) {
+    const [loaded, ref, markLoaded] = useLoaded();
+
+    return (
+        <div className="relative">
+            {!loaded && (
+                <img
+                    src={photo.thumb}
+                    alt=""
+                    aria-hidden
+                    className="w-full rounded-lg blur-sm"
+                />
+            )}
+            <img
+                ref={ref}
+                src={photo.full}
+                alt=""
+                onLoad={markLoaded}
+                onError={markLoaded}
+                className={
+                    loaded
+                        ? 'w-full rounded-lg'
+                        : 'absolute inset-0 h-full w-full opacity-0'
+                }
+            />
+        </div>
+    );
+}
+
+export function GallerySection({ event, photos }: Props) {
+    const [preview, setPreview] = useState<GalleryPhoto | null>(null);
+
+    if (photos.length === 0) {
         return (
             <div
                 className="mx-auto max-w-3xl px-6 py-16 text-center"
@@ -41,36 +142,26 @@ export function GallerySection({ event, galleryUrls }: Props) {
                 Galeria
             </h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {galleryUrls.map((url) => (
-                    <button
-                        key={url}
-                        type="button"
-                        onClick={() => setPreviewImage(url)}
-                        className="aspect-square overflow-hidden rounded-lg"
-                    >
-                        <img
-                            src={url}
-                            alt=""
-                            className="h-full w-full object-cover transition hover:scale-105"
-                        />
-                    </button>
+                {photos.map((photo, index) => (
+                    <GalleryTile
+                        key={photo.full}
+                        photo={photo}
+                        index={index}
+                        onOpen={() => setPreview(photo)}
+                    />
                 ))}
             </div>
 
             <Dialog
-                open={previewImage !== null}
-                onOpenChange={(open) => !open && setPreviewImage(null)}
+                open={preview !== null}
+                onOpenChange={(open) => !open && setPreview(null)}
             >
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="sr-only">Foto</DialogTitle>
                     </DialogHeader>
-                    {previewImage && (
-                        <img
-                            src={previewImage}
-                            alt=""
-                            className="w-full rounded-lg"
-                        />
+                    {preview && (
+                        <FullPhoto key={preview.full} photo={preview} />
                     )}
                 </DialogContent>
             </Dialog>

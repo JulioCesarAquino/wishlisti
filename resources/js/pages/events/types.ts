@@ -10,6 +10,16 @@ export type Product = {
     is_sold_out: boolean;
 };
 
+/** A gallery photo, in light copies (the original until they're made). */
+export type GalleryPhoto = {
+    /** For the grid square. */
+    thumb: string;
+    /** For the photo opened in full. */
+    full: string;
+    /** A tiny copy, inlined: shown blurred while the thumb loads. */
+    placeholder: string | null;
+};
+
 export type FontFamily = 'default' | 'script' | 'serif' | 'classic';
 
 export type EventData = {
@@ -34,7 +44,7 @@ export type EventData = {
     sections: { key: PageSectionKey; label: string }[];
     locations: EventLocation[];
     cover_image_url: string | null;
-    gallery_urls: string[];
+    gallery: GalleryPhoto[];
     primary_color: string | null;
     secondary_color: string | null;
     /** Gift and checkout buttons; the server fills in the default when unset. */
