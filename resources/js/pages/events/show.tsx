@@ -375,7 +375,7 @@ export default function EventShow({
                 }}
             >
                 <nav className="sticky top-0 z-40 border-b border-black/5 bg-white/40 backdrop-blur">
-                    <div className="mx-auto flex max-w-4xl items-center gap-1 overflow-x-auto px-4 py-3">
+                    <div className="mx-auto flex max-w-4xl items-center justify-center-safe gap-1 overflow-x-auto px-4 py-3">
                         {items.map((item) => (
                             <button
                                 key={item.key}

@@ -53,7 +53,7 @@ export function GuestbookSection({ event, messages, defaultName }: Props) {
             </h2>
             {event.has_guestbook && (
                 <p className="mb-6 text-center" style={bodyTextStyle(event)}>
-                    Deixe uma mensagem de carinho, com ou sem presente.
+                    Deixe uma mensagem de carinho.
                 </p>
             )}
 

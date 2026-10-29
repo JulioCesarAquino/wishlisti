@@ -1,5 +1,5 @@
-import { Images } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Images } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -118,8 +118,103 @@ function FullPhoto({ photo }: { photo: GalleryPhoto }) {
     );
 }
 
+/**
+ * The opened photo, with arrows to the previous and next ones (also the
+ * keyboard's arrows and a swipe on the phone). It goes round: after the
+ * last one comes the first.
+ */
+function PhotoViewer({
+    photos,
+    index,
+    onChange,
+}: {
+    photos: GalleryPhoto[];
+    index: number;
+    onChange: (index: number) => void;
+}) {
+    const count = photos.length;
+    const go = (step: number) => onChange((index + step + count) % count);
+    const swipeStart = useRef<number | null>(null);
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'ArrowLeft') {
+                onChange((index - 1 + count) % count);
+            } else if (event.key === 'ArrowRight') {
+                onChange((index + 1) % count);
+            }
+        };
+
+        window.addEventListener('keydown', onKey);
+
+        return () => window.removeEventListener('keydown', onKey);
+    }, [index, count, onChange]);
+
+    // The neighbours load in the background, to be there when asked for.
+    useEffect(() => {
+        if (count < 2) {
+            return;
+        }
+
+        for (const step of [1, -1]) {
+            new Image().src = photos[(index + step + count) % count].full;
+        }
+    }, [photos, index, count]);
+
+    const arrow =
+        'absolute top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none';
+
+    return (
+        <div
+            className="relative touch-pan-y select-none"
+            onTouchStart={(event) => {
+                swipeStart.current = event.touches[0].clientX;
+            }}
+            onTouchEnd={(event) => {
+                if (swipeStart.current === null) {
+                    return;
+                }
+
+                const distance =
+                    event.changedTouches[0].clientX - swipeStart.current;
+                swipeStart.current = null;
+
+                if (Math.abs(distance) > 50) {
+                    go(distance < 0 ? 1 : -1);
+                }
+            }}
+        >
+            <FullPhoto key={photos[index].full} photo={photos[index]} />
+
+            {count > 1 && (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => go(-1)}
+                        className={`${arrow} left-2`}
+                        aria-label="Foto anterior"
+                    >
+                        <ChevronLeft className="size-6" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => go(1)}
+                        className={`${arrow} right-2`}
+                        aria-label="Próxima foto"
+                    >
+                        <ChevronRight className="size-6" />
+                    </button>
+                    <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-white tabular-nums backdrop-blur-sm">
+                        {index + 1} / {count}
+                    </span>
+                </>
+            )}
+        </div>
+    );
+}
+
 export function GallerySection({ event, photos }: Props) {
-    const [preview, setPreview] = useState<GalleryPhoto | null>(null);
+    const [opened, setOpened] = useState<number | null>(null);
 
     if (photos.length === 0) {
         return (
@@ -147,21 +242,25 @@ export function GallerySection({ event, photos }: Props) {
                         key={photo.full}
                         photo={photo}
                         index={index}
-                        onOpen={() => setPreview(photo)}
+                        onOpen={() => setOpened(index)}
                     />
                 ))}
             </div>
 
             <Dialog
-                open={preview !== null}
-                onOpenChange={(open) => !open && setPreview(null)}
+                open={opened !== null}
+                onOpenChange={(open) => !open && setOpened(null)}
             >
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="sr-only">Foto</DialogTitle>
                     </DialogHeader>
-                    {preview && (
-                        <FullPhoto key={preview.full} photo={preview} />
+                    {opened !== null && photos[opened] && (
+                        <PhotoViewer
+                            photos={photos}
+                            index={opened}
+                            onChange={setOpened}
+                        />
                     )}
                 </DialogContent>
             </Dialog>
