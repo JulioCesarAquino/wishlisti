@@ -9,7 +9,7 @@ import {
     Share2,
     Sparkles,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { store as storeInviteRequest } from '@/routes/invite-requests';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
@@ -53,18 +53,72 @@ const OCCASIONS = [
     { icon: PartyPopper, label: 'Aniversário' },
 ];
 
+const REFERRAL_KEY = 'wishlisti_ref';
+
+/** How long the event page that brought a visitor is remembered. */
+const REFERRAL_DAYS = 30;
+
+/**
+ * The event page that brought the visitor here ("Feita com Wishlisti" on
+ * its footer, ?ref=slug), remembered for a while: they may come back to
+ * ask for an invite another day.
+ */
+function useReferral(): string | null {
+    const [referral, setReferral] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fromUrl = new URLSearchParams(window.location.search).get('ref');
+
+        try {
+            if (fromUrl) {
+                window.localStorage.setItem(
+                    REFERRAL_KEY,
+                    JSON.stringify({ slug: fromUrl, at: Date.now() }),
+                );
+                setReferral(fromUrl);
+
+                return;
+            }
+
+            const saved = JSON.parse(
+                window.localStorage.getItem(REFERRAL_KEY) ?? 'null',
+            ) as { slug: string; at: number } | null;
+
+            if (
+                saved &&
+                Date.now() - saved.at < REFERRAL_DAYS * 24 * 60 * 60 * 1000
+            ) {
+                setReferral(saved.slug);
+            }
+        } catch {
+            // Blocked or malformed storage: the link's own ref still counts.
+            setReferral(fromUrl);
+        }
+    }, []);
+
+    return referral;
+}
+
 function InviteRequestForm({ onSuccess }: { onSuccess: () => void }) {
+    const referral = useReferral();
     const form = useForm({
         name: '',
         email: '',
         whatsapp: '',
+        ref: null as string | null,
     });
+
+    useEffect(() => {
+        form.setData('ref', referral);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [referral]);
 
     const submit = () => {
         form.post(storeInviteRequest().url, {
             preserveScroll: true,
             onSuccess: () => {
-                form.reset();
+                // The page that brought them still counts for a new request.
+                form.reset('name', 'email', 'whatsapp');
                 onSuccess();
             },
         });

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Identity\InviteRequests\Tables;
 
+use App\Filament\Resources\Events\Events\EventResource;
 use App\Models\Identity\InviteRequest;
 use App\Services\Identity\InviteLinkSendService;
 use App\Services\Identity\InviteRequestApproveService;
@@ -11,7 +12,9 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Js;
 
 class InviteRequestsTable
@@ -29,6 +32,14 @@ class InviteRequestsTable
                 TextColumn::make('whatsapp')
                     ->label('WhatsApp')
                     ->searchable(),
+                TextColumn::make('referredByEvent.title')
+                    ->label('Indicado por')
+                    ->placeholder('—')
+                    ->description('página do evento')
+                    ->url(fn (InviteRequest $record): ?string => $record->referredByEvent
+                        ? EventResource::getUrl('edit', ['record' => $record->referredByEvent])
+                        : null)
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -57,6 +68,15 @@ class InviteRequestsTable
                         InviteRequest::STATUS_APPROVED => 'Aprovado',
                         InviteRequest::STATUS_REJECTED => 'Rejeitado',
                     ]),
+                TernaryFilter::make('referred')
+                    ->label('Origem')
+                    ->placeholder('Todas')
+                    ->trueLabel('Vieram da página de um evento')
+                    ->falseLabel('Chegaram direto')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('referred_by_event_id'),
+                        false: fn (Builder $query) => $query->whereNull('referred_by_event_id'),
+                    ),
             ])
             ->recordActions([
                 Action::make('approve')
