@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('trash:purge')->daily();
 Schedule::command('messages:notify-hosts')->hourly()->withoutOverlapping();
 Schedule::command('orders:expire-abandoned')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('events:close-ended-tabs')->hourly()->withoutOverlapping();

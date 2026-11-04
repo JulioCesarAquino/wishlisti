@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Events;
 
+use App\Enums\Events\PageSection;
 use App\Enums\Premium\Feature;
 use App\Models\Catalog\EventProduct;
 use App\Models\Events\Event;
@@ -14,7 +15,8 @@ use Tests\TestCase;
 
 /**
  * Once the event's day has gone by, the page becomes a keepsake: no way
- * there, no invitation text — the story, the gifts and the messages stay.
+ * there or confirming (turned off once, the host may turn them back on),
+ * no invitation text — the story, the gifts and the messages stay.
  */
 class EventEndedPageTest extends TestCase
 {
@@ -104,11 +106,18 @@ class EventEndedPageTest extends TestCase
         $this->assertFalse($this->event->fresh()->hasEnded());
     }
 
-    public function test_after_the_event_the_location_section_is_gone(): void
+    public function test_after_the_event_the_location_and_rsvp_tabs_are_turned_off(): void
     {
+        $this->assertContains('confirmar-presenca', $this->tabs());
+
         $this->travelTo(now()->setDate(2026, 11, 2));
 
         $this->assertNotContains('localizacao', $this->tabs());
+        $this->assertNotContains('confirmar-presenca', $this->tabs());
+
+        // Turned off in the host's tabs, not just hidden.
+        $this->assertFalse($this->event->fresh()->isSectionEnabled(PageSection::Location));
+        $this->assertFalse($this->event->fresh()->isSectionEnabled(PageSection::Rsvp));
 
         $this->get("/{$this->event->slug}")->assertInertia(fn ($page) => $page
             ->where('event.has_ended', true)
@@ -118,6 +127,75 @@ class EventEndedPageTest extends TestCase
         $location = $this->event->locations->first();
         $this->get("/{$this->event->slug}/localizacao")->assertRedirect("/{$this->event->slug}");
         $this->get("/{$this->event->slug}/localizacao/{$location->slug}")->assertRedirect("/{$this->event->slug}");
+
+        // A page left open from before can't confirm anymore.
+        $this->post("/{$this->event->slug}/rsvp", $this->rsvp())->assertNotFound();
+    }
+
+    public function test_an_rsvp_sent_before_anyone_opened_the_page_after_the_event_is_refused(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2));
+
+        $this->post("/{$this->event->slug}/rsvp", $this->rsvp())->assertNotFound();
+    }
+
+    public function test_the_host_can_turn_the_tabs_back_on_and_they_stay_on(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2));
+        $this->tabs();
+
+        $this->event->sections()->update(['is_active' => true]);
+
+        $this->travelTo(now()->addDays(3));
+        $this->artisan('events:close-ended-tabs')->assertSuccessful();
+
+        $this->assertContains('localizacao', $this->tabs());
+        $this->assertContains('confirmar-presenca', $this->tabs());
+
+        $this->get("/{$this->event->slug}")->assertInertia(fn ($page) => $page->has('event.locations', 1));
+        $this->get("/{$this->event->slug}/localizacao")->assertOk();
+        $this->post("/{$this->event->slug}/rsvp", $this->rsvp())->assertRedirect();
+    }
+
+    public function test_the_scheduler_turns_them_off_without_a_visit(): void
+    {
+        $other = Event::factory()->create(['event_date' => '2026-11-10', 'is_published' => true]);
+
+        $this->travelTo(now()->setDate(2026, 11, 2));
+        $this->artisan('events:close-ended-tabs')->assertSuccessful();
+
+        $this->assertNotNull($this->event->fresh()->tabs_closed_after_event_at);
+        $this->assertFalse($this->event->fresh()->isSectionEnabled(PageSection::Rsvp));
+        // Events still to come are left alone.
+        $this->assertNull($other->fresh()->tabs_closed_after_event_at);
+        $this->assertTrue($other->fresh()->isSectionEnabled(PageSection::Rsvp));
+    }
+
+    public function test_moving_the_event_to_a_later_date_closes_them_again_after_it(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2));
+        $this->event->closeTabsAfterEvent();
+        $this->event->sections()->update(['is_active' => true]);
+
+        // Postponed: the tabs stay as the host left them until the new date.
+        $this->event->fresh()->update(['event_date' => '2026-11-20']);
+        $this->assertNull($this->event->fresh()->tabs_closed_after_event_at);
+        $this->assertContains('confirmar-presenca', $this->tabs());
+
+        $this->travelTo(now()->setDate(2026, 11, 21));
+        $this->assertNotContains('confirmar-presenca', $this->tabs());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rsvp(): array
+    {
+        return [
+            'guest' => ['name' => 'Maria', 'whatsapp' => '11999999999'],
+            'attending' => true,
+            'guests_count' => 1,
+        ];
     }
 
     public function test_after_the_event_the_home_keeps_the_story_but_not_the_description(): void

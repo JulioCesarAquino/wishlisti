@@ -21,7 +21,9 @@ class RsvpStoreController extends Controller
         CookieJar $cookies,
     ): RedirectResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
-        // The host may have turned the tab off with the page open.
+        // The host may have turned the tab off with the page open, or the
+        // event may have just gone by.
+        $event->closeTabsAfterEvent();
         abort_unless($event->isSectionEnabled(PageSection::Rsvp), 404);
 
         $guestIdentifier = Guest::identifierFrom($request, $event);

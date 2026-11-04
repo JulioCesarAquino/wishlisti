@@ -38,6 +38,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $type
  * @property string $title
  * @property Carbon|null $event_date
+ * @property Carbon|null $tabs_closed_after_event_at
  * @property string|null $event_time HH:MM:SS, Brasília time
  * @property string|null $cover_image
  * @property string|null $share_image
@@ -260,6 +261,13 @@ class Event extends Model
             }
         });
 
+        // A new date that hasn't gone by yet: the tabs close again after it.
+        static::saving(function (Event $event): void {
+            if ($event->isDirty('event_date') && ! $event->hasEnded()) {
+                $event->tabs_closed_after_event_at = null;
+            }
+        });
+
         // The Premium ends some days after the event's date.
         static::updated(function (Event $event): void {
             if ($event->wasChanged('event_date')) {
@@ -302,6 +310,7 @@ class Event extends Model
             'event_date' => 'date',
             'is_published' => 'boolean',
             'archived_at' => 'datetime',
+            'tabs_closed_after_event_at' => 'datetime',
         ];
     }
 
@@ -413,6 +422,41 @@ class Event extends Model
     }
 
     /**
+     * The day after the event, the tabs nobody needs anymore — the way
+     * there, confirming presence — are turned off, once: the host can turn
+     * them back on in the page's tabs and they stay on. Returns whether it
+     * closed them now.
+     */
+    public function closeTabsAfterEvent(): bool
+    {
+        if (! $this->hasEnded() || $this->tabs_closed_after_event_at !== null) {
+            return false;
+        }
+
+        // Claimed in the database: two requests at once close them once.
+        $claimed = static::withTrashed()
+            ->whereKey($this->getKey())
+            ->whereNull('tabs_closed_after_event_at')
+            ->update(['tabs_closed_after_event_at' => $now = Carbon::now()]);
+
+        $this->tabs_closed_after_event_at = $now;
+        $this->syncOriginalAttribute('tabs_closed_after_event_at');
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $this->ensureSections();
+        $this->sections()
+            ->whereIn('type', array_map(fn (PageSection $section) => $section->value, PageSection::closedAfterEvent()))
+            ->get()
+            ->each(fn (EventSection $section) => $section->update(['is_active' => false]));
+        $this->unsetRelation('sections');
+
+        return true;
+    }
+
+    /**
      * The tabs the host configured (see pageSections()).
      *
      * @return HasMany<EventSection, $this>
@@ -501,8 +545,9 @@ class Event extends Model
             // after the event, the tab only shows with messages to read.
             PageSection::Guestbook => $this->messages()->approved()->exists()
                 || ($this->hasFeature(Feature::Guestbook) && ! $this->hasEnded()),
-            // Nobody needs the way there once the event is over.
-            PageSection::Location => $this->locations->isNotEmpty() && ! $this->hasEnded(),
+            // After the event, the tab is turned off once (closeTabsAfterEvent());
+            // the host may turn it back on.
+            PageSection::Location => $this->locations->isNotEmpty(),
             default => true,
         };
     }
