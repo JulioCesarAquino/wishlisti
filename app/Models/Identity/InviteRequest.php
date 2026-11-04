@@ -2,6 +2,7 @@
 
 namespace App\Models\Identity;
 
+use App\Models\Events\Event;
 use App\Models\User;
 use Database\Factories\Identity\InviteRequestFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property string $whatsapp
  * @property string $status
  * @property int|null $invited_user_id
+ * @property int|null $referred_by_event_id the event page they came from
+ * @property-read Event|null $referredByEvent
  * @property Carbon|null $approved_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -38,6 +41,17 @@ class InviteRequest extends Model
         return [
             'approved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The event whose page brought them here ("Feita com Wishlisti"). Also
+     * an event since sent to the trash.
+     *
+     * @return BelongsTo<Event, $this>
+     */
+    public function referredByEvent(): BelongsTo
+    {
+        return $this->belongsTo(Event::class, 'referred_by_event_id')->withTrashed();
     }
 
     /**

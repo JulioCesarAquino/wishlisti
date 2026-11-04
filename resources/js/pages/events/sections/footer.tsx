@@ -98,6 +98,21 @@ export function Footer({ event }: { event: EventData }) {
                     : 'pessoas já visitaram'}{' '}
                 esta página.
             </p>
+
+            {/* The platform's signature: a quiet line in the page's own
+                colors, for guests who'd like a page like this one. The ref
+                tells the admin which event brought them. */}
+            <p className="mt-6 text-xs opacity-60">
+                <a
+                    href={`/?ref=${encodeURIComponent(event.slug)}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="underline-offset-4 hover:underline"
+                    style={bodyTextStyle(event)}
+                >
+                    Feita com Wishlisti · Crie a página do seu evento
+                </a>
+            </p>
         </footer>
     );
 }

@@ -20,6 +20,9 @@ class InviteRequestStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'whatsapp' => ['required', 'string', 'max:30'],
+            // The slug of the event page they came from, if any. An
+            // unknown one is just ignored.
+            'ref' => ['nullable', 'string', 'max:255'],
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Identity;
 
+use App\Models\Events\Event;
 use App\Models\Identity\InviteRequest;
 use App\Models\User;
 use App\Notifications\Identity\InviteRequestReceivedNotification;
@@ -16,11 +17,18 @@ class InviteRequestStoreService
      * so the person asking doesn't wait for the e-mail to go, nor sees an
      * error if it doesn't.
      *
+     * The event page that brought them ("ref", its slug) is kept, for the
+     * admin to see which events bring new hosts.
+     *
      * @param  array<string, mixed>  $data
      */
     public function execute(array $data): InviteRequest
     {
-        $request = InviteRequest::create($data);
+        $request = new InviteRequest($data);
+        $request->referred_by_event_id = filled($data['ref'] ?? null)
+            ? Event::where('slug', $data['ref'])->value('id')
+            : null;
+        $request->save();
 
         defer(function () use ($request): void {
             try {
