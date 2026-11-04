@@ -11,6 +11,7 @@ use App\Filament\Resources\Events\Events\Pages\EditEventPremium;
 use App\Filament\Resources\Events\Events\Pages\EditEventRsvp;
 use App\Filament\Resources\Events\Events\Pages\EditEventSections;
 use App\Filament\Resources\Events\Events\Pages\ListEvents;
+use App\Filament\Resources\Events\Events\Pages\ManageEventAlbums;
 use App\Filament\Resources\Events\Events\Pages\ManageEventCoHosts;
 use App\Filament\Resources\Events\Events\Pages\ManageEventGuests;
 use App\Filament\Resources\Events\Events\Pages\ManageEventMessages;
@@ -89,6 +90,7 @@ class EventResource extends Resource
             ManageEventCoHosts::class,
             EditEventLocation::class,
             EditEventAppearance::class,
+            ManageEventAlbums::class,
             EditEventSections::class,
             ManageEventProducts::class,
             ManageEventGuests::class,
@@ -109,6 +111,7 @@ class EventResource extends Resource
             'co-hosts' => ManageEventCoHosts::route('/{record}/co-hosts'),
             'location' => EditEventLocation::route('/{record}/location'),
             'appearance' => EditEventAppearance::route('/{record}/appearance'),
+            'albums' => ManageEventAlbums::route('/{record}/albums'),
             'sections' => EditEventSections::route('/{record}/sections'),
             'products' => ManageEventProducts::route('/{record}/products'),
             'guests' => ManageEventGuests::route('/{record}/guests'),

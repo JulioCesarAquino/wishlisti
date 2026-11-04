@@ -25,7 +25,7 @@ class EventAppearanceForm
     {
         return $schema
             ->components([
-                Section::make('Fotos')
+                Section::make('Imagens')
                     ->columns(2)
                     ->columnSpanFull()
                     ->components([
@@ -48,14 +48,6 @@ class EventAppearanceForm
                             ->imageResizeTargetHeight('630')
                             ->imagePreviewHeight('160')
                             ->directory('events/share'),
-                        FileUpload::make('gallery')
-                            ->label('Galeria de fotos')
-                            ->image()
-                            ->disk('public')
-                            ->multiple()
-                            ->reorderable()
-                            ->imagePreviewHeight('120')
-                            ->directory('events/gallery'),
                     ]),
                 Section::make('Mensagem do WhatsApp')
                     ->description('O texto que já vem escrito quando alguém toca em compartilhar no WhatsApp: na página do evento, no botão "Convidar pelo WhatsApp" do painel ou no convite enviado a um convidado.')

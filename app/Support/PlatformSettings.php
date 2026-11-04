@@ -33,6 +33,12 @@ class PlatformSettings
         return (int) (self::get('premium_date_window_days') ?? config('premium.date_window_days'));
     }
 
+    /** Photos a free event's gallery can hold (albums are premium). */
+    public static function freePhotoLimit(): int
+    {
+        return (int) (self::get('free_photo_limit') ?? config('premium.free_photo_limit'));
+    }
+
     /**
      * @param  array<string, scalar|null>  $values
      */

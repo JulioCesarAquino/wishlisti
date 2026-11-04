@@ -57,6 +57,9 @@ class EventShowControllerTest extends TestCase
 
     public function test_it_exposes_the_start_time_and_what_the_countdown_counts_to(): void
     {
+        // Before the event: afterwards, the locations are no longer sent.
+        $this->travelTo(now()->setDate(2026, 10, 1));
+
         $event = Event::factory()->create(['is_published' => true, 'event_date' => '2026-10-30', 'event_time' => '16:00']);
         $event->locations()->create(['name' => 'Cerimônia', 'start_time' => '16:00', 'address' => 'Igreja', 'position' => 0]);
         $event->locations()->create(['name' => 'Festa', 'start_time' => '18:30', 'address' => 'Salão', 'position' => 1]);

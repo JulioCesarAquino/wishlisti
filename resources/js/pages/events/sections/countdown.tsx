@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import type { EventData } from '@/pages/events/types';
 import {
     accentButtonStyle,
-    bodyTextStyle,
     DEFAULT_PRIMARY_COLOR,
+    headingStyle,
 } from '@/pages/events/types';
 
 type Elapsed = {
@@ -64,9 +64,10 @@ export function Countdown({ event }: { event: EventData }) {
     return (
         <div className="py-6">
             {elapsed.passed && (
+                // In the theme's typography, like the page's other titles.
                 <p
-                    className="mb-4 text-xl tracking-wide"
-                    style={bodyTextStyle(event)}
+                    className="mb-4 text-2xl font-semibold"
+                    style={headingStyle(event)}
                 >
                     Já se passaram
                 </p>

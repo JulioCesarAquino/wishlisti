@@ -17,7 +17,8 @@ use Filament\Support\Icons\Heroicon;
 
 /**
  * The platform's own settings, for the admin: the Premium's price and how
- * long it lasts — changed here, not in the server's .env.
+ * long it lasts, and the free plan's photo limit — changed here, not in
+ * the server's .env.
  *
  * @property-read Schema $form
  */
@@ -45,6 +46,7 @@ class PlatformSettingsPage extends Page
             'premium_price' => PlatformSettings::premiumPrice(),
             'premium_grace_days' => PlatformSettings::premiumGraceDays(),
             'premium_date_window_days' => PlatformSettings::premiumDateWindowDays(),
+            'free_photo_limit' => PlatformSettings::freePhotoLimit(),
         ]);
     }
 
@@ -79,6 +81,18 @@ class PlatformSettingsPage extends Page
                             ->required()
                             ->helperText('Até quantos dias, para mais ou para menos, o anfitrião pode mudar a data de um evento Premium. Além disso, só o admin muda.'),
                     ]),
+                Section::make('Plano gratuito')
+                    ->description('O que um evento sem o Premium pode ter.')
+                    ->columns(3)
+                    ->components([
+                        TextInput::make('free_photo_limit')
+                            ->label('Fotos na galeria')
+                            ->suffix('fotos')
+                            ->integer()
+                            ->minValue(0)
+                            ->required()
+                            ->helperText('Quantas fotos um evento gratuito pode ter na galeria. Eventos que já têm mais continuam com as fotos que têm, só não enviam novas.'),
+                    ]),
             ]);
     }
 
@@ -105,6 +119,7 @@ class PlatformSettingsPage extends Page
             'premium_price' => round((float) $data['premium_price'], 2),
             'premium_grace_days' => (int) $data['premium_grace_days'],
             'premium_date_window_days' => (int) $data['premium_date_window_days'],
+            'free_photo_limit' => (int) $data['free_photo_limit'],
         ]);
 
         if ($graceChanged) {

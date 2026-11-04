@@ -14,6 +14,7 @@ use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Services\Events\EventGalleryService;
 use App\Services\Events\EventSharePreviewService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cookie;
@@ -33,12 +34,18 @@ class EventShowController extends Controller
         EventSharePreviewService $sharePreview,
         EventGalleryService $gallery,
         ?EventLocation $location = null,
-    ): Response {
+    ): Response|RedirectResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
 
-        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections']);
+        $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections', 'albums']);
 
         $onLocationTab = $request->routeIs('events.locations', 'events.location');
+        $hasEnded = $event->hasEnded();
+
+        // A location link opened after the event lands on the page itself.
+        if ($onLocationTab && $hasEnded) {
+            return redirect()->route('events.show', ['event' => $event->slug]);
+        }
 
         // Also when the host turned the tab off after sharing the link.
         abort_if($onLocationTab && ! $event->showsSection(PageSection::Location), 404);
@@ -67,9 +74,12 @@ class EventShowController extends Controller
                 'event_time' => $event->event_date ? Event::formatTime($event->event_time) : null,
                 // With the offset, so the countdown is right wherever the guest is.
                 'starts_at' => $event->startsAt()?->toIso8601String(),
-                'description' => $event->description,
+                // Once the event is over, the home tab keeps the story only:
+                // the description is the invitation's ("join us…").
+                'description' => $hasEnded ? null : $event->description,
+                'has_ended' => $hasEnded,
                 'cover_image_url' => $event->coverImageUrl(),
-                'gallery' => $gallery->photos($event),
+                'albums' => $gallery->albums($event),
                 'type_label' => $event->typeLabel(),
                 'story_title' => $event->storyTitle(),
                 'story' => $event->story,
@@ -79,7 +89,8 @@ class EventShowController extends Controller
                     'key' => $section->key(),
                     'label' => $section->label(),
                 ], $event->visibleSections()),
-                'locations' => $event->locations->map(fn (EventLocation $eventLocation) => [
+                // The location section is gone once the event is over.
+                'locations' => $hasEnded ? [] : $event->locations->map(fn (EventLocation $eventLocation) => [
                     'name' => $eventLocation->name,
                     'start_time' => Event::formatTime($eventLocation->start_time),
                     'slug' => $eventLocation->slug,

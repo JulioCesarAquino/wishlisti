@@ -22,7 +22,7 @@ class GalleryPreviewsCommand extends Command
         $prepared = 0;
 
         Event::query()
-            ->whereNotNull('gallery')
+            ->whereHas('albums', fn ($query) => $query->whereNotNull('photos'))
             ->each(function (Event $event) use ($gallery, &$prepared): void {
                 $prepared += $gallery->prepare($event);
             });

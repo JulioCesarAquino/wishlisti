@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Events\EventInviteController;
+use App\Http\Controllers\Events\EventPhotoDownloadController;
 use App\Http\Controllers\Events\EventShowController;
 use App\Http\Controllers\Guests\GuestMessageStoreController;
 use App\Http\Controllers\Guests\RsvpStoreController;
@@ -26,6 +27,12 @@ Route::get('/{event:slug}/c/{code}', EventInviteController::class)
     ->name('events.invite');
 Route::get('/{event:slug}/localizacao/{location:slug}', EventShowController::class)
     ->name('events.location')
+    ->scopeBindings();
+// A gallery photo's original, as a download (the lightbox's cloud button).
+Route::get('/{event:slug}/fotos/{album}/{photo}', EventPhotoDownloadController::class)
+    ->middleware('throttle:60,1')
+    ->where(['album' => '[0-9]+', 'photo' => '[0-9a-f]{16}'])
+    ->name('events.photos.download')
     ->scopeBindings();
 Route::post('/{event:slug}/orders', OrderStoreController::class)
     ->middleware('throttle:20,1')
