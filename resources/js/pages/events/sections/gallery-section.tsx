@@ -428,17 +428,22 @@ export function GallerySection({
             >
                 Galeria
             </h2>
-            <div className="grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+            {/* Flex rather than grid: a last row with fewer albums sits centered. */}
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-10">
                 {albums.map((item) => (
-                    <AlbumCard
+                    <div
                         key={item.id}
-                        event={event}
-                        album={item}
-                        onOpen={() => {
-                            onOpenAlbum(String(item.id));
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                    />
+                        className="w-full md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]"
+                    >
+                        <AlbumCard
+                            event={event}
+                            album={item}
+                            onOpen={() => {
+                                onOpenAlbum(String(item.id));
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                        />
+                    </div>
                 ))}
             </div>
         </div>
