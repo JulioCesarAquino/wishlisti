@@ -64,6 +64,10 @@ function cartStorageKey(slug: string): string {
     return `wishlisti_cart_${slug}`;
 }
 
+/**
+ * A tab, and what's open in it: a location ("#localizacao/festa") or an
+ * album ("#galeria/12"), so the back button returns to the list.
+ */
 type Place = { section: Section; location: string | null };
 
 /**
@@ -104,7 +108,7 @@ export default function EventShow({
         [items, initial_section, initial_location],
     );
     const [section, setSection] = useState<Section>(linkedPlace.section);
-    const [focusedLocation, setFocusedLocation] = useState<string | null>(
+    const [focusedItem, setFocusedItem] = useState<string | null>(
         linkedPlace.location,
     );
     const [showDiscreetGifts, setShowDiscreetGifts] = useState(false);
@@ -119,7 +123,7 @@ export default function EventShow({
         const sync = () => {
             const place = placeFromUrl(items, linkedPlace);
             setSection(place.section);
-            setFocusedLocation(place.location);
+            setFocusedItem(place.location);
         };
 
         sync();
@@ -148,7 +152,7 @@ export default function EventShow({
     const navigate = (key: Section, location: string | null = null) => {
         window.location.hash = location ? `${key}/${location}` : key;
         setSection(key);
-        setFocusedLocation(location);
+        setFocusedItem(location);
     };
 
     const persistCart = (next: Record<number, number>) => {
@@ -435,7 +439,12 @@ export default function EventShow({
                         </>
                     )}
                     {section === 'galeria' && (
-                        <GallerySection event={event} photos={event.gallery} />
+                        <GallerySection
+                            event={event}
+                            albums={event.albums}
+                            openedAlbum={focusedItem}
+                            onOpenAlbum={(id) => navigate('galeria', id)}
+                        />
                     )}
                     {section === 'presentes' && giftsSection(false)}
                     {section === 'confirmar-presenca' && (
@@ -444,7 +453,7 @@ export default function EventShow({
                     {section === 'localizacao' && (
                         <LocationSection
                             event={event}
-                            focused={focusedLocation}
+                            focused={focusedItem}
                             onFocus={(slug) => navigate('localizacao', slug)}
                         />
                     )}

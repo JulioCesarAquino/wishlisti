@@ -21,11 +21,15 @@ return [
     // How far the host can move a Premium event's date on their own.
     'date_window_days' => (int) env('PREMIUM_DATE_WINDOW_DAYS', 90),
 
-    'event_features' => [Feature::Payments, Feature::GuestList, Feature::FullGiftList, Feature::Guestbook],
+    'event_features' => [Feature::Payments, Feature::GuestList, Feature::FullGiftList, Feature::Guestbook, Feature::Albums],
 
     'host_features' => [Feature::Contacts],
 
     // Without Feature::FullGiftList: at most this many gifts on the list,
     // only catalog items, one unit each.
     'free_gift_limit' => (int) env('FREE_GIFT_LIMIT', 15),
+
+    // Without Feature::Albums: a single gallery with at most this many
+    // photos. The admin changes it on the panel (Configurações).
+    'free_photo_limit' => (int) env('FREE_PHOTO_LIMIT', 10),
 ];

@@ -18,6 +18,19 @@ export type GalleryPhoto = {
     full: string;
     /** A tiny copy, inlined: shown blurred while the thumb loads. */
     placeholder: string | null;
+    /** The original, sent as a download (works on phones too). */
+    download: string;
+};
+
+/** An album of the gallery (free events have a single one). */
+export type GalleryAlbum = {
+    id: number;
+    name: string;
+    /** The host's chosen cover, or the first photo. */
+    cover: GalleryPhoto;
+    /** A few other photos, fanned out behind the cover on the album's card. */
+    fan: GalleryPhoto[];
+    photos: GalleryPhoto[];
 };
 
 export type FontFamily = 'default' | 'script' | 'serif' | 'classic';
@@ -31,7 +44,10 @@ export type EventData = {
     event_time: string | null;
     /** When the event starts (ISO, with offset): what the countdown counts to. */
     starts_at: string | null;
+    /** Null once the event is over: the home tab keeps only the story. */
     description: string | null;
+    /** The event's day has gone by: the page is a keepsake now. */
+    has_ended: boolean;
     /** "Casamento", "Churrasco"… ("Evento" for another kind). */
     type_label: string;
     /** The story section's title: by type, or the host's own. */
@@ -44,7 +60,8 @@ export type EventData = {
     sections: { key: PageSectionKey; label: string }[];
     locations: EventLocation[];
     cover_image_url: string | null;
-    gallery: GalleryPhoto[];
+    /** Albums with photos, in the host's order. */
+    albums: GalleryAlbum[];
     primary_color: string | null;
     secondary_color: string | null;
     /** Gift and checkout buttons; the server fills in the default when unset. */

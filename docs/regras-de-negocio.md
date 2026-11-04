@@ -111,6 +111,26 @@ O mapa da página pública marca o local com um **pin**, pelas coordenadas ou, s
 
 O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porque o WhatsApp o monta a partir do link. — `Event::shareText()`, `whatsappShareUrl()`
 
+**RN-17. Depois do evento, a página vira lembrança.** O evento conta como encerrado a partir do dia seguinte à data, no horário de Brasília. No próprio dia nada muda, porque quem chega atrasado ainda precisa do caminho. Evento sem data nunca encerra. Encerrado:
+
+- **Localização:** a aba some, junto com os botões "Como chegar" e a programação ("Cerimônia 16h · Festa 18h30"). Links de localização já compartilhados levam para a página do evento.
+- **Início:** a história continua, e a descrição do evento (o texto do convite) sai.
+- **Recados:** a aba só aparece se estiver ligada e tiver ao menos um recado aprovado.
+- **Presentes:** nada muda. A lista continua, e os recursos Premium (como receber online) valem até o fim da carência (RN-70).
+- O contador vira "Já se passaram", com a fonte e as cores do tema.
+
+— `Event::hasEnded()`, `hasContentFor()`, `EventShowController`
+
+**RN-18. Fotos e álbuns.** As fotos ficam na aba **Fotos** do evento, em álbuns, cada um com nome, ordem (arrastando as linhas) e fotos reordenáveis. A capa é a primeira foto, ou a que o anfitrião escolher.
+
+- **Sem o Premium "Álbuns de fotos":** um álbum só, que aparece na página como uma galeria simples, com até **10 fotos** por evento (o admin muda em **Configurações**). O limite vale para o evento todo e é conferido no servidor. Ao atingir o limite, o anfitrião vê "O plano gratuito permite até N fotos…".
+- **Com o Premium:** quantos álbuns e fotos quiser. Na página, com mais de um álbum, cada um aparece como um cartão com a capa na frente e até 3 fotos em leque atrás (lado a lado no computador, um embaixo do outro no celular). Clicar abre as fotos do álbum.
+- **O que o evento já tem é mantido.** Um evento gratuito com mais fotos que o limite (de antes do limite, ou de quando era Premium) continua mostrando todas, mas não recebe novas até ficar abaixo do limite. Quando o Premium termina, os álbuns continuam na página como lembrança, mas não dá para criar novos.
+- **Download:** ao abrir uma foto, o botão com a nuvem baixa o arquivo original, pelo servidor (`/{slug}/fotos/{álbum}/{foto}`), para funcionar também no celular. Só baixa quem pode ver a página (RN-13).
+- A galeria antiga de cada evento virou o álbum "Galeria", com todas as fotos, na mesma ordem.
+
+— `EventAlbum`, `Event::photoLimit()`, `canCreateAlbum()`, `ManageEventAlbums`, `EventGalleryService`
+
 ---
 
 ## 3. Convidados e identificação
@@ -334,7 +354,7 @@ Compras feitas antes desta regra seguem a mesma conta: data do evento (ou, sem d
 
 **RN-71. O plano inclui:**
 
-- para **o evento**: Receber presentes online, Lista nominal de convidados, Lista de presentes completa e Mural de recados;
+- para **o evento**: Receber presentes online, Lista nominal de convidados, Lista de presentes completa, Mural de recados e Álbuns de fotos;
 - para **o anfitrião**: Agenda de contatos, que vale para todos os eventos dele.
 
 A lista fica em `config/premium.php`.
@@ -366,7 +386,8 @@ A lista fica em `config/premium.php`.
 **RN-81. Migrações de recursos já aplicadas:**
 
 - eventos que já tinham credencial do Mercado Pago ganharam "Receber presentes online";
-- eventos que já recebiam pagamentos ganharam "Lista de presentes completa" e "Mural de recados", ligados à mesma compra.
+- eventos que já recebiam pagamentos ganharam "Lista de presentes completa" e "Mural de recados", ligados à mesma compra;
+- eventos com "Lista de presentes completa" ganharam "Álbuns de fotos", com a mesma origem, compra e fim.
 
 Assim, quem já era premium não perdeu nada nem é cobrado de novo.
 
@@ -374,7 +395,7 @@ Assim, quem já era premium não perdeu nada nem é cobrado de novo.
 
 ## 10. Mural de recados
 
-**RN-85. Recurso premium do evento.** Sem ele, a seção "Recados" nem aparece na página, e o envio é recusado.
+**RN-85. Recurso premium do evento.** Sem ele, a seção "Recados" nem aparece na página, e o envio é recusado. Depois do evento, a seção só aparece com algum recado aprovado (RN-17).
 
 **RN-86. Qualquer visitante pode deixar recado** com nome (até 100 caracteres) e mensagem (até 1.000), com ou sem presente. Se o navegador já é de um convidado reconhecido, o recado fica ligado a ele.
 
@@ -466,6 +487,7 @@ Assim, quem já era premium não perdeu nada nem é cobrado de novo.
 | Pagar pedido        | 10     |
 | Desistir de reserva | 20     |
 | Enviar recado       | 10     |
+| Baixar foto         | 60     |
 
 **RN-116. Tamanhos máximos:**
 
@@ -479,6 +501,8 @@ Assim, quem já era premium não perdeu nada nem é cobrado de novo.
 | Recado: mensagem                 | 1.000  |
 | Mensagem do modo "Sem presentes" | 300    |
 | Pessoas por confirmação          | 20     |
+| Nome do álbum                    | 100    |
+| Foto da galeria                  | 20 MB  |
 
 **RN-117. Avisos do Mercado Pago:** os webhooks (`/{slug}/orders/mercadopago-webhook` e `/webhooks/mercadopago/premium`) dispensam o token de formulário (CSRF), porque quem chama é o Mercado Pago. Como o status é sempre reconsultado na API (RN-67), um aviso falso não altera nada.
 

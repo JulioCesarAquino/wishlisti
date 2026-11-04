@@ -11,8 +11,8 @@ use App\Models\Guests\GuestMessage;
 use App\Models\Orders\Order;
 use App\Models\Premium\PremiumPurchase;
 use App\Models\User;
-use App\Services\Events\EventGalleryService;
 use App\Services\Premium\PremiumValidityService;
+use App\Support\PlatformSettings;
 use Database\Factories\Events\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,7 +42,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $cover_image
  * @property string|null $share_image
  * @property string|null $share_message the WhatsApp invitation; "{link}" marks where the link goes
- * @property array<int, string>|null $gallery
  * @property string|null $description
  * @property string|null $story_title the story section's title, when the host wrote one
  * @property string|null $story
@@ -55,6 +54,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read EventPaymentSetting $paymentSettings
  * @property-read EventGiftSetting $giftSettings
  * @property-read Collection<int, EventLocation> $locations
+ * @property-read Collection<int, EventAlbum> $albums
  * @property-read Collection<int, EventSection> $sections
  * @property-read Collection<int, User> $coHosts
  * @property Carbon|null $created_at
@@ -62,7 +62,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Fillable([
     'user_id', 'slug', 'type', 'title', 'event_date', 'event_time', 'cover_image', 'share_image',
-    'share_message', 'gallery', 'description', 'story_title', 'story', 'is_published', 'archived_at',
+    'share_message', 'description', 'story_title', 'story', 'is_published', 'archived_at',
 ])]
 class Event extends Model
 {
@@ -238,7 +238,7 @@ class Event extends Model
         return LogOptions::defaults()
             ->useLogName('event')
             ->logOnly([
-                'title', 'type', 'event_date', 'event_time', 'description', 'story_title', 'story', 'cover_image', 'share_image', 'share_message', 'gallery',
+                'title', 'type', 'event_date', 'event_time', 'description', 'story_title', 'story', 'cover_image', 'share_image', 'share_message',
                 'is_published', 'archived_at',
             ])
             ->logOnlyDirty()
@@ -257,13 +257,6 @@ class Event extends Model
         static::creating(function (Event $event): void {
             if (blank($event->slug)) {
                 $event->slug = $event->generateUniqueSlug($event->title);
-            }
-        });
-
-        // New gallery photos get their light copies (see EventGalleryService).
-        static::saved(function (Event $event): void {
-            if (filled($event->gallery) && ($event->wasRecentlyCreated || $event->wasChanged('gallery'))) {
-                app(EventGalleryService::class)->prepareLater($event);
             }
         });
 
@@ -307,7 +300,6 @@ class Event extends Model
     {
         return [
             'event_date' => 'date',
-            'gallery' => 'array',
             'is_published' => 'boolean',
             'archived_at' => 'datetime',
         ];
@@ -362,6 +354,62 @@ class Event extends Model
     public function locations(): HasMany
     {
         return $this->hasMany(EventLocation::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * The gallery's albums, in the order the host chose.
+     *
+     * @return HasMany<EventAlbum, $this>
+     */
+    public function albums(): HasMany
+    {
+        return $this->hasMany(EventAlbum::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * How many photos the gallery can hold: unlimited with the albums,
+     * the admin's free limit (Configurações) otherwise.
+     */
+    public function photoLimit(): ?int
+    {
+        return $this->hasFeature(Feature::Albums) ? null : PlatformSettings::freePhotoLimit();
+    }
+
+    /** Photos in all the albums — but the given one, as it's being saved. */
+    public function photoCount(?EventAlbum $except = null): int
+    {
+        return (int) $this->albums()
+            ->when($except?->exists, fn ($query) => $query->whereKeyNot($except->getKey()))
+            ->get(['id', 'photos'])
+            ->sum(fn (EventAlbum $album) => count($album->photoPaths()));
+    }
+
+    public function canAddPhotos(int $count = 1): bool
+    {
+        $limit = $this->photoLimit();
+
+        return $limit === null || $this->photoCount() + $count <= $limit;
+    }
+
+    /**
+     * Free events keep a single album (the plain gallery); more are
+     * premium. Albums made while the event had the Premium stay after it
+     * ends, as a keepsake — just no new ones.
+     */
+    public function canCreateAlbum(): bool
+    {
+        return $this->hasFeature(Feature::Albums) || $this->albums()->doesntExist();
+    }
+
+    /**
+     * The event is over once its day has gone by, in Brasília: the page
+     * turns into a keepsake (no location, no description). Not while it's
+     * happening — late guests still need the way there.
+     */
+    public function hasEnded(): bool
+    {
+        return $this->event_date !== null
+            && $this->event_date->toDateString() < Carbon::now(self::TIMEZONE)->toDateString();
     }
 
     /**
@@ -449,9 +497,12 @@ class Event extends Model
         return match ($section) {
             // In the other display modes, gifts live in the home tab.
             PageSection::Gifts => $this->giftDisplayMode() === EventGiftSetting::DISPLAY_LIST,
-            // After the Premium, the approved messages stay, as a keepsake.
-            PageSection::Guestbook => $this->hasFeature(Feature::Guestbook) || $this->messages()->approved()->exists(),
-            PageSection::Location => $this->locations->isNotEmpty(),
+            // After the Premium, the approved messages stay, as a keepsake;
+            // after the event, the tab only shows with messages to read.
+            PageSection::Guestbook => $this->messages()->approved()->exists()
+                || ($this->hasFeature(Feature::Guestbook) && ! $this->hasEnded()),
+            // Nobody needs the way there once the event is over.
+            PageSection::Location => $this->locations->isNotEmpty() && ! $this->hasEnded(),
             default => true,
         };
     }

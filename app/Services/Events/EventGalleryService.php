@@ -3,6 +3,7 @@
 namespace App\Services\Events;
 
 use App\Models\Events\Event;
+use App\Models\Events\EventAlbum;
 use App\Support\Picture;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -29,30 +30,40 @@ class EventGalleryService
 
     public const PLACEHOLDER = 24;
 
+    /** Photos behind the cover on an album's fanned card. */
+    public const FAN_PHOTOS = 3;
+
     /**
-     * Until its copies are ready, a photo is served as it is (and the
-     * copies are made after the page is sent).
+     * The event's albums for the public page, empty ones left out. Until
+     * its copies are ready, a photo is served as it is (and the copies are
+     * made after the page is sent).
      *
-     * @return list<array{thumb: string, full: string, placeholder: string|null}>
+     * @return list<array{id: int, name: string, cover: array<string, string|null>, fan: list<array<string, string|null>>, photos: list<array<string, string|null>>}>
      */
-    public function photos(Event $event): array
+    public function albums(Event $event): array
     {
-        $disk = Storage::disk('public');
-        $photos = [];
         $missing = false;
+        $albums = [];
 
-        foreach ($event->gallery ?? [] as $path) {
-            if (! $this->isPrepared($path)) {
-                $missing = true;
-                $photos[] = ['thumb' => $disk->url($path), 'full' => $disk->url($path), 'placeholder' => null];
-
+        foreach ($event->albums as $album) {
+            if ($album->photoPaths() === []) {
                 continue;
             }
 
-            $photos[] = [
-                'thumb' => $disk->url($this->copy($path, 'thumb')),
-                'full' => $disk->url($this->copy($path, 'large')),
-                'placeholder' => 'data:image/jpeg;base64,'.base64_encode((string) $disk->get($this->copy($path, 'placeholder'))),
+            $photo = function (string $path) use ($event, $album, &$missing): array {
+                $missing = $missing || ! $this->isPrepared($path);
+
+                return $this->photo($event, $album, $path);
+            };
+
+            $coverFirst = $album->photosCoverFirst();
+
+            $albums[] = [
+                'id' => $album->id,
+                'name' => $album->name,
+                'cover' => $photo($coverFirst[0]),
+                'fan' => array_map($photo, array_slice($coverFirst, 1, self::FAN_PHOTOS)),
+                'photos' => array_map($photo, $album->photoPaths()),
             ];
         }
 
@@ -60,7 +71,39 @@ class EventGalleryService
             $this->prepareLater($event);
         }
 
-        return $photos;
+        return $albums;
+    }
+
+    /** The grid's copy of a photo, or the photo itself until it's made. */
+    public function thumbUrl(string $path): string
+    {
+        $disk = Storage::disk('public');
+
+        return $disk->url($this->isPrepared($path) ? $this->copy($path, 'thumb') : $path);
+    }
+
+    /**
+     * @return array{thumb: string, full: string, placeholder: string|null, download: string}
+     */
+    private function photo(Event $event, EventAlbum $album, string $path): array
+    {
+        $disk = Storage::disk('public');
+        $download = route('events.photos.download', [
+            'event' => $event->slug,
+            'album' => $album->id,
+            'photo' => EventAlbum::photoKey($path),
+        ]);
+
+        if (! $this->isPrepared($path)) {
+            return ['thumb' => $disk->url($path), 'full' => $disk->url($path), 'placeholder' => null, 'download' => $download];
+        }
+
+        return [
+            'thumb' => $disk->url($this->copy($path, 'thumb')),
+            'full' => $disk->url($this->copy($path, 'large')),
+            'placeholder' => 'data:image/jpeg;base64,'.base64_encode((string) $disk->get($this->copy($path, 'placeholder'))),
+            'download' => $download,
+        ];
     }
 
     /**
@@ -83,7 +126,9 @@ class EventGalleryService
     {
         $prepared = 0;
 
-        foreach ($event->gallery ?? [] as $path) {
+        $paths = $event->albums()->get(['id', 'photos'])->flatMap(fn (EventAlbum $album) => $album->photoPaths());
+
+        foreach ($paths as $path) {
             if ($this->isPrepared($path)) {
                 continue;
             }

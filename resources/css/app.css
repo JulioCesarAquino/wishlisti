@@ -268,3 +268,63 @@
         transform: none;
     }
 }
+
+/*
+ * An album on the gallery's list: the cover in front, other photos fanned
+ * out behind it, turned and pushed aside from the bottom like a hand of
+ * cards (each one's --fan-rotate and --fan-shift come from the page). On
+ * hover the fan opens a little more and the name gets underlined.
+ */
+.album-fan-photo {
+    transform-origin: 50% 90%;
+    transform: translateX(var(--fan-shift)) rotate(var(--fan-rotate));
+    transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.album-fan-cover {
+    transition:
+        transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+        box-shadow 0.45s ease;
+}
+
+.album-card:hover .album-fan-photo,
+.album-card:focus-visible .album-fan-photo {
+    transform: translateX(calc(var(--fan-shift) * 1.35))
+        rotate(calc(var(--fan-rotate) * 1.4));
+}
+
+.album-card:hover .album-fan-cover,
+.album-card:focus-visible .album-fan-cover {
+    transform: translateY(-4px);
+}
+
+.album-name {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 50% 100%;
+    background-repeat: no-repeat;
+    background-size: 0% 1px;
+    transition: background-size 0.35s ease;
+}
+
+.album-card:hover .album-name,
+.album-card:focus-visible .album-name {
+    background-size: 100% 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .album-fan-photo,
+    .album-fan-cover,
+    .album-name {
+        transition: none;
+    }
+
+    .album-card:hover .album-fan-photo,
+    .album-card:focus-visible .album-fan-photo {
+        transform: translateX(var(--fan-shift)) rotate(var(--fan-rotate));
+    }
+
+    .album-card:hover .album-fan-cover,
+    .album-card:focus-visible .album-fan-cover {
+        transform: none;
+    }
+}
