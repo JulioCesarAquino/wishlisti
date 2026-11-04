@@ -44,8 +44,21 @@ class EventSectionsForm
                 Hidden::make('type')->dehydrated(false),
                 Toggle::make('is_active')
                     ->label('Mostrar no menu')
-                    ->helperText(fn (Get $get): ?string => self::type($get('type'))?->requirement()),
+                    ->helperText(fn (Get $get): ?string => self::helperText(self::type($get('type')))),
             ]);
+    }
+
+    private static function helperText(?PageSection $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        $closes = in_array($type, PageSection::closedAfterEvent(), true)
+            ? 'Desligada automaticamente no dia seguinte ao evento. Se quiser, ligue de novo: ela continua ligada.'
+            : null;
+
+        return collect([$type->requirement(), $closes])->filter()->implode(' ') ?: null;
     }
 
     private static function type(mixed $state): ?PageSection

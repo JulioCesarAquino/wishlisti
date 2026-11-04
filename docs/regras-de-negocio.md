@@ -115,13 +115,13 @@ O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porqu
 
 **RN-17. Depois do evento, a página vira lembrança.** O evento conta como encerrado a partir do dia seguinte à data, no horário de Brasília. No próprio dia nada muda, porque quem chega atrasado ainda precisa do caminho. Evento sem data nunca encerra. Encerrado:
 
-- **Localização:** a aba some, junto com os botões "Como chegar" e a programação ("Cerimônia 16h · Festa 18h30"). Links de localização já compartilhados levam para a página do evento.
+- **Localização e Confirmar presença:** no dia seguinte, as duas abas são **desligadas** em **Abas da página**, uma vez só. O anfitrião pode ligá-las de novo, e elas continuam ligadas. Com a localização desligada, somem também os botões "Como chegar" e a programação ("Cerimônia 16h · Festa 18h30"), e links de localização já compartilhados levam para a página do evento. Com a confirmação desligada, o envio é recusado. Se a data do evento mudar para um dia que ainda não passou, elas voltam a ser desligadas depois da nova data.
 - **Início:** a história continua, e a descrição do evento (o texto do convite) sai.
 - **Recados:** a aba só aparece se estiver ligada e tiver ao menos um recado aprovado.
 - **Presentes:** nada muda. A lista continua, e os recursos Premium (como receber online) valem até o fim da carência (RN-70).
 - O contador vira "Já se passaram", com a fonte e as cores do tema.
 
-— `Event::hasEnded()`, `hasContentFor()`, `EventShowController`
+— `Event::hasEnded()`, `closeTabsAfterEvent()`, `hasContentFor()`, `EventShowController`, `events:close-ended-tabs` (de hora em hora)
 
 **RN-18. Fotos e álbuns.** As fotos ficam na aba **Fotos** do evento, em álbuns, cada um com nome, ordem (arrastando as linhas) e fotos reordenáveis. A capa é a primeira foto, ou a que o anfitrião escolher.
 

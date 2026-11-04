@@ -37,13 +37,17 @@ class EventShowController extends Controller
     ): Response|RedirectResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
 
+        // Usually done by the scheduler; here too, for the first visit after midnight.
+        $event->closeTabsAfterEvent();
+
         $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections', 'albums']);
 
         $onLocationTab = $request->routeIs('events.locations', 'events.location');
         $hasEnded = $event->hasEnded();
 
-        // A location link opened after the event lands on the page itself.
-        if ($onLocationTab && $hasEnded) {
+        // A location link opened after the event, with the tab off, lands
+        // on the page itself.
+        if ($onLocationTab && $hasEnded && ! $event->showsSection(PageSection::Location)) {
             return redirect()->route('events.show', ['event' => $event->slug]);
         }
 
@@ -89,8 +93,8 @@ class EventShowController extends Controller
                     'key' => $section->key(),
                     'label' => $section->label(),
                 ], $event->visibleSections()),
-                // The location section is gone once the event is over.
-                'locations' => $hasEnded ? [] : $event->locations->map(fn (EventLocation $eventLocation) => [
+                // After the event, only while the host keeps the tab on.
+                'locations' => $hasEnded && ! $event->showsSection(PageSection::Location) ? [] : $event->locations->map(fn (EventLocation $eventLocation) => [
                     'name' => $eventLocation->name,
                     'start_time' => Event::formatTime($eventLocation->start_time),
                     'slug' => $eventLocation->slug,

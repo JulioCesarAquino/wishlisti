@@ -43,6 +43,17 @@ enum PageSection: string
     }
 
     /**
+     * The tabs turned off the day after the event (see
+     * Event::closeTabsAfterEvent()).
+     *
+     * @return array<int, self>
+     */
+    public static function closedAfterEvent(): array
+    {
+        return [self::Rsvp, self::Location];
+    }
+
+    /**
      * When the tab shows up regardless of the host's choice — tabs with
      * nothing to show stay out of the menu.
      */
