@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Identity;
 
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Resources\Events\Events\Pages\CreateEvent;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Identity\HostSignUpRequest;
 use App\Services\Identity\HostSignUpService;
@@ -36,6 +37,11 @@ class HostSignUpController extends Controller
         $request->session()->regenerate();
         // The panel's next page reports the conversion (partials.meta-pixel).
         $request->session()->flash('signed_up', true);
+
+        // Came for the Premium: once the event exists, its payment opens.
+        if ($request->validated('plan') === 'premium') {
+            $request->session()->put(CreateEvent::PREMIUM_NEXT, true);
+        }
 
         return Inertia::location(EventResource::getUrl('create'));
     }
