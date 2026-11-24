@@ -35,6 +35,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Meta (Facebook/Instagram) ads: the pixel on the home and sign-up
+    // pages, and the sign-up as a conversion. Off without an ID.
+    'meta' => [
+        'pixel_id' => env('META_PIXEL_ID'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

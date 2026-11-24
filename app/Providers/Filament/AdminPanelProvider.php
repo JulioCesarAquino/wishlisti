@@ -108,6 +108,13 @@ class AdminPanelProvider extends PanelProvider
                     .'</style>',
                 ),
             )
+            // The ads' conversion, on the first page after signing up.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn () => session('signed_up')
+                    ? view('partials.meta-pixel', ['event' => 'CompleteRegistration'])
+                    : '',
+            )
             // At the end of the body (not the content area's footer), so it's
             // centered on the whole screen rather than next to the sidebar.
             ->renderHook(

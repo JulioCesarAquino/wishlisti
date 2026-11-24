@@ -18,11 +18,11 @@ class InviteRequestResource extends Resource
 
     protected static ?string $slug = 'invite-requests';
 
-    protected static ?string $modelLabel = 'solicitação de convite';
+    protected static ?string $modelLabel = 'cadastro';
 
-    protected static ?string $pluralModelLabel = 'Solicitações de convite';
+    protected static ?string $pluralModelLabel = 'Cadastros e convites';
 
-    protected static ?string $navigationLabel = 'Solicitações de convite';
+    protected static ?string $navigationLabel = 'Cadastros e convites';
 
     public static function shouldRegisterNavigation(): bool
     {

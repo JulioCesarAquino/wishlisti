@@ -2,10 +2,10 @@
 
 namespace App\Services\Identity;
 
-use App\Models\Events\Event;
 use App\Models\Identity\InviteRequest;
 use App\Models\User;
 use App\Notifications\Identity\InviteRequestReceivedNotification;
+use App\Support\Identity\Attribution;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
@@ -25,9 +25,7 @@ class InviteRequestStoreService
     public function execute(array $data): InviteRequest
     {
         $request = new InviteRequest($data);
-        $request->referred_by_event_id = filled($data['ref'] ?? null)
-            ? Event::where('slug', $data['ref'])->value('id')
-            : null;
+        $request->forceFill(Attribution::columns($data));
         $request->save();
 
         defer(function () use ($request): void {

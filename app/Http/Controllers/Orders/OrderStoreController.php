@@ -73,7 +73,9 @@ class OrderStoreController extends Controller
         if ($request->filled('free_amount')) {
             $total = (float) $request->validated('free_amount');
         } else {
-            $quantities = collect($request->validated('items'))->pluck('quantity', 'event_product_id');
+            /** @var array<int, array{event_product_id: int, quantity: int}> $items */
+            $items = $request->validated('items');
+            $quantities = collect($items)->pluck('quantity', 'event_product_id');
             $total = (float) $event->products()
                 ->whereKey($quantities->keys())
                 ->get(['id', 'price'])

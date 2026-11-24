@@ -24,7 +24,10 @@ class EventDetailsForm
                 ...self::basicComponents(),
                 TextInput::make('slug')
                     ->helperText('Deixe em branco para gerar automaticamente a partir do título. Usado na URL pública do evento.')
-                    ->unique(ignoreRecord: true),
+                    ->unique(ignoreRecord: true)
+                    // The demos keep theirs.
+                    ->notIn(fn (?Event $record): array => $record?->is_demo ? [] : Event::RESERVED_SLUGS)
+                    ->validationMessages(['not_in' => 'Este endereço é reservado. Escolha outro.']),
                 Textarea::make('description')
                     ->label('Texto do evento')
                     ->columnSpanFull(),

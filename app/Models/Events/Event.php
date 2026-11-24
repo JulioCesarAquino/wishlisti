@@ -103,6 +103,15 @@ class Event extends Model
         'formatura' => 'Nossa trajetória',
     ];
 
+    /**
+     * Addresses an event can't take: the site's own pages and the demos'
+     * (see DemoCatalog). An event there would never be reached.
+     */
+    public const RESERVED_SLUGS = [
+        'admin', 'cadastro', 'solicitar-convite', 'webhooks', 'storage', 'build', 'livewire', 'up',
+        'demo-casamento', 'demo-cha-de-bebe', 'demo-aniversario',
+    ];
+
     /** How far ahead of today a demo's date stays, so its countdown always runs. */
     public const DEMO_DAYS_AHEAD = 40;
 
@@ -290,7 +299,7 @@ class Event extends Model
         $suffix = 1;
 
         // Events in the trash still hold their slug (it's unique in the DB).
-        while (static::withTrashed()->where('slug', $slug)->exists()) {
+        while (in_array($slug, self::RESERVED_SLUGS, true) || static::withTrashed()->where('slug', $slug)->exists()) {
             $suffix++;
             $slug = "{$base}-{$suffix}";
         }

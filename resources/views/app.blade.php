@@ -53,6 +53,11 @@
             @endif
         @endisset
 
+        {{-- Only on the pages of the platform itself: never on the guests' event pages --}}
+        @if (in_array($page['component'], ['welcome', 'cadastro'], true))
+            @include('partials.meta-pixel')
+        @endif
+
         @fonts
 
         @viteReactRefresh

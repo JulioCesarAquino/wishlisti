@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { CheckCircle2, Copy, Lock, Sparkles } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,18 @@ export function DemoBar({ demo }: { demo: DemoData }) {
         { key: 'before', label: 'Antes do evento', href: demo.before_url },
         { key: 'after', label: 'Depois do evento', href: demo.after_url },
     ] as const;
+
+    // Inside the home page's phone the page shows as a guest sees it: the
+    // home page already says it's an example.
+    const [embedded, setEmbedded] = useState(false);
+
+    useEffect(() => {
+        setEmbedded(window.self !== window.top);
+    }, []);
+
+    if (embedded) {
+        return null;
+    }
 
     return (
         <div className="relative z-50 border-b border-white/10 bg-neutral-950 px-3 py-2 text-white">
@@ -65,6 +77,7 @@ export function DemoBar({ demo }: { demo: DemoData }) {
                     </div>
                     <a
                         href="/cadastro"
+                        target="_top"
                         className="rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-neutral-950 hover:bg-amber-300"
                     >
                         Criar a minha
@@ -183,6 +196,7 @@ export function DemoCheckout({ event, order, onPaid }: CheckoutProps) {
                 </p>
                 <a
                     href="/cadastro"
+                    target="_top"
                     className="inline-block pt-2 text-sm font-medium underline"
                 >
                     Criar a página do meu evento
