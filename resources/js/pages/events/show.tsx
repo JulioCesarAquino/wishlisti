@@ -27,6 +27,7 @@ import {
     DemoCheckout,
     type DemoData,
 } from '@/pages/events/sections/demo';
+import { EmbeddedDemoAids } from '@/pages/events/sections/embedded-demo';
 import { Footer } from '@/pages/events/sections/footer';
 import { GuestbookSection } from '@/pages/events/sections/guestbook-section';
 import { NoGiftsMessage } from '@/pages/events/sections/no-gifts-message';
@@ -38,6 +39,7 @@ import { MercadoPagoCheckout } from '@/pages/events/sections/mercadopago-checkou
 import { RsvpSection } from '@/pages/events/sections/rsvp-section';
 import {
     type Fulfillment,
+    DEFAULT_SECONDARY_COLOR,
     accentButtonStyle,
     giftButtonStyle,
     bodyTextStyle,
@@ -373,6 +375,11 @@ export default function EventShow({
             </Head>
 
             {demo && <DemoBar demo={demo} />}
+            {demo && (
+                <EmbeddedDemoAids
+                    color={event.secondary_color ?? DEFAULT_SECONDARY_COLOR}
+                />
+            )}
             {is_preview && !demo && (
                 <div className="sticky top-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
                     Modo prévia — esta página ainda não está publicada e só você
@@ -388,7 +395,21 @@ export default function EventShow({
                 }}
             >
                 <nav className="sticky top-0 z-40 border-b border-black/5 bg-white/40 backdrop-blur">
-                    <div className="mx-auto flex max-w-4xl items-center justify-center-safe gap-1 overflow-x-auto px-4 py-3">
+                    <div
+                        data-tabs-scroller
+                        className="mx-auto flex max-w-4xl items-center justify-center-safe gap-1 overflow-x-auto px-4 py-3"
+                        // A mouse wheel slides the tabs that don't fit.
+                        onWheel={(e) => {
+                            const tabs = e.currentTarget;
+
+                            if (
+                                tabs.scrollWidth > tabs.clientWidth &&
+                                Math.abs(e.deltaY) > Math.abs(e.deltaX)
+                            ) {
+                                tabs.scrollLeft += e.deltaY;
+                            }
+                        }}
+                    >
                         {items.map((item) => (
                             <button
                                 key={item.key}

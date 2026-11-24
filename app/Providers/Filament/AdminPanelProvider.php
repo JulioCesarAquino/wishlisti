@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\SignInRedirect;
 use App\Filament\Pages\Dashboard;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -29,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(SignInRedirect::class)
             ->passwordReset()
             ->brandLogo(fn () => new HtmlString(
                 '<div style="display:flex;flex-direction:column;align-items:center;height:100%">'

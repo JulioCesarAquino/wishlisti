@@ -331,3 +331,115 @@
         transform: none;
     }
 }
+
+/* A demo inside the home page's phone (see demo.tsx): no desktop
+   scrollbars, as on a real phone; scrolling still works. */
+.embedded-demo,
+.embedded-demo * {
+    scrollbar-width: none;
+}
+
+.embedded-demo *::-webkit-scrollbar,
+.embedded-demo::-webkit-scrollbar {
+    display: none;
+}
+
+/* Dragging to scroll in the phone: no text selection, a grabbing hand. */
+.embedded-demo {
+    cursor: grab;
+}
+
+.drag-scrolling,
+.drag-scrolling * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
+/* The demo's hints: a finger swiping in a straight line, its trail
+   turning into an arrow (see embedded-demo.tsx). */
+.swipe-trail {
+    stroke-dasharray: 1;
+    animation: swipe-trail 1.8s ease-in-out infinite;
+}
+
+.swipe-head {
+    animation: swipe-head 1.8s ease-in-out infinite;
+}
+
+.swipe-x .swipe-finger {
+    animation: swipe-finger-x 1.8s ease-in-out infinite;
+}
+
+.swipe-y .swipe-finger {
+    animation: swipe-finger-y 1.8s ease-in-out infinite;
+}
+
+@keyframes swipe-trail {
+    0%,
+    10% {
+        stroke-dashoffset: 1;
+        opacity: 1;
+    }
+    65% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+    }
+    100% {
+        stroke-dashoffset: 0;
+        opacity: 0;
+    }
+}
+
+@keyframes swipe-head {
+    0%,
+    55% {
+        opacity: 0;
+    }
+    68%,
+    80% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes swipe-finger-x {
+    0% {
+        transform: translateX(0);
+        opacity: 0;
+    }
+    10% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    65% {
+        transform: translateX(56px);
+        opacity: 1;
+    }
+    85%,
+    100% {
+        transform: translateX(56px);
+        opacity: 0;
+    }
+}
+
+@keyframes swipe-finger-y {
+    0% {
+        transform: translateY(0);
+        opacity: 0;
+    }
+    10% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    65% {
+        transform: translateY(56px);
+        opacity: 1;
+    }
+    85%,
+    100% {
+        transform: translateY(56px);
+        opacity: 0;
+    }
+}

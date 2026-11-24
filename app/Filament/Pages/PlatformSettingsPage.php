@@ -47,6 +47,7 @@ class PlatformSettingsPage extends Page
             'premium_grace_days' => PlatformSettings::premiumGraceDays(),
             'premium_date_window_days' => PlatformSettings::premiumDateWindowDays(),
             'free_photo_limit' => PlatformSettings::freePhotoLimit(),
+            'free_photo_retention_days' => PlatformSettings::freePhotoRetentionDays(),
         ]);
     }
 
@@ -92,6 +93,13 @@ class PlatformSettingsPage extends Page
                             ->minValue(0)
                             ->required()
                             ->helperText('Quantas fotos um evento gratuito pode ter na galeria. Eventos que já têm mais continuam com as fotos que têm, só não enviam novas.'),
+                        TextInput::make('free_photo_retention_days')
+                            ->label('Fotos guardadas após o evento')
+                            ->suffix('dias')
+                            ->integer()
+                            ->minValue(1)
+                            ->required()
+                            ->helperText('Depois desse prazo, as fotos dos eventos que nunca foram Premium são apagadas. Os anfitriões recebem um e-mail 7 dias antes. Eventos sem data não perdem as fotos.'),
                     ]),
             ]);
     }
@@ -120,6 +128,7 @@ class PlatformSettingsPage extends Page
             'premium_grace_days' => (int) $data['premium_grace_days'],
             'premium_date_window_days' => (int) $data['premium_date_window_days'],
             'free_photo_limit' => (int) $data['free_photo_limit'],
+            'free_photo_retention_days' => (int) $data['free_photo_retention_days'],
         ]);
 
         if ($graceChanged) {

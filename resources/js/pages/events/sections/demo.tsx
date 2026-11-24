@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { CheckCircle2, Copy, Lock, Sparkles } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useEmbeddedDemo } from '@/pages/events/sections/embedded-demo';
 import {
     bodyTextStyle,
     formatCurrency,
@@ -31,11 +32,7 @@ export function DemoBar({ demo }: { demo: DemoData }) {
 
     // Inside the home page's phone the page shows as a guest sees it: the
     // home page already says it's an example.
-    const [embedded, setEmbedded] = useState(false);
-
-    useEffect(() => {
-        setEmbedded(window.self !== window.top);
-    }, []);
+    const embedded = useEmbeddedDemo();
 
     if (embedded) {
         return null;

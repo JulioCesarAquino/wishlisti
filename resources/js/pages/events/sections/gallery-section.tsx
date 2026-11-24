@@ -1,17 +1,6 @@
-import {
-    ArrowLeft,
-    ChevronLeft,
-    ChevronRight,
-    CloudDownload,
-    Images,
-} from 'lucide-react';
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { ArrowLeft, Images } from 'lucide-react';
+import { type CSSProperties, useState } from 'react';
+import { PhotoLightbox } from '@/pages/events/sections/photo-lightbox';
 import {
     bodyTextStyle,
     headingStyle,
@@ -95,145 +84,6 @@ function GalleryTile({
     );
 }
 
-/**
- * The photo opened in full: the grid's copy (already loaded), until the
- * large one arrives.
- */
-function FullPhoto({ photo }: { photo: GalleryPhoto }) {
-    const [loaded, ref, markLoaded] = useLoaded();
-
-    return (
-        <div className="relative">
-            {!loaded && (
-                <img
-                    src={photo.thumb}
-                    alt=""
-                    aria-hidden
-                    className="w-full rounded-lg blur-sm"
-                />
-            )}
-            <img
-                ref={ref}
-                src={photo.full}
-                alt=""
-                onLoad={markLoaded}
-                onError={markLoaded}
-                className={
-                    loaded
-                        ? 'w-full rounded-lg'
-                        : 'absolute inset-0 h-full w-full opacity-0'
-                }
-            />
-        </div>
-    );
-}
-
-/**
- * The opened photo, with arrows to the previous and next ones (also the
- * keyboard's arrows and a swipe on the phone). It goes round: after the
- * last one comes the first.
- */
-function PhotoViewer({
-    photos,
-    index,
-    onChange,
-}: {
-    photos: GalleryPhoto[];
-    index: number;
-    onChange: (index: number) => void;
-}) {
-    const count = photos.length;
-    const go = (step: number) => onChange((index + step + count) % count);
-    const swipeStart = useRef<number | null>(null);
-
-    useEffect(() => {
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'ArrowLeft') {
-                onChange((index - 1 + count) % count);
-            } else if (event.key === 'ArrowRight') {
-                onChange((index + 1) % count);
-            }
-        };
-
-        window.addEventListener('keydown', onKey);
-
-        return () => window.removeEventListener('keydown', onKey);
-    }, [index, count, onChange]);
-
-    // The neighbours load in the background, to be there when asked for.
-    useEffect(() => {
-        if (count < 2) {
-            return;
-        }
-
-        for (const step of [1, -1]) {
-            new Image().src = photos[(index + step + count) % count].full;
-        }
-    }, [photos, index, count]);
-
-    const arrow =
-        'absolute top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none';
-
-    return (
-        <div
-            className="relative touch-pan-y select-none"
-            onTouchStart={(event) => {
-                swipeStart.current = event.touches[0].clientX;
-            }}
-            onTouchEnd={(event) => {
-                if (swipeStart.current === null) {
-                    return;
-                }
-
-                const distance =
-                    event.changedTouches[0].clientX - swipeStart.current;
-                swipeStart.current = null;
-
-                if (Math.abs(distance) > 50) {
-                    go(distance < 0 ? 1 : -1);
-                }
-            }}
-        >
-            <FullPhoto key={photos[index].full} photo={photos[index]} />
-
-            {/* A link to the server, which sends the original as an
-                attachment: saved on phones too, not opened in a tab. */}
-            <a
-                href={photos[index].download}
-                className="absolute top-2 left-2 z-10 flex size-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-                aria-label="Baixar foto"
-                title="Baixar foto"
-            >
-                <CloudDownload className="size-5" />
-            </a>
-
-            {count > 1 && (
-                <>
-                    <button
-                        type="button"
-                        onClick={() => go(-1)}
-                        className={`${arrow} left-2`}
-                        aria-label="Foto anterior"
-                    >
-                        <ChevronLeft className="size-6" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => go(1)}
-                        className={`${arrow} right-2`}
-                        aria-label="Próxima foto"
-                    >
-                        <ChevronRight className="size-6" />
-                    </button>
-                    <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-white tabular-nums backdrop-blur-sm">
-                        {index + 1} / {count}
-                    </span>
-                </>
-            )}
-        </div>
-    );
-}
-
 /** The photos in a grid, each one opening in the viewer. */
 function PhotoGrid({ photos }: { photos: GalleryPhoto[] }) {
     const [opened, setOpened] = useState<number | null>(null);
@@ -251,23 +101,14 @@ function PhotoGrid({ photos }: { photos: GalleryPhoto[] }) {
                 ))}
             </div>
 
-            <Dialog
-                open={opened !== null}
-                onOpenChange={(open) => !open && setOpened(null)}
-            >
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="sr-only">Foto</DialogTitle>
-                    </DialogHeader>
-                    {opened !== null && photos[opened] && (
-                        <PhotoViewer
-                            photos={photos}
-                            index={opened}
-                            onChange={setOpened}
-                        />
-                    )}
-                </DialogContent>
-            </Dialog>
+            {opened !== null && photos[opened] && (
+                <PhotoLightbox
+                    photos={photos}
+                    index={opened}
+                    onChange={setOpened}
+                    onClose={() => setOpened(null)}
+                />
+            )}
         </>
     );
 }

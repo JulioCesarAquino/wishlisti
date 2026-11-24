@@ -34,6 +34,9 @@ class HostSignUpRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::defaults()],
             // Hidden from people; bots fill it in.
             'website' => ['prohibited'],
+            // "Começar agora" on the Premium plan: its payment comes right
+            // after the first event.
+            'plan' => ['nullable', 'in:premium'],
             ...Attribution::rules(),
         ];
     }

@@ -6,7 +6,7 @@ Use só imagens que você pode publicar: suas, geradas por IA ou de bancos com l
 
 Depois de trocar uma imagem, rode `php artisan demos:sync` de novo. O comando refaz as três demos do zero e lista as imagens que ainda faltam.
 
-## demo-casamento (Helena & Rafael)
+## demo-casamento (Helena & Lucas)
 
 ```
 resources/demo/demo-casamento/

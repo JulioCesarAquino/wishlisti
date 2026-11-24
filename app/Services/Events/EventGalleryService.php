@@ -24,6 +24,9 @@ use Throwable;
  */
 class EventGalleryService
 {
+    /** Copies made after a page's response, at most (see prepareLater()). */
+    public const WEB_BATCH = 8;
+
     public const THUMB = 600;
 
     public const LARGE = 1600;
@@ -111,10 +114,15 @@ class EventGalleryService
      * seconds, no one should wait for it. One at a time per event, so two
      * visits don't convert the same photos twice.
      */
+    /**
+     * After the response, a few of the copies still missing — never many:
+     * each takes a second or two, and the small server must keep serving
+     * the site. The scheduler makes the rest (gallery:previews).
+     */
     public function prepareLater(Event $event): void
     {
         defer(fn () => Cache::lock("event-gallery:{$event->id}", 600)
-            ->get(fn () => $this->prepare($event)));
+            ->get(fn () => $this->prepare($event, self::WEB_BATCH)));
     }
 
     /**
@@ -122,14 +130,19 @@ class EventGalleryService
      * can't be converted (not a picture, too large) is skipped: it keeps
      * being served as it is.
      */
-    public function prepare(Event $event): int
+    public function prepare(Event $event, ?int $limit = null): int
     {
         $prepared = 0;
 
         $paths = $event->albums()->get(['id', 'photos'])->flatMap(fn (EventAlbum $album) => $album->photoPaths());
 
         foreach ($paths as $path) {
-            if ($this->isPrepared($path)) {
+            if ($limit !== null && $prepared >= $limit) {
+                break;
+            }
+
+            // Prepared, or failed today (no retrying it every minute).
+            if ($this->isPrepared($path) || Cache::has($this->failedKey($path))) {
                 continue;
             }
 
@@ -140,6 +153,8 @@ class EventGalleryService
                 $this->render($path);
                 $prepared++;
             } catch (Throwable $exception) {
+                Cache::put($this->failedKey($path), true, now()->addDay());
+
                 Log::warning('Could not make the light copies of a gallery photo.', [
                     'event_id' => $event->id,
                     'source' => $path,
@@ -165,6 +180,22 @@ class EventGalleryService
         $disk->put($this->copy($path, 'large'), Picture::jpeg($picture->fit(self::LARGE), 82));
         // Written last: it's what tells the photo is ready.
         $disk->put($this->copy($path, 'placeholder'), Picture::jpeg($picture->fit(self::PLACEHOLDER), 60));
+    }
+
+    /**
+     * Deletes a photo for good: the original and its light copies.
+     */
+    public function forget(string $path): void
+    {
+        $disk = Storage::disk('public');
+
+        $disk->delete($path);
+        $disk->deleteDirectory(dirname($this->copy($path, 'thumb')));
+    }
+
+    private function failedKey(string $path): string
+    {
+        return 'gallery-failed:'.sha1($path);
     }
 
     private function isPrepared(string $path): bool

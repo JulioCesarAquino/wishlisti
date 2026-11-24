@@ -33,10 +33,10 @@ class DemoCatalog
     {
         return [
             'type' => 'casamento',
-            'title' => 'Helena & Rafael',
+            'title' => 'Helena & Lucas',
             'event_time' => '16:30',
             'description' => "Depois de oito anos juntos, chegou a hora de dizer sim na frente de quem a gente mais ama.\n\nVenha celebrar com a gente!",
-            'story' => "A gente se conheceu numa fila de cinema que não andava, discutindo qual filme valia mais a pena. Ninguém ganhou a discussão, mas saímos de lá com um jantar marcado.\n\nVieram as viagens de carro sem destino, um apartamento pequeno cheio de plantas e o Biscoito, nosso vira-lata que manda na casa. Em uma noite de inverno em Monte Verde, o Rafael se ajoelhou (e quase derrubou o fondue).\n\nAgora queremos você do nosso lado no dia mais feliz das nossas vidas.",
+            'story' => "A gente se conheceu numa fila de cinema que não andava, discutindo qual filme valia mais a pena. Ninguém ganhou a discussão, mas saímos de lá com um jantar marcado.\n\nVieram as viagens de carro sem destino, um apartamento pequeno cheio de plantas e o Biscoito, nosso vira-lata que manda na casa. Em uma noite de inverno em Monte Verde, o Lucas se ajoelhou (e quase derrubou o fondue).\n\nAgora queremos você do nosso lado no dia mais feliz das nossas vidas.",
             'share_message' => "Oi, {nome}! Vamos nos casar e queremos muito você com a gente 💍\n\nConfirme sua presença: {link_confirmacao}\nNossa lista de presentes: {link_presentes}",
             'appearance' => [
                 'primary_color' => '#f6f1ea',
@@ -45,7 +45,7 @@ class DemoCatalog
                 'font_color_primary' => '#3b3a30',
                 'font_color_secondary' => '#6b6858',
                 'font_family' => 'script',
-                'cover_effect_intensity' => 70,
+                'cover_effect_intensity' => 20,
                 'show_location_shortcut' => true,
             ],
             'rsvp' => [
@@ -82,7 +82,7 @@ class DemoCatalog
                 ['author' => 'Vó Cida', 'message' => 'Meus netos queridos, que Deus abençoe essa união. Rezo todos os dias pela felicidade de vocês.'],
                 ['author' => 'Turma da faculdade', 'message' => 'Quem diria que aquela discussão no cinema ia dar casamento? Vocês são inspiração. Viva os noivos!'],
                 ['author' => null, 'message' => 'Desejo uma vida inteira de parceria, paciência e muito amor. Felicidades!'],
-                ['author' => 'Bruno', 'message' => 'Rafa, meu irmão, finalmente alguém que aguenta suas piadas. Helena, bem-vinda oficialmente à família!'],
+                ['author' => 'Bruno', 'message' => 'Lucas, meu irmão, finalmente alguém que aguenta suas piadas. Helena, bem-vinda oficialmente à família!'],
             ],
             'albums' => ['Pré-wedding', 'Cerimônia', 'Festa'],
         ];
@@ -107,7 +107,7 @@ class DemoCatalog
                 'font_color_primary' => '#2c3e50',
                 'font_color_secondary' => '#5d6d7e',
                 'font_family' => 'classic',
-                'cover_effect_intensity' => 60,
+                'cover_effect_intensity' => 20,
                 'show_location_shortcut' => true,
             ],
             'rsvp' => [
@@ -166,7 +166,7 @@ class DemoCatalog
                 'font_color_primary' => '#4a2c3d',
                 'font_color_secondary' => '#7a5a6b',
                 'font_family' => 'serif',
-                'cover_effect_intensity' => 50,
+                'cover_effect_intensity' => 15,
                 'show_location_shortcut' => true,
             ],
             'rsvp' => [

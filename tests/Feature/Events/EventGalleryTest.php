@@ -126,4 +126,17 @@ class EventGalleryTest extends TestCase
 
         Storage::disk('public')->assertExists($this->copy('events/gallery/b.jpg', 'placeholder'));
     }
+
+    public function test_the_scheduler_makes_the_copies_a_batch_at_a_time(): void
+    {
+        $event = Event::factory()->create(['is_published' => true]);
+        $paths = array_map(fn (int $n) => $this->storeImage("events/gallery/{$n}.jpg", 400, 300), range(1, 5));
+        // Saved quietly: no copies made on saving.
+        EventAlbum::withoutEvents(fn () => $this->album($event, $paths));
+
+        $this->artisan('gallery:previews', ['--limit' => 2])->assertSuccessful();
+
+        $made = array_filter($paths, fn (string $path) => Storage::disk('public')->exists($this->copy($path, 'thumb')));
+        $this->assertCount(2, $made);
+    }
 }

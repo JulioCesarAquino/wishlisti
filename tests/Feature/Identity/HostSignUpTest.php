@@ -3,6 +3,7 @@
 namespace Tests\Feature\Identity;
 
 use App\Filament\Resources\Events\Events\EventResource;
+use App\Filament\Resources\Events\Events\Pages\CreateEvent;
 use App\Models\Events\Event;
 use App\Models\Identity\InviteRequest;
 use App\Models\User;
@@ -67,6 +68,13 @@ class HostSignUpTest extends TestCase
         $this->assertSame('(11) 98888-7777', $signUp->whatsapp);
 
         Notification::assertSentTo($admin, InviteRequestReceivedNotification::class);
+    }
+
+    public function test_from_the_premium_plan_the_first_event_opens_its_payment(): void
+    {
+        $this->post('/cadastro', $this->data(['plan' => 'premium']));
+
+        $this->assertTrue(session()->has(CreateEvent::PREMIUM_NEXT));
     }
 
     public function test_the_campaign_and_the_event_page_that_brought_them_are_kept(): void

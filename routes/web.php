@@ -7,6 +7,7 @@ use App\Http\Controllers\Guests\GuestMessageStoreController;
 use App\Http\Controllers\Guests\RsvpStoreController;
 use App\Http\Controllers\Identity\HostSignUpController;
 use App\Http\Controllers\Identity\InviteRequestStoreController;
+use App\Http\Controllers\Identity\SignInController;
 use App\Http\Controllers\Orders\OrderCancelController;
 use App\Http\Controllers\Orders\OrderPaymentStoreController;
 use App\Http\Controllers\Orders\OrderPaymentWebhookController;
@@ -16,6 +17,10 @@ use App\Http\Controllers\Premium\PremiumPurchaseWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', WelcomeController::class)->name('home');
+Route::get('/entrar', [SignInController::class, 'show'])->name('sign-in');
+Route::post('/entrar', [SignInController::class, 'store'])
+    ->middleware('throttle:20,1')
+    ->name('sign-in.store');
 Route::get('/cadastro', [HostSignUpController::class, 'show'])->name('sign-up');
 Route::post('/cadastro', [HostSignUpController::class, 'store'])
     ->middleware('throttle:5,1')

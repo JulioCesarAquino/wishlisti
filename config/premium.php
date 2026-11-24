@@ -32,4 +32,11 @@ return [
     // Without Feature::Albums: a single gallery with at most this many
     // photos. The admin changes it on the panel (Configurações).
     'free_photo_limit' => (int) env('FREE_PHOTO_LIMIT', 10),
+
+    // Without the Premium (ever): the gallery's photos are deleted this many
+    // days after the event. The admin changes it on the panel.
+    'free_photo_retention_days' => (int) env('FREE_PHOTO_RETENTION_DAYS', 90),
+
+    // The hosts are e-mailed this many days before.
+    'free_photo_warning_days' => 7,
 ];

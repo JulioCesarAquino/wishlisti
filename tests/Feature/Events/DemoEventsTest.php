@@ -68,7 +68,7 @@ class DemoEventsTest extends TestCase
 
         $this->artisan('demos:sync', ['--images' => storage_path('framework/testing/no-demo-images')])->assertSuccessful();
 
-        $this->assertSame('Helena & Rafael', $this->event->fresh()->title);
+        $this->assertSame('Helena & Lucas', $this->event->fresh()->title);
         $this->assertSame($products, $this->event->products()->count());
         $this->assertSame(3, Event::query()->where('is_demo', true)->count());
     }
