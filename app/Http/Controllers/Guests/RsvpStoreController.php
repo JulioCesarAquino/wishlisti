@@ -26,6 +26,16 @@ class RsvpStoreController extends Controller
         $event->closeTabsAfterEvent();
         abort_unless($event->isSectionEnabled(PageSection::Rsvp), 404);
 
+        // A demo goes through the whole form, but nobody is saved.
+        if ($event->is_demo) {
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => 'Presença registrada! Na demonstração nada é salvo: no seu evento, ela aparece na sua lista de convidados.',
+            ]);
+
+            return back();
+        }
+
         $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $guest = $service->execute(

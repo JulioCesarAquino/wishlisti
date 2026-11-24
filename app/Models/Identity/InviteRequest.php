@@ -18,7 +18,11 @@ use Illuminate\Support\Carbon;
  * @property string $whatsapp
  * @property string $status
  * @property int|null $invited_user_id
+ * @property bool $via_signup a host who signed up on their own (approved from the start)
  * @property int|null $referred_by_event_id the event page they came from
+ * @property string|null $utm_source the ad campaign that brought them (utm_* of the link)
+ * @property string|null $utm_medium
+ * @property string|null $utm_campaign
  * @property-read Event|null $referredByEvent
  * @property Carbon|null $approved_at
  * @property Carbon|null $created_at
@@ -40,6 +44,7 @@ class InviteRequest extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'via_signup' => 'boolean',
         ];
     }
 

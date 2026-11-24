@@ -42,6 +42,14 @@ class EventShowController extends Controller
 
         $event->load(['appearance', 'rsvpSettings', 'paymentSettings', 'giftSettings', 'featureGrants', 'locations', 'sections', 'albums']);
 
+        // A demo shows either moment of an event: before the day, or the
+        // keepsake the page turns into after it.
+        $demoAfter = $event->is_demo && $request->query('momento') === 'depois';
+
+        if ($event->is_demo) {
+            $event->showDemoMoment($demoAfter);
+        }
+
         $onLocationTab = $request->routeIs('events.locations', 'events.location');
         $hasEnded = $event->hasEnded();
 
@@ -57,7 +65,8 @@ class EventShowController extends Controller
         $guest = null;
         $identifier = Guest::identifierFrom($request, $event);
 
-        if ($identifier) {
+        // Nobody is ever saved on a demo.
+        if ($identifier && ! $event->is_demo) {
             $guest = $event->guests()->where('identifier', $identifier)->first();
         }
 
@@ -137,6 +146,12 @@ class EventShowController extends Controller
                 'rsvp_capacity_excludes_children' => $event->capacityExcludesChildren(),
             ],
             'is_preview' => ! $event->is_published || $event->isArchived(),
+            // The demo's bar: the moment shown and the way to the other one.
+            'demo' => $event->is_demo ? [
+                'moment' => $demoAfter ? 'after' : 'before',
+                'before_url' => route('events.show', ['event' => $event->slug]),
+                'after_url' => route('events.show', ['event' => $event->slug, 'momento' => 'depois']),
+            ] : null,
             // Where the page opens when the URL carries no #section.
             'initial_section' => $onLocationTab ? 'localizacao' : null,
             'initial_location' => $location?->slug,

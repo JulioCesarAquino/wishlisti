@@ -47,6 +47,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $story_title the story section's title, when the host wrote one
  * @property string|null $story
  * @property bool $is_published
+ * @property bool $is_demo a demonstration, shown on the home page (see showDemoMoment())
  * @property Carbon|null $archived_at
  * @property Carbon|null $deleted_at
  * @property int $visits_count
@@ -101,6 +102,21 @@ class Event extends Model
         'batizado' => 'Sobre o batizado',
         'formatura' => 'Nossa trajetória',
     ];
+
+    /**
+     * Addresses an event can't take: the site's own pages and the demos'
+     * (see DemoCatalog). An event there would never be reached.
+     */
+    public const RESERVED_SLUGS = [
+        'admin', 'cadastro', 'solicitar-convite', 'webhooks', 'storage', 'build', 'livewire', 'up',
+        'demo-casamento', 'demo-cha-de-bebe', 'demo-aniversario',
+    ];
+
+    /** How far ahead of today a demo's date stays, so its countdown always runs. */
+    public const DEMO_DAYS_AHEAD = 40;
+
+    /** How long ago a demo's day went by, when shown as a keepsake. */
+    public const DEMO_DAYS_AFTER = 3;
 
     /** Dates and times of events are typed, and shown, in Brasília time. */
     public const TIMEZONE = 'America/Sao_Paulo';
@@ -283,7 +299,7 @@ class Event extends Model
         $suffix = 1;
 
         // Events in the trash still hold their slug (it's unique in the DB).
-        while (static::withTrashed()->where('slug', $slug)->exists()) {
+        while (in_array($slug, self::RESERVED_SLUGS, true) || static::withTrashed()->where('slug', $slug)->exists()) {
             $suffix++;
             $slug = "{$base}-{$suffix}";
         }
@@ -309,6 +325,7 @@ class Event extends Model
         return [
             'event_date' => 'date',
             'is_published' => 'boolean',
+            'is_demo' => 'boolean',
             'archived_at' => 'datetime',
             'tabs_closed_after_event_at' => 'datetime',
         ];
@@ -429,7 +446,8 @@ class Event extends Model
      */
     public function closeTabsAfterEvent(): bool
     {
-        if (! $this->hasEnded() || $this->tabs_closed_after_event_at !== null) {
+        // A demo's date only moves in memory (see showDemoMoment()).
+        if ($this->is_demo || ! $this->hasEnded() || $this->tabs_closed_after_event_at !== null) {
             return false;
         }
 
@@ -454,6 +472,40 @@ class Event extends Model
         $this->unsetRelation('sections');
 
         return true;
+    }
+
+    /**
+     * Shows a demo before its day — 40 days from today, so the countdown
+     * runs — or after it, as the keepsake the page becomes: the date a few
+     * days ago and the location and RSVP tabs off, as closeTabsAfterEvent()
+     * leaves them. Only in memory: nothing is saved.
+     */
+    public function showDemoMoment(bool $after): void
+    {
+        $today = Carbon::now(self::TIMEZONE)->startOfDay();
+
+        $this->event_date = $after
+            ? $today->subDays(self::DEMO_DAYS_AFTER)
+            : $today->addDays(self::DEMO_DAYS_AHEAD);
+
+        if (! $after) {
+            return;
+        }
+
+        $closed = PageSection::closedAfterEvent();
+
+        $this->setRelation('sections', new Collection($this->pageSections()
+            ->map(function (EventSection $section) use ($closed): EventSection {
+                if (! in_array($section->type, $closed, true)) {
+                    return $section;
+                }
+
+                $section = clone $section;
+                $section->is_active = false;
+
+                return $section;
+            })
+            ->all()));
     }
 
     /**
@@ -861,6 +913,11 @@ class Event extends Model
      */
     public function acceptsOnlineGifts(): bool
     {
+        // A demo's checkout is pretend: nothing reaches Mercado Pago.
+        if ($this->is_demo) {
+            return $this->hasFeature(Feature::Payments);
+        }
+
         return $this->hasFeature(Feature::Payments)
             && filled($this->paymentSettings->mp_access_token)
             && filled($this->paymentSettings->mp_public_key);
@@ -935,7 +992,7 @@ class Event extends Model
 
     public function shouldCountVisitFor(?User $user): bool
     {
-        if (! $this->is_published || $this->isArchived()) {
+        if ($this->is_demo || ! $this->is_published || $this->isArchived()) {
             return false;
         }
 

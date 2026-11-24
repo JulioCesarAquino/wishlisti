@@ -46,11 +46,13 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 ## 1. Contas e acesso
 
-**RN-01. Ninguém se cadastra sozinho.** O visitante pede um convite na página inicial (nome, e-mail e WhatsApp). A conta só existe quando o admin **aprova** o pedido. — `InviteRequestStoreService`, `InviteRequestApproveService`
+**RN-01. O anfitrião se cadastra sozinho** em `/cadastro`, aberto pelos botões da página inicial e da faixa das demos. Ele informa nome, e-mail, WhatsApp e senha (as regras da RN-09). Um e-mail que já tem conta é recusado, com a sugestão de entrar ou usar "Esqueceu a senha?". Ao criar a conta, ele já entra no painel, na tela de novo evento. O cadastro fica registrado em **Cadastros e convites**, com o status "Cadastro direto", o WhatsApp e a origem (RN-01a). Os admins recebem o aviso "Novo cadastro" no sino e por e-mail. Contra robôs, há no máximo 5 tentativas por minuto por visitante e um campo escondido que só robôs preenchem. O pedido de convite com aprovação manual continua funcionando para pedidos antigos e para a rota `/solicitar-convite`, mas não aparece mais na página inicial. — `HostSignUpService`, `HostSignUpController`, `cadastro.tsx`
 
 **RN-02. A aprovação envia por e-mail um link para o anfitrião definir a senha.** A conta é criada com senha aleatória e e-mail já verificado. O link vale por 2 horas (`AUTH_PASSWORD_RESET_EXPIRE`, em minutos); se expirar, o anfitrião pede outro em **"Esqueceu a senha?"**, porque a conta já existe desde a aprovação. O painel também mostra o link para copiar: se o e-mail não sair, a aprovação acontece mesmo assim, o erro vai para o log e o admin envia o link à mão (por WhatsApp, por exemplo). Se o link expirar ou se perder, o admin usa **"Gerar novo link"** no pedido aprovado, que manda outro e-mail e invalida o link anterior. — `InviteRequestsTable`, `InviteLinkSendService`
 
-**RN-01a. Indicação pela página do evento.** Toda página pública termina com a linha "Feita com Wishlisti · Crie a página do seu evento", discreta e nas cores do tema. O link abre a página inicial com `?ref=slug-do-evento`, e o navegador guarda essa origem por 30 dias. Se o visitante pedir um convite nesse prazo, o pedido registra o evento de origem. O admin vê a coluna "Indicado por" na lista de pedidos e pode filtrar pelos que vieram de páginas de eventos. Uma origem desconhecida é ignorada sem atrapalhar o pedido. Se o evento for excluído de vez, o pedido continua, sem a origem. — `InviteRequestStoreService`, `InviteRequestsTable`, `footer.tsx`, `welcome.tsx`
+**RN-01a. De onde veio o anfitrião.** Toda página pública termina com a linha "Feita com Wishlisti · Crie a página do seu evento", discreta e nas cores do tema. O link abre a página inicial com `?ref=slug-do-evento`. Os links de anúncio levam `utm_source`, `utm_medium` e `utm_campaign`. O navegador guarda essa origem por 30 dias, e um link novo substitui a anterior. O cadastro (e o pedido de convite) feito nesse prazo registra o evento de origem e a campanha. O admin vê as colunas "Indicado por" e "Campanha" em **Cadastros e convites** e pode filtrar pelos que vieram de páginas de eventos. Os cliques nas demos também contam como indicação delas. Uma origem desconhecida é ignorada sem atrapalhar. Se o evento for excluído de vez, o registro continua, sem a origem.
+
+**RN-01b. Pixel da Meta**, para medir os anúncios: com `META_PIXEL_ID` no `.env`, a página inicial e o cadastro registram a visita, e a primeira página do painel depois do cadastro registra a conversão (`CompleteRegistration`). As páginas dos eventos nunca carregam o pixel, para não rastrear convidados. Sem o ID, nada é carregado. — `Attribution`, `attribution.ts`, `partials/meta-pixel.blade.php`
 
 **RN-02a. "Esqueceu a senha?" no login do painel envia por e-mail um link para criar uma nova senha**, no mesmo visual do e-mail de convite e com a mesma validade. O e-mail sai na hora, sem fila (não há processo de fila em produção). E-mail não cadastrado não recebe nada. — `PasswordResetNotification`
 
@@ -76,7 +78,7 @@ Para instalação, stack e arquitetura, veja o [README](../README.md).
 
 **RN-10a. Tipos de evento:** casamento, noivado, chá de bebê, chá revelação, chá de panela, aniversário, batizado, formatura, churrasco, futebol, confraternização e outro (que aparece como "Evento" na página). A seção de história da tela inicial tem o título do tipo — "Nossa história" (casamento, noivado, chá de panela), "Esperando por você" (chás de bebê e revelação), "Sobre o aniversário", "Sobre o batizado", "Nossa trajetória" (formatura) e "Sobre o evento" nos demais —, ou o que o anfitrião escrever em "Título da seção de história". — `Event::TYPE_LABELS`, `storyTitle()`
 
-**RN-11. Slug:** gerado a partir do título quando o anfitrião não informa um. É único no sistema **inclusive entre eventos na lixeira**. Se já existir, recebe o sufixo `-2`, `-3`, …
+**RN-11. Slug:** gerado a partir do título quando o anfitrião não informa um. É único no sistema **inclusive entre eventos na lixeira**. Se já existir, recebe o sufixo `-2`, `-3`, … Endereços do próprio site e das demos (`admin`, `cadastro`, `demo-casamento`…) são reservados: o slug gerado pula para o sufixo, e o digitado é recusado. — `Event::RESERVED_SLUGS`
 
 **RN-12. Endereço é obrigatório.** Latitude e longitude são opcionais, mas uma exige a outra. O botão "Usar minha localização atual" faz o seguinte:
 
@@ -132,6 +134,15 @@ O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porqu
 - A galeria antiga de cada evento virou o álbum "Galeria", com todas as fotos, na mesma ordem.
 
 — `EventAlbum`, `Event::photoLimit()`, `canCreateAlbum()`, `ManageEventAlbums`, `EventGalleryService`
+
+**RN-19. Eventos de demonstração.** Três exemplos fictícios aparecem na página inicial: `/demo-casamento`, `/demo-cha-de-bebe` e `/demo-aniversario`. Eles têm todos os recursos Premium e são marcados com `is_demo`.
+
+- **Criação:** `php artisan demos:sync` cria as demos ou as refaz do zero, inclusive se alguém mexeu nelas pelo painel. O dono é o primeiro admin, ou quem for informado em `--user`. Os textos ficam em `DemoCatalog` e as imagens em `resources/demo` (veja o README de lá). Um evento de verdade com o mesmo endereço nunca é tocado. Nenhum evento de cliente pode servir de exemplo.
+- **Data móvel:** a data não fica gravada. A página mostra o evento sempre 40 dias à frente de hoje, para a contagem regressiva rodar. Com `?momento=depois` (o botão "Depois do evento" da faixa no topo), a data fica 3 dias para trás e a página aparece como lembrança (RN-17), com localização e confirmação desligadas. Isso vale só para a exibição: nada é gravado, e a rotina que desliga as abas ignora as demos.
+- **Nada do que o visitante faz é salvo.** A confirmação de presença, o recado e o presente passam pela validação normal e mostram a resposta de sucesso, mas não gravam convidado, recado nem pedido. O presente online abre um Pix de exemplo, com o botão "Simular pagamento aprovado", e nada vai para o Mercado Pago. Pagar e desistir de um pedido são recusados.
+- Visitas às demos não são contadas.
+
+— `DemoCatalog`, `DemosSyncCommand`, `Event::showDemoMoment()`, `demo.tsx`
 
 ---
 

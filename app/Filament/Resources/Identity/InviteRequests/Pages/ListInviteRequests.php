@@ -9,7 +9,7 @@ class ListInviteRequests extends ListRecords
 {
     protected static string $resource = InviteRequestResource::class;
 
-    protected static ?string $title = 'Solicitações de convite';
+    protected static ?string $title = 'Cadastros e convites';
 
     protected function getHeaderActions(): array
     {

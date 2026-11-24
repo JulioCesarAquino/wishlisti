@@ -20,6 +20,7 @@ class OrderCancelController extends Controller
     public function __invoke(Request $request, Event $event, Order $order, OrderCancelService $service): RedirectResponse
     {
         abort_unless($event->isViewableBy($request->user()), 404);
+        abort_if($event->is_demo, 404);
 
         $identifier = Guest::identifierFrom($request, $event);
 

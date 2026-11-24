@@ -5,15 +5,21 @@ use App\Http\Controllers\Events\EventPhotoDownloadController;
 use App\Http\Controllers\Events\EventShowController;
 use App\Http\Controllers\Guests\GuestMessageStoreController;
 use App\Http\Controllers\Guests\RsvpStoreController;
+use App\Http\Controllers\Identity\HostSignUpController;
 use App\Http\Controllers\Identity\InviteRequestStoreController;
 use App\Http\Controllers\Orders\OrderCancelController;
 use App\Http\Controllers\Orders\OrderPaymentStoreController;
 use App\Http\Controllers\Orders\OrderPaymentWebhookController;
 use App\Http\Controllers\Orders\OrderStoreController;
+use App\Http\Controllers\Platform\WelcomeController;
 use App\Http\Controllers\Premium\PremiumPurchaseWebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', WelcomeController::class)->name('home');
+Route::get('/cadastro', [HostSignUpController::class, 'show'])->name('sign-up');
+Route::post('/cadastro', [HostSignUpController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('sign-up.store');
 Route::post('/solicitar-convite', InviteRequestStoreController::class)->name('invite-requests.store');
 Route::post('/webhooks/mercadopago/premium', PremiumPurchaseWebhookController::class)->name('premium.mercadopago-webhook');
 

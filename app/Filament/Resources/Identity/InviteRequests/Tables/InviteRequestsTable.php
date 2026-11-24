@@ -40,18 +40,28 @@ class InviteRequestsTable
                         ? EventResource::getUrl('edit', ['record' => $record->referredByEvent])
                         : null)
                     ->toggleable(),
+                TextColumn::make('utm_campaign')
+                    ->label('Campanha')
+                    ->placeholder('—')
+                    ->description(fn (InviteRequest $record): ?string => collect([$record->utm_source, $record->utm_medium])->filter()->implode(' · ') ?: null)
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status')
+                    // A host who signed up on their own: approved from the start.
+                    ->state(fn (InviteRequest $record): string => $record->via_signup ? 'signup' : $record->status)
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         InviteRequest::STATUS_PENDING => 'Pendente',
                         InviteRequest::STATUS_APPROVED => 'Aprovado',
+                        'signup' => 'Cadastro direto',
                         InviteRequest::STATUS_REJECTED => 'Rejeitado',
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
                         InviteRequest::STATUS_PENDING => 'warning',
                         InviteRequest::STATUS_APPROVED => 'success',
+                        'signup' => 'info',
                         InviteRequest::STATUS_REJECTED => 'danger',
                         default => 'gray',
                     }),
@@ -64,10 +74,16 @@ class InviteRequestsTable
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
+                        'signup' => 'Cadastro direto',
                         InviteRequest::STATUS_PENDING => 'Pendente',
                         InviteRequest::STATUS_APPROVED => 'Aprovado',
                         InviteRequest::STATUS_REJECTED => 'Rejeitado',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
+                        null, '' => $query,
+                        'signup' => $query->where('via_signup', true),
+                        default => $query->where('via_signup', false)->where('status', $data['value']),
+                    }),
                 TernaryFilter::make('referred')
                     ->label('Origem')
                     ->placeholder('Todas')
@@ -95,7 +111,8 @@ class InviteRequestsTable
                     ->label('Gerar novo link')
                     ->icon(Heroicon::OutlinedArrowPath)
                     ->color('gray')
-                    ->visible(fn (InviteRequest $record): bool => $record->status === InviteRequest::STATUS_APPROVED)
+                    // Who signed up chose their own password ("Esqueceu a senha?" still works).
+                    ->visible(fn (InviteRequest $record): bool => $record->status === InviteRequest::STATUS_APPROVED && ! $record->via_signup)
                     ->requiresConfirmation()
                     ->modalDescription('Gera um novo link para o anfitrião definir a senha e envia por e-mail. O link anterior deixa de valer.')
                     ->action(function (InviteRequest $record, InviteRequestRegenerateLinkService $service, InviteLinkSendService $sender): void {

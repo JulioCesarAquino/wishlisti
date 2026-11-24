@@ -16,6 +16,10 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                // The home page's headings.
+                bunny('Fraunces', {
+                    weights: [500, 600],
+                }),
             ],
         }),
         inertia(),
