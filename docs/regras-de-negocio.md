@@ -133,6 +133,15 @@ O cartão com a foto (a imagem do link compartilhado) continua aparecendo, porqu
 
 — `EventAlbum`, `Event::photoLimit()`, `canCreateAlbum()`, `ManageEventAlbums`, `EventGalleryService`
 
+**RN-19. Eventos de demonstração.** Três exemplos fictícios aparecem na página inicial: `/demo-casamento`, `/demo-cha-de-bebe` e `/demo-aniversario`. Eles têm todos os recursos Premium e são marcados com `is_demo`.
+
+- **Criação:** `php artisan demos:sync` cria as demos ou as refaz do zero, inclusive se alguém mexeu nelas pelo painel. O dono é o primeiro admin, ou quem for informado em `--user`. Os textos ficam em `DemoCatalog` e as imagens em `resources/demo` (veja o README de lá). Um evento de verdade com o mesmo endereço nunca é tocado. Nenhum evento de cliente pode servir de exemplo.
+- **Data móvel:** a data não fica gravada. A página mostra o evento sempre 40 dias à frente de hoje, para a contagem regressiva rodar. Com `?momento=depois` (o botão "Depois do evento" da faixa no topo), a data fica 3 dias para trás e a página aparece como lembrança (RN-17), com localização e confirmação desligadas. Isso vale só para a exibição: nada é gravado, e a rotina que desliga as abas ignora as demos.
+- **Nada do que o visitante faz é salvo.** A confirmação de presença, o recado e o presente passam pela validação normal e mostram a resposta de sucesso, mas não gravam convidado, recado nem pedido. O presente online abre um Pix de exemplo, com o botão "Simular pagamento aprovado", e nada vai para o Mercado Pago. Pagar e desistir de um pedido são recusados.
+- Visitas às demos não são contadas.
+
+— `DemoCatalog`, `DemosSyncCommand`, `Event::showDemoMoment()`, `demo.tsx`
+
 ---
 
 ## 3. Convidados e identificação

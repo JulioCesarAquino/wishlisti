@@ -22,6 +22,11 @@ import {
     visibleFields,
     toContactForm,
 } from '@/pages/events/sections/contact-fields';
+import {
+    DemoBar,
+    DemoCheckout,
+    type DemoData,
+} from '@/pages/events/sections/demo';
 import { Footer } from '@/pages/events/sections/footer';
 import { GuestbookSection } from '@/pages/events/sections/guestbook-section';
 import { NoGiftsMessage } from '@/pages/events/sections/no-gifts-message';
@@ -54,6 +59,8 @@ type Props = {
     guest: Guest | null;
     messages: GuestMessage[];
     is_preview: boolean;
+    /** A demonstration event (see Event::showDemoMoment()). */
+    demo: DemoData | null;
     initial_section: Section | null;
     initial_location: string | null;
 };
@@ -95,6 +102,7 @@ export default function EventShow({
     guest,
     messages,
     is_preview,
+    demo,
     initial_section,
     initial_location,
 }: Props) {
@@ -364,7 +372,8 @@ export default function EventShow({
                 )}
             </Head>
 
-            {is_preview && (
+            {demo && <DemoBar demo={demo} />}
+            {is_preview && !demo && (
                 <div className="sticky top-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
                     Modo prévia — esta página ainda não está publicada e só você
                     pode vê-la.
@@ -686,6 +695,16 @@ export default function EventShow({
                                             desistir na lista de presentes.
                                         </p>
                                     </div>
+                                ) : orderResult && demo ? (
+                                    <DemoCheckout
+                                        event={event}
+                                        order={orderResult}
+                                        onPaid={() => {
+                                            if (!freeAmountOpen) {
+                                                persistCart({});
+                                            }
+                                        }}
+                                    />
                                 ) : orderResult ? (
                                     <MercadoPagoCheckout
                                         event={event}

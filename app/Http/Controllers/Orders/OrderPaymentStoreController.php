@@ -18,6 +18,8 @@ class OrderPaymentStoreController extends Controller
         OrderPaymentCreateService $service,
     ): JsonResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
+        // A demo's checkout is pretend (see OrderStoreController).
+        abort_if($event->is_demo, 404);
         abort_if($order->isInPerson(), 409, 'Este presente é para entrega pessoal.');
         // A guest who left the checkout open past the abandon time and pays
         // now: the gift is still theirs to give.

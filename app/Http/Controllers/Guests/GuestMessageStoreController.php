@@ -19,6 +19,16 @@ class GuestMessageStoreController extends Controller
         // The host may have turned the tab off with the page open.
         abort_unless($event->isSectionEnabled(PageSection::Guestbook), 404);
 
+        // A demo's wall only holds the messages it was made with.
+        if ($event->is_demo) {
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => 'Recado enviado! Na demonstração nada é salvo: no seu evento, você aprova cada recado antes de ele aparecer no mural.',
+            ]);
+
+            return back();
+        }
+
         $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $service->execute(

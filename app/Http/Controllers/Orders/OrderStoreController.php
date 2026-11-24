@@ -22,6 +22,10 @@ class OrderStoreController extends Controller
     ): JsonResponse {
         abort_unless($event->isViewableBy($request->user()), 404);
 
+        if ($event->is_demo) {
+            return $this->demoOrder($request, $event);
+        }
+
         $guestIdentifier = Guest::identifierFrom($request, $event);
 
         $order = $service->execute(
@@ -51,6 +55,39 @@ class OrderStoreController extends Controller
                 // pay) or done — the page shows it instead of a new form.
                 'status' => $order->status,
                 'payment_id' => $order->payment_id,
+            ],
+        ]);
+    }
+
+    /**
+     * On a demo, the gift the visitor picked, as if it were saved: the page
+     * goes on to a pretend checkout (or the reservation's thank-you), and
+     * nothing is stored or sent to Mercado Pago.
+     */
+    private function demoOrder(OrderStoreRequest $request, Event $event): JsonResponse
+    {
+        $fulfillment = $request->validated('fulfillment', Order::FULFILLMENT_ONLINE);
+
+        abort_unless($fulfillment === Order::FULFILLMENT_ONLINE ? $event->acceptsOnlineGifts() : $event->acceptsInPersonGifts(), 422);
+
+        if ($request->filled('free_amount')) {
+            $total = (float) $request->validated('free_amount');
+        } else {
+            $quantities = collect($request->validated('items'))->pluck('quantity', 'event_product_id');
+            $total = (float) $event->products()
+                ->whereKey($quantities->keys())
+                ->get(['id', 'price'])
+                ->sum(fn ($product) => (float) $product->price * (int) $quantities[$product->id]);
+        }
+
+        return response()->json([
+            'order' => [
+                'id' => 0,
+                'total_amount' => round($total, 2),
+                'fulfillment' => $fulfillment,
+                'is_anonymous' => $request->boolean('anonymous'),
+                'status' => Order::STATUS_PENDING,
+                'payment_id' => null,
             ],
         ]);
     }
