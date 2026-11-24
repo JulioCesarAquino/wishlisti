@@ -8,10 +8,12 @@ use App\Filament\Resources\Events\Events\Pages\Concerns\HasEventHeaderActions;
 use App\Models\Events\Event;
 use App\Models\Events\EventAlbum;
 use App\Services\Events\EventGalleryService;
+use App\Support\PlatformSettings;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
@@ -46,6 +48,9 @@ class ManageEventAlbums extends ManageRelatedRecords
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedPhoto;
 
+    /** The longest side a photo is sent with (shrunk in the browser). */
+    private const MAX_PHOTO_SIDE = 2560;
+
     private function event(): Event
     {
         /** @var Event $event */
@@ -73,7 +78,32 @@ class ManageEventAlbums extends ManageRelatedRecords
             ? ' Os álbuns que você já criou continuam na página, mas novos álbuns precisam do Premium.'
             : '';
 
-        return "Plano gratuito: {$count} de {$limit} fotos, numa galeria só.{$albums} Álbuns e fotos sem limite fazem parte do Premium.";
+        return "Plano gratuito: {$count} de {$limit} fotos, numa galeria só.{$albums} Álbuns e fotos sem limite fazem parte do Premium.".$this->retentionNotice();
+    }
+
+    /**
+     * When the free gallery's photos go (Event::photosDeleteOn()), or that
+     * they went.
+     */
+    private function retentionNotice(): string
+    {
+        $event = $this->event();
+        $deleteOn = $event->photosDeleteOn();
+        $days = PlatformSettings::freePhotoRetentionDays();
+
+        if ($event->photos_purged_at) {
+            return " As fotos do evento foram apagadas em {$event->photos_purged_at->timezone(Event::TIMEZONE)->format('d/m/Y')}, {$days} dias depois do evento. Com o Premium, as próximas ficam guardadas para sempre.";
+        }
+
+        if ($event->keepsPhotos()) {
+            return ' Como o evento teve o Premium, as fotos ficam guardadas para sempre.';
+        }
+
+        if (! $deleteOn) {
+            return " No plano gratuito, as fotos ficam guardadas por {$days} dias depois da data do evento. Com o Premium, ficam para sempre.";
+        }
+
+        return " Atenção: no plano gratuito, as fotos serão apagadas em {$deleteOn->format('d/m/Y')} ({$days} dias depois do evento). Com o Premium, ficam guardadas para sempre.";
     }
 
     protected function getHeaderActions(): array
@@ -133,6 +163,21 @@ class ManageEventAlbums extends ManageRelatedRecords
                     ->appendFiles()
                     ->panelLayout('grid')
                     ->imagePreviewHeight('120')
+                    // Phone photos are shrunk in the browser before they
+                    // go up (8 MB becomes about 1 MB): fast to send, light
+                    // to preview, still sharp on any screen.
+                    ->automaticallyResizeImagesMode('contain')
+                    ->automaticallyResizeImagesToWidth((string) self::MAX_PHOTO_SIDE)
+                    ->automaticallyResizeImagesToHeight((string) self::MAX_PHOTO_SIDE)
+                    // A few at a time: the small server keeps serving the site.
+                    ->maxParallelUploads(3)
+                    // Photos already saved preview from their light copy,
+                    // not the original: an album of hundreds opens quickly.
+                    ->getUploadedFileUsing(static function (BaseFileUpload $component, string $file, string|array|null $storedFileNames): ?array {
+                        $uploaded = $component->getUploadedFile($file, $storedFileNames);
+
+                        return $uploaded ? [...$uploaded, 'url' => app(EventGalleryService::class)->thumbUrl($file)] : null;
+                    })
                     ->maxSize(20 * 1024)
                     ->maxFiles(fn (?EventAlbum $record): ?int => $this->maxFiles($record))
                     ->validationMessages([

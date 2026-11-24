@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
     Baby,
+    BatteryFull,
     CalendarCheck,
     Cake,
     Check,
@@ -15,10 +16,12 @@ import {
     MessageCircle,
     MessageSquareHeart,
     Palette,
+    Signal,
     Smartphone,
     Sparkles,
     Timer,
     Wallet,
+    Wifi,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
@@ -168,25 +171,41 @@ function LivePhone({ src, title }: { src: string; title: string }) {
     const [loaded, setLoaded] = useState(false);
 
     return (
-        <div className="relative mx-auto h-[580px] w-[284px] shrink-0 rounded-[2.75rem] bg-neutral-900 p-[10px] shadow-[0_40px_80px_-20px_rgba(60,40,20,0.45)] ring-1 ring-black/10">
-            <div className="absolute top-[18px] left-1/2 z-10 h-[22px] w-[90px] -translate-x-1/2 rounded-full bg-neutral-900" />
-            <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-[#f6f1ea]">
-                {!loaded && (
-                    <div className="absolute inset-0 flex animate-pulse flex-col items-center justify-center gap-3 text-[#7d8f73]">
-                        <Heart className="size-8" />
-                        <span className="text-xs">Abrindo o exemplo…</span>
-                    </div>
-                )}
-                <iframe
-                    src={src}
-                    title={title}
-                    loading="lazy"
-                    onLoad={() => setLoaded(true)}
-                    className={cn(
-                        'h-[700px] w-[330px] origin-top-left scale-[0.8] border-0 transition-opacity duration-500',
-                        loaded ? 'opacity-100' : 'opacity-0',
+        <div className="relative mx-auto h-[610px] w-[300px] shrink-0 rounded-[2.75rem] bg-neutral-900 p-[10px] shadow-[0_40px_80px_-20px_rgba(60,40,20,0.45)] ring-1 ring-black/10">
+            <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.1rem] bg-[#f6f1ea]">
+                {/* The status bar, around the camera: the page starts below
+                    it, as on a real phone. */}
+                <div
+                    className="relative flex h-8 shrink-0 items-center justify-between px-6 text-[11px] font-semibold text-neutral-900"
+                    aria-hidden
+                >
+                    <span>9:41</span>
+                    <span className="absolute top-[7px] left-1/2 h-[20px] w-[84px] -translate-x-1/2 rounded-full bg-neutral-900" />
+                    <span className="flex items-center gap-1">
+                        <Signal className="size-3" />
+                        <Wifi className="size-3" />
+                        <BatteryFull className="size-4" />
+                    </span>
+                </div>
+                <div className="relative flex-1 overflow-hidden">
+                    {!loaded && (
+                        <div className="absolute inset-0 flex animate-pulse flex-col items-center justify-center gap-3 text-[#7d8f73]">
+                            <Heart className="size-8" />
+                            <span className="text-xs">Abrindo o exemplo…</span>
+                        </div>
                     )}
-                />
+                    {/* A common phone's width (373px), scaled to fit. */}
+                    <iframe
+                        src={src}
+                        title={title}
+                        loading="lazy"
+                        onLoad={() => setLoaded(true)}
+                        className={cn(
+                            'h-[750px] w-[373px] origin-top-left scale-[0.75] border-0 transition-opacity duration-500',
+                            loaded ? 'opacity-100' : 'opacity-0',
+                        )}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -338,7 +357,7 @@ export default function Welcome({ demos, pricing }: Props) {
                             ) : (
                                 <>
                                     <a
-                                        href="/admin/login"
+                                        href="/entrar"
                                         className="rounded-full px-3 py-2 font-medium text-[#6b5d52] hover:text-[#2a211b]"
                                     >
                                         Entrar
@@ -680,7 +699,7 @@ export default function Welcome({ demos, pricing }: Props) {
                                         ))}
                                     </ul>
                                     <Link
-                                        href={SIGN_UP_URL}
+                                        href={`${SIGN_UP_URL}?plano=premium`}
                                         className="mt-8 inline-flex items-center justify-center rounded-full bg-amber-400 px-6 py-3 font-semibold text-[#2a211b] hover:bg-amber-300"
                                     >
                                         Começar agora

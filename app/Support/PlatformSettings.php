@@ -40,6 +40,24 @@ class PlatformSettings
     }
 
     /**
+     * Days a free event's photos stay after the event; Premium events keep
+     * them for good (see Event::photosDeleteOn()).
+     */
+    public static function freePhotoRetentionDays(): int
+    {
+        return (int) (self::get('free_photo_retention_days') ?? config('premium.free_photo_retention_days'));
+    }
+
+    /**
+     * When the retention rule began: events already past count from then,
+     * so no one lost photos the day it started.
+     */
+    public static function photoRetentionStartedOn(): ?string
+    {
+        return self::get('photo_retention_started_on');
+    }
+
+    /**
      * @param  array<string, scalar|null>  $values
      */
     public static function set(array $values): void

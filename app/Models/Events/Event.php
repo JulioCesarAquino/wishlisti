@@ -39,6 +39,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $title
  * @property Carbon|null $event_date
  * @property Carbon|null $tabs_closed_after_event_at
+ * @property Carbon|null $photos_purge_warned_at when the hosts were told the free gallery's photos would go
+ * @property Carbon|null $photos_purged_at when the free gallery's photos went (see photosDeleteOn())
  * @property string|null $event_time HH:MM:SS, Brasília time
  * @property string|null $cover_image
  * @property string|null $share_image
@@ -108,7 +110,7 @@ class Event extends Model
      * (see DemoCatalog). An event there would never be reached.
      */
     public const RESERVED_SLUGS = [
-        'admin', 'cadastro', 'solicitar-convite', 'webhooks', 'storage', 'build', 'livewire', 'up',
+        'admin', 'cadastro', 'entrar', 'solicitar-convite', 'webhooks', 'storage', 'build', 'livewire', 'up',
         'demo-casamento', 'demo-cha-de-bebe', 'demo-aniversario',
     ];
 
@@ -282,6 +284,11 @@ class Event extends Model
             if ($event->isDirty('event_date') && ! $event->hasEnded()) {
                 $event->tabs_closed_after_event_at = null;
             }
+
+            // A new date, a new deadline for the free gallery: a new warning.
+            if ($event->isDirty('event_date')) {
+                $event->photos_purge_warned_at = null;
+            }
         });
 
         // The Premium ends some days after the event's date.
@@ -328,6 +335,8 @@ class Event extends Model
             'is_demo' => 'boolean',
             'archived_at' => 'datetime',
             'tabs_closed_after_event_at' => 'datetime',
+            'photos_purge_warned_at' => 'datetime',
+            'photos_purged_at' => 'datetime',
         ];
     }
 
@@ -415,6 +424,40 @@ class Event extends Model
         $limit = $this->photoLimit();
 
         return $limit === null || $this->photoCount() + $count <= $limit;
+    }
+
+    /**
+     * Whether the gallery stays for good: the event has, or had, the
+     * Premium — bought (and not refunded) or given by the admin, expired
+     * or not. The demos too.
+     */
+    public function keepsPhotos(): bool
+    {
+        return $this->is_demo
+            || $this->featureGrants()->exists()
+            || $this->premiumPurchases()->where('status', PremiumPurchase::STATUS_PAID)->exists();
+    }
+
+    /**
+     * The day a free event's photos are deleted: some days after the event
+     * (Configurações, 90 by default) — or after the day the rule began, for
+     * events already past then. Never for Premium events or events without
+     * a date.
+     */
+    public function photosDeleteOn(): ?Carbon
+    {
+        if (! $this->event_date || $this->keepsPhotos()) {
+            return null;
+        }
+
+        $from = Carbon::parse($this->event_date->toDateString(), self::TIMEZONE);
+        $startedOn = PlatformSettings::photoRetentionStartedOn();
+
+        if ($startedOn && $from->toDateString() < $startedOn) {
+            $from = Carbon::parse($startedOn, self::TIMEZONE);
+        }
+
+        return $from->addDays(PlatformSettings::freePhotoRetentionDays());
     }
 
     /**
